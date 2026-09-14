@@ -14,8 +14,8 @@
     "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs",
     "db:create-owner": "node --env-file-if-exists=.env packages/permission-engine/db/createOwner.mjs",
     "build:permission-engine": "npm run build --workspace=packages/permission-engine",
-    "dashboard:dev": "npm run build:permission-engine && node_modules/.bin/next dev packages/dashboard",
-    "dashboard:build": "npm run build:permission-engine && node_modules/.bin/next build packages/dashboard"
+    "dashboard:dev": "npm run dev --workspace=packages/dashboard",
+    "dashboard:build": "npm run build --workspace=packages/dashboard"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

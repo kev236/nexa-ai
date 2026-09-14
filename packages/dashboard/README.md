@@ -12,13 +12,17 @@ scanned like any other).
 `@nexa-ai/permission-engine`'s `package.json#exports` points at its built
 `dist/`, not raw source (Turbopack couldn't resolve the `.js`-suffixed
 relative imports NodeNext requires in the unbuilt TS — see that
-package's own history for why). Build it before running this app:
+package's own history for why). This package's own `dev` / `build`
+scripts build that dependency first (`npm run build -w
+@nexa-ai/permission-engine && next dev|build`) — deliberately not a
+`predev`/`prebuild` hook, because npm doesn't run those when a script is
+invoked with cwd inside a workspace member (confirmed by hand: silently
+skipped). That self-sufficiency is what makes Vercel's build work once
+its Root Directory is set to this package — Vercel runs this directory's
+own `build` script, not the repo root's.
 
-```
-npm run build:permission-engine   # from the repo root
-```
-
-`npm run dashboard:dev` / `dashboard:build` (repo root) do this for you.
+`npm run dashboard:dev` / `dashboard:build` (repo root) just delegate
+here (`npm run dev|build --workspace=packages/dashboard`).
 
 Next.js loads `.env` from this package's own directory, not the repo
 root, but every secret this app needs (`DATABASE_URL`, `SESSION_SECRET`)
