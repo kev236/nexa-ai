@@ -1,0 +1,31 @@
+import { randomUUID } from 'node:crypto'
+import type { ActionRequest } from '../types.js'
+import type { ApprovalRecord, ApprovalStore } from './store.js'
+
+export class InMemoryApprovalStore implements ApprovalStore {
+  private records = new Map<string, ApprovalRecord>()
+
+  async createPending(request: ActionRequest, auditId: string): Promise<string> {
+    const id = randomUUID()
+    this.records.set(id, {
+      id,
+      auditId,
+      request,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    })
+    return id
+  }
+
+  async get(approvalId: string): Promise<ApprovalRecord | undefined> {
+    return this.records.get(approvalId)
+  }
+
+  async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy: string): Promise<void> {
+    const record = this.records.get(approvalId)
+    if (!record) throw new Error(`no approval record for id ${approvalId}`)
+    record.status = status
+    record.resolvedBy = resolvedBy
+    record.resolvedAt = new Date().toISOString()
+  }
+}

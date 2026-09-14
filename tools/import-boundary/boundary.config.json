@@ -1,0 +1,27 @@
+{
+  "scanRoots": ["packages"],
+  "allowedPaths": [
+    "packages/permission-engine/src/executors/"
+  ],
+  "restrictedImports": [
+    "pg",
+    "postgres",
+    "postgres-js",
+    "mysql",
+    "mysql2",
+    "mongodb",
+    "stripe",
+    "resend",
+    "@sanity/client",
+    "next-sanity",
+    "node:http",
+    "node:https",
+    "node:net",
+    "http",
+    "https",
+    "node-fetch",
+    "undici",
+    "axios",
+    "got"
+  ]
+}
