@@ -36,7 +36,7 @@ export { NexaLabsAdapter, createNexaLabsAdapter } from './adapters/nexaLabsAdapt
 export { triageEvent } from './agents/waitlistTriageAgent.js'
 export type { TriageResult } from './agents/waitlistTriageAgent.js'
 export { runWaitlistTriageOnce } from './agents/runWaitlistTriage.js'
-export type { RunWaitlistTriageSummary } from './agents/runWaitlistTriage.js'
+export type { RunWaitlistTriageOptions, RunWaitlistTriageSummary } from './agents/runWaitlistTriage.js'
 export { createAnthropicClient } from './llm/client.js'
 export type { MessagesClient } from './llm/client.js'
 export { registerSendEmailExecutor } from './executors/sendEmail.js'

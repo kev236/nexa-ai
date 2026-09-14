@@ -62,6 +62,9 @@ try {
 
   const summary = await runWaitlistTriageOnce(engine, llmClient, businessId, agentId)
   console.log(`done: ${summary.triaged} triaged, ${summary.skipped} skipped`)
+  if (summary.stoppedReason) {
+    console.log(`stopped early (${summary.stoppedReason}) — run again to continue where this left off`)
+  }
 } finally {
   await pool.end()
 }

@@ -102,4 +102,36 @@ describe('runWaitlistTriageOnce', () => {
     const second = await runWaitlistTriageOnce(engine, fakeLlmClient(), 'biz_1', 'agent_1')
     expect(second).toEqual({ triaged: 0, skipped: 1 })
   })
+
+  it('stops at maxActions and reports why, instead of continuing (readme.md Agents section)', async () => {
+    registerExecutor('send_email', async (payload) => payload)
+    const engine = createPermissionEngine()
+    await engine.ingestEvents(
+      fakeAdapter([
+        { source: 'fake', type: 'waitlist_signup', payload: { email: 'a@b.com' }, occurredAt: '2026-01-01T00:00:00Z', externalId: 'ev-1' },
+        { source: 'fake', type: 'waitlist_signup', payload: { email: 'b@b.com' }, occurredAt: '2026-01-02T00:00:00Z', externalId: 'ev-2' },
+        { source: 'fake', type: 'waitlist_signup', payload: { email: 'c@b.com' }, occurredAt: '2026-01-03T00:00:00Z', externalId: 'ev-3' },
+      ]),
+      'biz_1',
+      'backfill'
+    )
+
+    const summary = await runWaitlistTriageOnce(engine, fakeLlmClient(), 'biz_1', 'agent_1', { maxActions: 2 })
+    expect(summary).toEqual({ triaged: 2, skipped: 0, stoppedReason: 'maxActions' })
+  })
+
+  it('stops once the wall-clock timeout elapses', async () => {
+    registerExecutor('send_email', async (payload) => payload)
+    const engine = createPermissionEngine()
+    await engine.ingestEvents(
+      fakeAdapter([
+        { source: 'fake', type: 'waitlist_signup', payload: { email: 'a@b.com' }, occurredAt: '2026-01-01T00:00:00Z', externalId: 'ev-1' },
+      ]),
+      'biz_1',
+      'backfill'
+    )
+
+    const summary = await runWaitlistTriageOnce(engine, fakeLlmClient(), 'biz_1', 'agent_1', { timeoutMs: -1 })
+    expect(summary).toEqual({ triaged: 0, skipped: 0, stoppedReason: 'timeout' })
+  })
 })
