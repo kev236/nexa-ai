@@ -80,3 +80,41 @@ describe('ingestEvents', () => {
     expect(await engine.eventStore.listByBusiness('biz_2')).toHaveLength(1)
   })
 })
+
+describe('ingestWebhookEvent', () => {
+  it('records a single already-verified event, tagged with ingestion_mode webhook', async () => {
+    const engine = createPermissionEngine()
+    const event: ObservedEvent = {
+      source: 'fake',
+      type: 'signup',
+      payload: { n: 1 },
+      occurredAt: '2026-01-01T00:00:00Z',
+      externalId: 'a',
+    }
+
+    const result = await engine.ingestWebhookEvent('biz_1', event)
+    expect(result).toEqual({ inserted: true })
+
+    const stored = await engine.eventStore.listByBusiness('biz_1')
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.ingestionMode).toBe('webhook')
+  })
+
+  it('is idempotent with the poll/backfill path on the same external_id', async () => {
+    const engine = createPermissionEngine()
+    const adapter = fakeAdapter([
+      { source: 'fake', type: 'signup', payload: {}, occurredAt: '2026-01-01T00:00:00Z', externalId: 'a' },
+    ])
+    await engine.ingestEvents(adapter, 'biz_1', 'backfill')
+
+    const result = await engine.ingestWebhookEvent('biz_1', {
+      source: 'fake',
+      type: 'signup',
+      payload: {},
+      occurredAt: '2026-01-01T00:00:00Z',
+      externalId: 'a',
+    })
+    expect(result).toEqual({ inserted: false })
+    expect(await engine.eventStore.listByBusiness('biz_1')).toHaveLength(1)
+  })
+})

@@ -13,6 +13,7 @@
     "stripe",
     "resend",
     "@sanity/client",
+    "@sanity/webhook",
     "next-sanity",
     "node:http",
     "node:https",

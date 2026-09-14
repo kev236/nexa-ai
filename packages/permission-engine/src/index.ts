@@ -10,6 +10,7 @@ export {
   verifyOwnerCredentials,
   ingestEvents,
   ingestTransactions,
+  ingestWebhookEvent,
   createPermissionEngine,
 } from './engine.js'
 export type { PermissionEngine, PermissionEngineDeps, IngestSummary } from './engine.js'
@@ -32,7 +33,11 @@ export { createPostgresDecisionStore } from './decisions/postgresStore.js'
 export { createPostgresBusinessStore } from './businesses/postgresStore.js'
 export { createPostgresTransactionStore } from './transactions/postgresStore.js'
 export { createPostgresAgentStore } from './agents/postgresStore.js'
-export { NexaLabsAdapter, createNexaLabsAdapter } from './adapters/nexaLabsAdapter.js'
+export {
+  NexaLabsAdapter,
+  createNexaLabsAdapter,
+  SANITY_WEBHOOK_SIGNATURE_HEADER,
+} from './adapters/nexaLabsAdapter.js'
 export { triageEvent } from './agents/waitlistTriageAgent.js'
 export type { TriageResult } from './agents/waitlistTriageAgent.js'
 export { runWaitlistTriageOnce } from './agents/runWaitlistTriage.js'

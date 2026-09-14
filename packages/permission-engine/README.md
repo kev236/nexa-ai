@@ -178,3 +178,30 @@ about code *outside* this package, not within it.
   `stoppedReason` if it hit one; a token budget is NOT enforced yet,
   since `completeWithTool()`/`triageEvent()` don't surface per-call
   usage to sum against one — flagged, not silently skipped.
+- Step 9 — a push path for events: `NexaLabsAdapter.handleSanityWebhook(rawBody,
+  signatureHeader)` verifies and translates an inbound Sanity webhook
+  delivery into `ObservedEvent[]`, and `engine.ingestWebhookEvent(businessId,
+  event)` records one (tagged `ingestion_mode: 'webhook'`, idempotent on
+  the same `(business_id, source, external_id)` as every other path).
+  This is the webhook that actually delivers "faster than a poll
+  interval" — the plan doc originally named Resend/Stripe webhooks for
+  that, but Resend only reports the delivery status of email this
+  system already sent; it can't report a *new* lead. Verification is
+  via the official `@sanity/webhook` package (`isValidSignature`), not
+  a hand-rolled HMAC comparison — a forged webhook could otherwise
+  inject a fabricated customer message that gets drafted and eventually
+  sent, so this is genuinely security-sensitive, and the package also
+  enforces a timestamp tolerance (replay protection) that a hand-rolled
+  version would need to reimplement correctly too. The webhook path is
+  more defensive than the poll path about payload shape — poll trusts
+  its own GROQ filter's `_type`, but a webhook's filter is configured
+  by a human in Sanity's UI, so `handleSanityWebhook` rejects anything
+  that isn't exactly `{_id, _type: 'waitlist' | 'contactMessage',
+  createdAt, ...}` rather than let a misconfigured filter silently
+  miscategorize some other document type. `SANITY_WEBHOOK_SECRET` is
+  optional, same shape as every other credential here — without it,
+  polling still works, `handleSanityWebhook()` just throws its own
+  clear error. `createNexaLabsAdapter()` now returns the concrete
+  `NexaLabsAdapter` class rather than the `BusinessAdapter` interface,
+  since this method isn't generic enough to belong on the interface —
+  a future adapter's webhook source won't be Sanity.

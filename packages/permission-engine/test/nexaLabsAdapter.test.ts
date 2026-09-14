@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { encodeSignatureHeader } from '@sanity/webhook'
 import {
   NexaLabsAdapter,
   type EtherscanClient,
@@ -204,5 +205,63 @@ describe('NexaLabsAdapter', () => {
 
     const transactions = await adapter.listTransactions('2025-01-01T00:00:00.000Z')
     expect(transactions.map((t) => t.externalRef).sort()).toEqual(['0xnew', 'ch_new'])
+  })
+
+  describe('handleSanityWebhook', () => {
+    const SECRET = 'test-webhook-secret'
+    const DOC = {
+      _id: 'waitlist-1',
+      _type: 'waitlist',
+      email: 'lead@example.com',
+      productName: 'Nexa SiteAudit',
+      createdAt: '2026-01-01T00:00:00Z',
+    }
+    const RAW_BODY = JSON.stringify(DOC)
+
+    async function sign(body: string, secret = SECRET): Promise<string> {
+      return encodeSignatureHeader(body, Date.now(), secret)
+    }
+
+    it('refuses without a webhook secret configured', async () => {
+      const adapter = new NexaLabsAdapter(fakeClient([]))
+      const signature = await sign(RAW_BODY)
+      await expect(adapter.handleSanityWebhook(RAW_BODY, signature)).rejects.toThrow(
+        /no Sanity webhook secret configured/
+      )
+    })
+
+    it('refuses a request with no signature header', async () => {
+      const adapter = new NexaLabsAdapter(fakeClient([]), undefined, undefined, SECRET)
+      await expect(adapter.handleSanityWebhook(RAW_BODY, null)).rejects.toThrow(/missing/i)
+    })
+
+    it('refuses an invalid signature', async () => {
+      const adapter = new NexaLabsAdapter(fakeClient([]), undefined, undefined, SECRET)
+      const wrongSignature = await sign(RAW_BODY, 'a-different-secret')
+      await expect(adapter.handleSanityWebhook(RAW_BODY, wrongSignature)).rejects.toThrow(/invalid/i)
+    })
+
+    it('refuses a validly-signed payload of the wrong shape', async () => {
+      const adapter = new NexaLabsAdapter(fakeClient([]), undefined, undefined, SECRET)
+      const body = JSON.stringify({ _id: 'x', _type: 'product', createdAt: '2026-01-01T00:00:00Z' })
+      const signature = await sign(body)
+      await expect(adapter.handleSanityWebhook(body, signature)).rejects.toThrow(/unexpected Sanity webhook payload shape/)
+    })
+
+    it('accepts a validly-signed waitlist document and maps it like the poll path does', async () => {
+      const adapter = new NexaLabsAdapter(fakeClient([]), undefined, undefined, SECRET)
+      const signature = await sign(RAW_BODY)
+
+      const events = await adapter.handleSanityWebhook(RAW_BODY, signature)
+      expect(events).toEqual([
+        {
+          source: 'nexalabs-web',
+          type: 'waitlist_signup',
+          payload: { email: 'lead@example.com', productName: 'Nexa SiteAudit' },
+          occurredAt: '2026-01-01T00:00:00Z',
+          externalId: 'waitlist-1',
+        },
+      ])
+    })
   })
 })

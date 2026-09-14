@@ -15,7 +15,7 @@ import type { BusinessStore } from './businesses/store.js'
 import { InMemoryBusinessStore } from './businesses/memoryStore.js'
 import type { AgentStore } from './agents/store.js'
 import { InMemoryAgentStore } from './agents/memoryStore.js'
-import type { BusinessAdapter } from './adapters/types.js'
+import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
@@ -49,6 +49,8 @@ export type PermissionEngine = {
     since?: string
   ): Promise<IngestSummary>
   ingestTransactions(adapter: BusinessAdapter, businessId: string, since?: string): Promise<IngestSummary>
+  /** Step 9: the push counterpart to ingestEvents() — one already-verified, already-translated event from a webhook handler. */
+  ingestWebhookEvent(businessId: string, event: ObservedEvent): Promise<{ inserted: boolean }>
   auditStore: AuditLogStore
   approvalStore: ApprovalStore
   ownerStore: OwnerStore
@@ -202,6 +204,11 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { observed: observed.length, inserted, skipped }
   }
 
+  async function ingestWebhookEvent(businessId: string, event: ObservedEvent): Promise<{ inserted: boolean }> {
+    const result = await eventStore.record(businessId, event, 'webhook')
+    return { inserted: result.inserted }
+  }
+
   return {
     requestAction,
     resolveApproval,
@@ -209,6 +216,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     verifyOwnerCredentials,
     ingestEvents,
     ingestTransactions,
+    ingestWebhookEvent,
     auditStore,
     approvalStore,
     ownerStore,
@@ -234,3 +242,4 @@ export const listPendingApprovals = defaultEngine.listPendingApprovals
 export const verifyOwnerCredentials = defaultEngine.verifyOwnerCredentials
 export const ingestEvents = defaultEngine.ingestEvents
 export const ingestTransactions = defaultEngine.ingestTransactions
+export const ingestWebhookEvent = defaultEngine.ingestWebhookEvent

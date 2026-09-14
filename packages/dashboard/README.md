@@ -51,11 +51,12 @@ npm run db:create-owner -- <email> <password>   # from the repo root
 renamed `middleware.ts` to `proxy.ts` — functionality is unchanged).
 `src/lib/dal.ts`'s `verifySession()` is the real check, called from every
 page and Server Action, per the guide's warning that Proxy "should not be
-your only line of defense." Its matcher excludes `api/cron` — that route
-authenticates with `CRON_SECRET`, never a session cookie (Vercel Cron
-isn't a browser), so this session gate would otherwise redirect every
-cron request to `/login` before the route's own auth ran; caught by
-actually running the route locally, not by inspection.
+your only line of defense." Its matcher excludes `api/cron` and
+`api/webhooks` — those routes authenticate with `CRON_SECRET` or a
+payload signature, never a session cookie (neither Vercel Cron nor
+Sanity is a browser), so this session gate would otherwise redirect
+every such request to `/login` before the route's own auth ran; caught
+by actually running the routes locally, not by inspection.
 
 ## Pages (step 8)
 
@@ -117,3 +118,31 @@ the approvals page never exercised them. Caught by running the cron
 route locally against real Postgres, not by inspection — worth
 remembering next time a new store type is added anywhere in
 `packages/permission-engine`.
+
+## Sanity webhook (step 9)
+
+`src/app/api/webhooks/sanity/route.ts` — the push counterpart to the
+cron route, for events specifically. Reacts to a new waitlist signup or
+contact message immediately instead of waiting for the once-daily poll;
+see that route file's top comment for the exact Sanity webhook
+configuration (URL, filter, projection, secret). Authenticated by
+verifying Sanity's own request signature via the official
+`@sanity/webhook` package, not `CRON_SECRET` — the right model for a
+webhook a third party calls with its own documented signing scheme.
+`SANITY_WEBHOOK_SECRET` is optional; without it, events still arrive via
+the daily poll, just slower.
+
+Shares `src/lib/triage.ts`'s `triggerWaitlistTriage()` with the cron
+route — both just ingest, then call it, so "how the agent gets run"
+stays in one place regardless of what triggered it. Skips the triage
+run entirely on a duplicate delivery (Sanity does retry) — `inserted`
+is checked first, so a redundant delivery doesn't trigger a redundant
+agent run.
+
+Verified locally end to end with real signature generation/verification
+(the official package's own `encodeSignatureHeader`, not a mock) against
+a real running dev server and real Postgres — valid signature, wrong
+secret, missing signature header, and a duplicate delivery all behaved
+correctly. Couldn't verify an actual delivery *from* Sanity itself
+(sanity.io is blocked from this sandbox, same as earlier steps) — that
+needs a real webhook configured and fired at a real deployment.
