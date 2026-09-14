@@ -5,6 +5,9 @@ import type { ApprovalStore, ApprovalRecord } from './approvals/store.js'
 import { InMemoryApprovalStore } from './approvals/memoryStore.js'
 import type { OwnerStore } from './owners/store.js'
 import { InMemoryOwnerStore } from './owners/memoryStore.js'
+import type { EventStore } from './events/store.js'
+import { InMemoryEventStore } from './events/memoryStore.js'
+import type { BusinessAdapter } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
@@ -13,7 +16,10 @@ export type PermissionEngineDeps = {
   auditStore?: AuditLogStore
   approvalStore?: ApprovalStore
   ownerStore?: OwnerStore
+  eventStore?: EventStore
 }
+
+export type IngestSummary = { observed: number; inserted: number; skipped: number }
 
 export type PermissionEngine = {
   requestAction(request: ActionRequest): Promise<ActionOutcome>
@@ -24,9 +30,16 @@ export type PermissionEngine = {
   ): Promise<ActionOutcome>
   listPendingApprovals(): Promise<ApprovalRecord[]>
   verifyOwnerCredentials(email: string, password: string): Promise<{ ownerId: string } | null>
+  ingestEvents(
+    adapter: BusinessAdapter,
+    businessId: string,
+    mode: 'backfill' | 'poll',
+    since?: string
+  ): Promise<IngestSummary>
   auditStore: AuditLogStore
   approvalStore: ApprovalStore
   ownerStore: OwnerStore
+  eventStore: EventStore
 }
 
 /**
@@ -39,6 +52,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const auditStore = deps.auditStore ?? new InMemoryAuditLogStore()
   const approvalStore = deps.approvalStore ?? new InMemoryApprovalStore()
   const ownerStore = deps.ownerStore ?? new InMemoryOwnerStore()
+  const eventStore = deps.eventStore ?? new InMemoryEventStore()
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -120,14 +134,34 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { ownerId: owner.id }
   }
 
+  async function ingestEvents(
+    adapter: BusinessAdapter,
+    businessId: string,
+    mode: 'backfill' | 'poll',
+    since?: string
+  ): Promise<IngestSummary> {
+    const observed = mode === 'backfill' ? await adapter.backfill() : await adapter.observe(since ?? new Date(0).toISOString())
+
+    let inserted = 0
+    let skipped = 0
+    for (const event of observed) {
+      const result = await eventStore.record(businessId, event, mode)
+      if (result.inserted) inserted++
+      else skipped++
+    }
+    return { observed: observed.length, inserted, skipped }
+  }
+
   return {
     requestAction,
     resolveApproval,
     listPendingApprovals,
     verifyOwnerCredentials,
+    ingestEvents,
     auditStore,
     approvalStore,
     ownerStore,
+    eventStore,
   }
 }
 
@@ -143,3 +177,4 @@ export const requestAction = defaultEngine.requestAction
 export const resolveApproval = defaultEngine.resolveApproval
 export const listPendingApprovals = defaultEngine.listPendingApprovals
 export const verifyOwnerCredentials = defaultEngine.verifyOwnerCredentials
+export const ingestEvents = defaultEngine.ingestEvents

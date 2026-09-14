@@ -66,3 +66,18 @@ about code *outside* this package, not within it.
   no `create` on `OwnerStore` on purpose — accounts are created only by
   `db/createOwner.mjs`, run directly by a trusted operator; there is no
   self-service signup path through the application.
+- Adapters (`src/adapters/`, step 4): `BusinessAdapter` is the interface
+  from the plan doc's section 3c. `NexaLabsAdapter` is the first (and
+  only) implementation — `backfill()`/`observe()` read nexalabs' Sanity
+  waitlist/contactMessage documents; `listActions()` is empty and
+  `execute()` always throws, because there's no approved action type yet
+  for it to perform. `registerWebhook` (the interface's optional push
+  path) isn't implemented on this adapter yet — polling first, per the
+  build order. `engine.ingestEvents(adapter, businessId, mode, since?)`
+  writes what an adapter observes into `EventStore`
+  (`src/events/`), idempotently on `(business_id, source, external_id)` —
+  re-running backfill over the same range inserts nothing twice. Credentials
+  (`SANITY_PROJECT_ID`/`DATASET`/`READ_TOKEN`) are read only by
+  `createNexaLabsAdapter()`, the factory — the adapter class itself never
+  touches `process.env`, taking a client in its constructor instead
+  (`test/nexaLabsAdapter.test.ts` exercises it with a fake one, no network).

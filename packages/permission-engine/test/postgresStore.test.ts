@@ -4,10 +4,12 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { PostgresApprovalStore } from '../src/approvals/postgresStore.js'
 import { PostgresAuditLogStore } from '../src/audit/postgresStore.js'
 import { PostgresOwnerStore } from '../src/owners/postgresStore.js'
+import { PostgresEventStore } from '../src/events/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
+import type { BusinessAdapter, ObservedEvent } from '../src/adapters/types.js'
 
 const connectionString = process.env.TEST_DATABASE_URL
 
@@ -25,7 +27,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
+      'TRUNCATE events, approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
     )
     const business = await pool.query<{ id: string }>(
       `INSERT INTO businesses (slug, name) VALUES ($1, 'Test Biz') RETURNING id`,
@@ -134,5 +136,49 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(pending).toHaveLength(1)
     expect(pending[0]?.id).toBe(second.approvalId)
     expect(pending[0]?.request.payload).toEqual({ order: 2 })
+  })
+
+  it('ingests events idempotently against real Postgres, scoped per business', async () => {
+    const engine = createPermissionEngine({ eventStore: new PostgresEventStore(pool) })
+    const events: ObservedEvent[] = [
+      { source: 'fake', type: 'signup', payload: { n: 1 }, occurredAt: '2026-01-01T00:00:00Z', externalId: 'ext-1' },
+    ]
+    const adapter: BusinessAdapter = {
+      adapterType: 'fake',
+      async backfill() {
+        return events
+      },
+      async observe() {
+        return []
+      },
+      listActions() {
+        return []
+      },
+      async execute() {
+        throw new Error('not implemented')
+      },
+      async healthCheck() {
+        return { ok: true }
+      },
+    }
+
+    const first = await engine.ingestEvents(adapter, businessId, 'backfill')
+    expect(first).toEqual({ observed: 1, inserted: 1, skipped: 0 })
+
+    // Re-running backfill is a no-op against the unique (business_id, source, external_id) index.
+    const second = await engine.ingestEvents(adapter, businessId, 'backfill')
+    expect(second).toEqual({ observed: 1, inserted: 0, skipped: 1 })
+
+    const stored = await engine.eventStore.listByBusiness(businessId)
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.payload).toEqual({ n: 1 })
+
+    // The same external_id under a different business is not a duplicate.
+    const otherBusiness = await pool.query<{ id: string }>(
+      `INSERT INTO businesses (slug, name) VALUES ($1, 'Other Biz') RETURNING id`,
+      [`other-${randomUUID()}`]
+    )
+    const forOther = await engine.ingestEvents(adapter, otherBusiness.rows[0]!.id, 'backfill')
+    expect(forOther).toEqual({ observed: 1, inserted: 1, skipped: 0 })
   })
 })

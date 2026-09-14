@@ -8,14 +8,19 @@ export {
   resolveApproval,
   listPendingApprovals,
   verifyOwnerCredentials,
+  ingestEvents,
   createPermissionEngine,
 } from './engine.js'
-export type { PermissionEngine, PermissionEngineDeps } from './engine.js'
+export type { PermissionEngine, PermissionEngineDeps, IngestSummary } from './engine.js'
 export type { ActionRequest, ActionOutcome } from './types.js'
 export type { JsonValue } from './json.js'
 export type { AuditLogRecord, AuditLogStore } from './audit/store.js'
 export type { ApprovalRecord, ApprovalStore } from './approvals/store.js'
 export type { OwnerRecord, OwnerStore } from './owners/store.js'
+export type { EventRecord, EventStore } from './events/store.js'
+export type { ActionDefinition, BusinessAdapter, ObservedEvent } from './adapters/types.js'
 export { createPostgresAuditLogStore } from './audit/postgresStore.js'
 export { createPostgresApprovalStore } from './approvals/postgresStore.js'
 export { createPostgresOwnerStore } from './owners/postgresStore.js'
+export { createPostgresEventStore } from './events/postgresStore.js'
+export { NexaLabsAdapter, createNexaLabsAdapter } from './adapters/nexaLabsAdapter.js'
