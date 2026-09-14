@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node --env-file-if-exists=.env node_modules/.bin/vitest run",
     "typecheck": "tsc -b --noEmit",
+    "lint": "eslint .",
     "check:boundaries": "node tools/import-boundary/check.mjs",
     "db:migrate": "node --env-file-if-exists=.env packages/permission-engine/db/migrate.mjs",
     "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs",
@@ -23,7 +24,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "eslint": "^10.10.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.0"
   }
 }
