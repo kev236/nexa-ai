@@ -17,6 +17,31 @@ export type StripeReadClient = {
   payouts: { list(params: { limit?: number; created?: { gte: number } }): Promise<{ data: StripeListable[] }> }
 }
 
+export type EtherscanTokenTransfer = {
+  hash: string
+  from: string
+  to: string
+  /** Raw integer amount in the token's smallest unit, as a decimal string (Etherscan's own format). */
+  value: string
+  tokenDecimal: string
+  /** Unix seconds, as a decimal string (Etherscan's own format). */
+  timeStamp: string
+}
+
+/** Only what this adapter needs — keeps it unit-testable without a real Etherscan client. */
+export type EtherscanClient = {
+  getTokenTransfers(address: string, contractAddress: string): Promise<EtherscanTokenTransfer[]>
+}
+
+export type CryptoWalletConfig = {
+  client: EtherscanClient
+  walletAddress: string
+  tokenContractAddress: string
+}
+
+/** Circle's official USDC contract on Ethereum mainnet — etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 */
+const USDC_MAINNET_CONTRACT = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+
 type SanityDoc = {
   _id: string
   _type: 'waitlist' | 'contactMessage'
@@ -39,7 +64,8 @@ export class NexaLabsAdapter implements BusinessAdapter {
 
   constructor(
     private readonly client: SanityFetchClient,
-    private readonly stripe?: StripeReadClient
+    private readonly stripe?: StripeReadClient,
+    private readonly crypto?: CryptoWalletConfig
   ) {}
 
   async backfill(): Promise<ObservedEvent[]> {
@@ -51,31 +77,49 @@ export class NexaLabsAdapter implements BusinessAdapter {
   }
 
   /**
-   * Read-only Stripe view (plan doc section 3d, step 7): lists charges,
-   * refunds, and payouts — never creates any of them. A single page
-   * (limit 100) per resource, same "prove the shape, not scale" level of
-   * effort as this adapter's Sanity side. Omitted `since` returns
-   * everything available (a backfill); a value restricts to transactions
-   * created at or after it (a poll).
+   * Read-only view of money movement (plan doc section 3d, step 7):
+   * merges whichever payment sources are configured — Stripe
+   * (charges/refunds/payouts) and/or a watched crypto wallet's USDC
+   * transfers. Both are optional and additive, same as every other
+   * credential this adapter takes; nothing here creates a payment on
+   * either source. Omitted `since` returns everything available (a
+   * backfill); a value restricts to transactions at or after it (a poll).
    */
   async listTransactions(since?: string): Promise<ObservedTransaction[]> {
-    if (!this.stripe) {
-      throw new Error('NexaLabsAdapter has no Stripe client configured (STRIPE_SECRET_KEY not set)')
+    if (!this.stripe && !this.crypto) {
+      throw new Error(
+        'NexaLabsAdapter has no payment source configured (set STRIPE_SECRET_KEY and/or ETHERSCAN_API_KEY + WALLET_ADDRESS)'
+      )
     }
-    const created = since ? { gte: Math.floor(new Date(since).getTime() / 1000) } : undefined
-    const params = { limit: 100, ...(created ? { created } : {}) }
 
-    const [charges, refunds, payouts] = await Promise.all([
-      this.stripe.charges.list(params),
-      this.stripe.refunds.list(params),
-      this.stripe.payouts.list(params),
-    ])
+    const results: ObservedTransaction[] = []
 
-    return [
-      ...charges.data.map((c) => toObservedTransaction('charge', c)),
-      ...refunds.data.map((r) => toObservedTransaction('refund', r)),
-      ...payouts.data.map((p) => toObservedTransaction('payout', p)),
-    ].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+    if (this.stripe) {
+      const created = since ? { gte: Math.floor(new Date(since).getTime() / 1000) } : undefined
+      const params = { limit: 100, ...(created ? { created } : {}) }
+      const [charges, refunds, payouts] = await Promise.all([
+        this.stripe.charges.list(params),
+        this.stripe.refunds.list(params),
+        this.stripe.payouts.list(params),
+      ])
+      results.push(
+        ...charges.data.map((c) => toObservedTransaction('charge', c)),
+        ...refunds.data.map((r) => toObservedTransaction('refund', r)),
+        ...payouts.data.map((p) => toObservedTransaction('payout', p))
+      )
+    }
+
+    if (this.crypto) {
+      const { client, walletAddress, tokenContractAddress } = this.crypto
+      const transfers = await client.getTokenTransfers(walletAddress, tokenContractAddress)
+      results.push(
+        ...transfers
+          .map((t) => toObservedCryptoTransaction(t, walletAddress))
+          .filter((t) => !since || t.occurredAt >= since)
+      )
+    }
+
+    return results.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
   }
 
   private async fetchDocuments(since?: string): Promise<ObservedEvent[]> {
@@ -118,6 +162,32 @@ function toObservedTransaction(
   }
 }
 
+/**
+ * Incoming transfers to the watched wallet count as 'charge' (a payment
+ * received); outgoing transfers count as 'payout' (money leaving) — a
+ * simplification, same spirit as the Stripe side: there's no way to tell
+ * a genuine refund from any other outgoing transfer just by watching an
+ * address, so refunds aren't distinguished here. amountCents treats USDC
+ * 1:1 with USD cents, consistent with it being a USD-pegged stablecoin
+ * (and with how Stripe's own `amount` is already integer cents).
+ */
+function toObservedCryptoTransaction(
+  transfer: EtherscanTokenTransfer,
+  walletAddress: string
+): ObservedTransaction {
+  const decimals = BigInt(transfer.tokenDecimal)
+  const amountCents = Number((BigInt(transfer.value) * 100n) / 10n ** decimals)
+  const incoming = transfer.to.toLowerCase() === walletAddress.toLowerCase()
+  return {
+    type: incoming ? 'charge' : 'payout',
+    amountCents,
+    currency: 'usdc',
+    externalRef: transfer.hash,
+    status: 'succeeded',
+    occurredAt: new Date(Number(transfer.timeStamp) * 1000).toISOString(),
+  }
+}
+
 function toObservedEvent(doc: SanityDoc): ObservedEvent {
   const { _id, _type, createdAt, ...rest } = doc
   const type = _type === 'waitlist' ? 'waitlist_signup' : 'contact_message'
@@ -146,11 +216,52 @@ export function createNexaLabsAdapter(): BusinessAdapter {
     useCdn: false,
   })
 
-  // Optional — the Sanity side (events) still works without it. Only
-  // listTransactions() needs this; it throws its own clear error if
-  // called without it, rather than failing adapter construction.
+  // Optional — the Sanity side (events) still works without either. Only
+  // listTransactions() needs them; it throws its own clear error if
+  // called without at least one configured, rather than failing adapter
+  // construction.
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
   const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : undefined
 
-  return new NexaLabsAdapter(client, stripe)
+  const etherscanApiKey = process.env.ETHERSCAN_API_KEY
+  const walletAddress = process.env.WALLET_ADDRESS
+  const crypto =
+    etherscanApiKey && walletAddress
+      ? {
+          client: createEtherscanHttpClient(etherscanApiKey),
+          walletAddress,
+          tokenContractAddress: USDC_MAINNET_CONTRACT,
+        }
+      : undefined
+
+  return new NexaLabsAdapter(client, stripe, crypto)
+}
+
+/** Real Etherscan client — a plain HTTP GET, no SDK needed for one endpoint. */
+function createEtherscanHttpClient(apiKey: string): EtherscanClient {
+  return {
+    async getTokenTransfers(address, contractAddress) {
+      const url = new URL('https://api.etherscan.io/api')
+      url.searchParams.set('module', 'account')
+      url.searchParams.set('action', 'tokentx')
+      url.searchParams.set('address', address)
+      url.searchParams.set('contractaddress', contractAddress)
+      url.searchParams.set('startblock', '0')
+      url.searchParams.set('endblock', '99999999')
+      url.searchParams.set('sort', 'asc')
+      url.searchParams.set('apikey', apiKey)
+
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Etherscan API returned HTTP ${response.status}`)
+      }
+      const body = (await response.json()) as { status: string; message: string; result: unknown }
+      if (body.status === '0') {
+        // Etherscan's "no results" case is also status '0' — not an error.
+        if (body.message === 'No transactions found') return []
+        throw new Error(`Etherscan API error: ${body.message}`)
+      }
+      return body.result as EtherscanTokenTransfer[]
+    },
+  }
 }

@@ -139,3 +139,25 @@ about code *outside* this package, not within it.
   every other credential here). This is observability only: nothing in
   this codebase creates a charge, refund, or payout — see the plan doc's
   build order, step 7, and its "no write path to Stripe" deferral.
+- A second, additive money source: a watched crypto wallet's USDC
+  transfers on Ethereum mainnet — for accepting payment without needing
+  a KVK the way a live Stripe account would. `listTransactions()` merges
+  results from whichever of Stripe / the wallet watcher are configured
+  (both, either, or neither — neither throws the same "no payment source
+  configured" error as before). The watcher itself
+  (`EtherscanClient`/`CryptoWalletConfig` in `nexaLabsAdapter.ts`) is a
+  plain HTTP GET against Etherscan's `tokentx` endpoint — no SDK, since
+  it's one endpoint — filtered to USDC's mainnet contract (a hardcoded
+  constant, `USDC_MAINNET_CONTRACT`; not configurable, since the chain
+  and token were a deliberate choice, not something to genericize ahead
+  of a second one existing). An incoming transfer maps to `type:
+  'charge'`, outgoing to `type: 'payout'` — there's no way to tell a
+  genuine refund from any other outgoing transfer just by watching an
+  address, so refunds aren't distinguished on this source, unlike
+  Stripe's. `amountCents` treats USDC 1:1 with USD cents (it's a
+  USD-pegged stablecoin). Needs both `ETHERSCAN_API_KEY` (a free key
+  from etherscan.io/apis) and `WALLET_ADDRESS` set — either alone leaves
+  the watcher unconfigured, same "optional, throws its own clear error"
+  shape as Stripe. This doesn't change what "observability only" means:
+  nothing here signs a transaction or moves funds, it only watches a
+  wallet the owner controls independently.

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { NexaLabsAdapter, type SanityFetchClient, type StripeReadClient } from '../src/adapters/nexaLabsAdapter.js'
+import {
+  NexaLabsAdapter,
+  type EtherscanClient,
+  type SanityFetchClient,
+  type StripeReadClient,
+} from '../src/adapters/nexaLabsAdapter.js'
+
+const WALLET = '0x11a3367E066539d08aa81B23dbc626755116cfC1'
+const USDC_CONTRACT = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 
 function fakeClient(docs: unknown[]): SanityFetchClient {
   return {
@@ -87,9 +95,9 @@ describe('NexaLabsAdapter', () => {
     expect(await unhealthy.healthCheck()).toEqual({ ok: false, detail: 'network down' })
   })
 
-  it('refuses to list transactions without a Stripe client configured', async () => {
+  it('refuses to list transactions with no payment source configured', async () => {
     const adapter = new NexaLabsAdapter(fakeClient([]))
-    await expect(adapter.listTransactions()).rejects.toThrow(/no Stripe client configured/)
+    await expect(adapter.listTransactions()).rejects.toThrow(/no payment source configured/)
   })
 
   it('maps charges, refunds, and payouts into ObservedTransactions, sorted by time', async () => {
@@ -136,5 +144,65 @@ describe('NexaLabsAdapter', () => {
 
     await adapter.listTransactions('2025-01-01T00:00:00.000Z')
     expect(captured).toEqual({ limit: 100, created: { gte: 1735689600 } })
+  })
+
+  it('maps incoming USDC transfers to charges and outgoing ones to payouts', async () => {
+    const etherscan: EtherscanClient = {
+      async getTokenTransfers(address, contractAddress) {
+        expect(address).toBe(WALLET)
+        expect(contractAddress).toBe(USDC_CONTRACT)
+        return [
+          // Incoming: someone paid the wallet 25.50 USDC (6 decimals).
+          { hash: '0xin', from: '0xpayer', to: WALLET, value: '25500000', tokenDecimal: '6', timeStamp: '1735689600' },
+          // Outgoing: the wallet sent 10 USDC elsewhere.
+          { hash: '0xout', from: WALLET, to: '0xsomeoneelse', value: '10000000', tokenDecimal: '6', timeStamp: '1735776000' },
+        ]
+      },
+    }
+    const adapter = new NexaLabsAdapter(fakeClient([]), undefined, {
+      client: etherscan,
+      walletAddress: WALLET,
+      tokenContractAddress: USDC_CONTRACT,
+    })
+
+    const transactions = await adapter.listTransactions()
+    expect(transactions).toEqual([
+      { type: 'charge', amountCents: 2550, currency: 'usdc', externalRef: '0xin', status: 'succeeded', occurredAt: '2025-01-01T00:00:00.000Z' },
+      { type: 'payout', amountCents: 1000, currency: 'usdc', externalRef: '0xout', status: 'succeeded', occurredAt: '2025-01-02T00:00:00.000Z' },
+    ])
+  })
+
+  it('filters crypto transfers by `since`, and merges with Stripe when both are configured', async () => {
+    const etherscan: EtherscanClient = {
+      async getTokenTransfers() {
+        return [
+          { hash: '0xold', from: '0xpayer', to: WALLET, value: '1000000', tokenDecimal: '6', timeStamp: '1704067200' }, // 2024-01-01
+          { hash: '0xnew', from: '0xpayer', to: WALLET, value: '2000000', tokenDecimal: '6', timeStamp: '1735689600' }, // 2025-01-01
+        ]
+      },
+    }
+    const allCharges = [
+      { id: 'ch_old', amount: 500, currency: 'eur', status: 'succeeded', created: 1735603200 }, // 2024-12-31
+      { id: 'ch_new', amount: 700, currency: 'eur', status: 'succeeded', created: 1735776000 }, // 2025-01-02
+    ]
+    const stripe: StripeReadClient = {
+      charges: {
+        // A real Stripe API filters server-side on `created.gte` — this fake does the same.
+        async list(params) {
+          const gte = params.created?.gte
+          return { data: gte ? allCharges.filter((c) => c.created >= gte) : allCharges }
+        },
+      },
+      refunds: { async list() { return { data: [] } } },
+      payouts: { async list() { return { data: [] } } },
+    }
+    const adapter = new NexaLabsAdapter(fakeClient([]), stripe, {
+      client: etherscan,
+      walletAddress: WALLET,
+      tokenContractAddress: USDC_CONTRACT,
+    })
+
+    const transactions = await adapter.listTransactions('2025-01-01T00:00:00.000Z')
+    expect(transactions.map((t) => t.externalRef).sort()).toEqual(['0xnew', 'ch_new'])
   })
 })

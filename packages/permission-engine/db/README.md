@@ -11,7 +11,8 @@ npm run db:migrate             # applies pending migrations, using DATABASE_URL
 npm run db:seed                # inserts the one business row ('nexa-labs'), idempotent
 npm run db:create-owner        # -- <email> <password>, upserts by email
 npm run db:backfill-nexalabs   # step 4/7: one-time historical load from Sanity into `events`,
-                                # plus (if STRIPE_SECRET_KEY is set) Stripe into `transactions`
+                                # plus (if STRIPE_SECRET_KEY and/or ETHERSCAN_API_KEY +
+                                # WALLET_ADDRESS are set) Stripe/crypto into `transactions`
 npm run db:register-agent      # -- <business-slug> <key> <role>, upserts by (business, key)
 npm run db:set-business-config # -- <business-slug> <json-config>, shallow-merges into businesses.config
 npm run db:run-waitlist-triage # step 5/6: drafts + sends replies for un-triaged events, needs
@@ -29,7 +30,10 @@ to whatever's already exported — see `.env.example` at the repo root.
   to write observations. `transactions` arrived in step 7's migration
   (`0010`) — read-only, populated only by `engine.ingestTransactions()`
   reading `NexaLabsAdapter.listTransactions()` (Stripe charges/refunds/
-  payouts). `decision_id` is nullable and nothing sets it yet — no agent
+  payouts, and/or a watched wallet's USDC transfers on Ethereum mainnet
+  — a KVK-free alternative money-observability source, added the same
+  step; see the permission-engine readme). `decision_id` is nullable and
+  nothing sets it yet — no agent
   reasons about a transaction and produces a decision that references one
   yet, so the column exists ahead of that, same as the plan doc's schema
   sketch, not ahead of a real writer.
