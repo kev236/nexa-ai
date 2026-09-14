@@ -6,6 +6,7 @@ import {
   runWaitlistTriageOnce,
 } from '@nexa-ai/permission-engine'
 import { getEngine } from '@/lib/engine'
+import { getBusiness } from '@/lib/business'
 
 /**
  * Step 8: closes the loop that steps 4-6 left manual — polls nexalabs
@@ -24,7 +25,6 @@ import { getEngine } from '@/lib/engine'
  * case, so it's caught and reported as skipped rather than failing the
  * whole run.
  */
-const BUSINESS_SLUG = 'nexa-labs'
 const AGENT_KEY = 'waitlist-triage'
 
 export async function GET(request: NextRequest) {
@@ -36,15 +36,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const engine = getEngine()
-
-    const business = await engine.businessStore.getBySlug(BUSINESS_SLUG)
-    if (!business) {
-      throw new Error(`no business with slug '${BUSINESS_SLUG}' — run db:seed first`)
-    }
+    const business = await getBusiness()
 
     const agent = await engine.agentStore.getByKey(business.id, AGENT_KEY)
     if (!agent) {
-      throw new Error(`no agent '${AGENT_KEY}' registered for '${BUSINESS_SLUG}' — run db:register-agent first`)
+      throw new Error(`no agent '${AGENT_KEY}' registered for '${business.slug}' — run db:register-agent first`)
     }
 
     const adapter = createNexaLabsAdapter()

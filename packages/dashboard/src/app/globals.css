@@ -129,11 +129,136 @@ button.deny {
   text-align: center;
 }
 
-.top-bar {
+.nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 1rem;
   margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+}
+
+.nav-link:hover {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+
+.nav-link.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.nav-signout {
+  font-size: 0.8rem;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+section {
+  margin-bottom: 2.5rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.agent-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.agent-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.agent-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.agent-key {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.agent-role {
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.status-requested {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.status-executed,
+.status-active {
+  background: var(--approve-bg);
+  color: var(--approve);
+}
+
+.status-denied,
+.status-inactive {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.event-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+}
+
+.event-item:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
 }
 
 form.login-form {

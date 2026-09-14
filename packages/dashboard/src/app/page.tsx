@@ -1,6 +1,7 @@
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
-import { logout, resolveApproval } from '@/app/actions'
+import { resolveApproval } from '@/app/actions'
+import { Nav } from '@/components/Nav'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,18 +11,14 @@ export default async function ApprovalsPage() {
 
   return (
     <>
-      <div className="top-bar">
-        <div>
-          <h1>Pending approvals</h1>
-          <p className="subtitle">
-            {pending.length === 0
-              ? 'Nothing waiting on you.'
-              : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
-          </p>
-        </div>
-        <form action={logout}>
-          <button type="submit">Sign out</button>
-        </form>
+      <Nav active="approvals" />
+      <div className="page-header">
+        <h1>Pending approvals</h1>
+        <p className="subtitle">
+          {pending.length === 0
+            ? 'Nothing waiting on you.'
+            : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
+        </p>
       </div>
 
       {pending.length === 0 ? (
