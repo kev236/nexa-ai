@@ -6,8 +6,11 @@ import { PostgresAuditLogStore } from '../src/audit/postgresStore.js'
 import { PostgresOwnerStore } from '../src/owners/postgresStore.js'
 import { PostgresEventStore } from '../src/events/postgresStore.js'
 import { PostgresDecisionStore } from '../src/decisions/postgresStore.js'
+import { PostgresBusinessStore } from '../src/businesses/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
+import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
+import { registerExecutor } from '../src/executors/registry.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
 import type { BusinessAdapter, ObservedEvent } from '../src/adapters/types.js'
@@ -234,6 +237,60 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       agentId,
       reasoning: 'test reasoning',
       confidence: 0.8,
+    })
+  })
+
+  it('reads a business config written directly to the businesses table', async () => {
+    await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
+      businessId,
+      JSON.stringify({ emailFrom: 'Test Biz <hello@test.example>' }),
+    ])
+    const store = new PostgresBusinessStore(pool)
+    expect(await store.getConfig(businessId)).toEqual({ emailFrom: 'Test Biz <hello@test.example>' })
+  })
+
+  it('defaults to an empty object for a business with no config set', async () => {
+    const store = new PostgresBusinessStore(pool)
+    expect(await store.getConfig(businessId)).toEqual({})
+  })
+
+  it('runs send_email through requestAction -> resolveApproval, reading emailFrom from real Postgres', async () => {
+    await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
+      businessId,
+      JSON.stringify({ emailFrom: 'Test Biz <hello@test.example>' }),
+    ])
+
+    let sentPayload: unknown
+    const fakeResend: ResendClient = {
+      emails: {
+        send: async (payload) => {
+          sentPayload = payload
+          return { data: { id: 'email_abc' }, error: null }
+        },
+      },
+    }
+    registerExecutor('send_email', createSendEmailExecutor(fakeResend, new PostgresBusinessStore(pool)))
+
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+    })
+
+    const outcome = await engine.requestAction(
+      baseRequest({
+        actionType: 'send_email',
+        payload: { to: 'lead@example.com', subject: 'Hi', body: 'Thanks!' },
+      })
+    )
+    if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
+
+    const resolved = await engine.resolveApproval(outcome.approvalId, 'approved', ownerId)
+    expect(resolved.status).toBe('executed')
+    expect(sentPayload).toEqual({
+      from: 'Test Biz <hello@test.example>',
+      to: 'lead@example.com',
+      subject: 'Hi',
+      text: 'Thanks!',
     })
   })
 })

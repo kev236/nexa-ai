@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createPermissionEngine } from '../src/engine.js'
+import { registerExecutor } from '../src/executors/registry.js'
 import type { ActionRequest } from '../src/types.js'
 import '../src/executors/noop.js' // registration is a side effect, shared across the process
 
@@ -79,5 +80,22 @@ describe('resolveApproval', () => {
     await expect(engine.resolveApproval('does-not-exist', 'approved', 'owner_kevin')).rejects.toThrow(
       /no such approval/
     )
+  })
+
+  it('passes the requesting businessId to the executor as context', async () => {
+    let capturedBusinessId: string | undefined
+    registerExecutor('capture-business-id', async (payload, context) => {
+      capturedBusinessId = context.businessId
+      return payload
+    })
+
+    const engine = createPermissionEngine()
+    const outcome = await engine.requestAction(
+      baseRequest({ businessId: 'biz_specific', actionType: 'capture-business-id' })
+    )
+    if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
+
+    await engine.resolveApproval(outcome.approvalId, 'approved', 'owner_kevin')
+    expect(capturedBusinessId).toBe('biz_specific')
   })
 })

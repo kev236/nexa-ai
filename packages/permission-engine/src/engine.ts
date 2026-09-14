@@ -115,7 +115,9 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     }
 
     await approvalStore.resolve(approvalId, 'approved', resolvedBy)
-    const result = await executor(approval.request.payload)
+    const result = await executor(approval.request.payload, {
+      businessId: approval.request.businessId,
+    })
     await auditStore.recordExecuted(approval.auditId, result)
     return { status: 'executed', auditId: approval.auditId, result }
   }

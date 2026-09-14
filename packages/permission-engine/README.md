@@ -39,10 +39,10 @@ about code *outside* this package, not within it.
 ## What's here vs. what isn't yet
 
 - `requestAction` / `resolveApproval`: implemented, tested, exported.
-- Executors: only a `noop` executor is registered, for testing the
-  approve → execute path shape. Real executors (Stripe, Resend, Sanity)
-  arrive with the adapters in a later plan, once there's something for
-  them to call.
+- Executors: `noop` (auto-registered on import, for testing the approve →
+  execute path shape) and `send_email` (step 6 — see below, NOT
+  auto-registered). Other real executors (Stripe, more of Sanity) arrive
+  with later steps, once there's something for them to call.
 - Audit log / approval storage: `AuditLogStore` and `ApprovalStore` are
   interfaces, exactly so a real implementation could be a drop-in — which
   it now is. `createPermissionEngine()` still defaults to the in-memory
@@ -90,11 +90,33 @@ about code *outside* this package, not within it.
   project's own convention. `DecisionStore` (`src/decisions/`) records
   the reasoning and links it to the source event
   (`decisions.event_id`, migration `0009`) so the runner script can skip
-  events it's already triaged. The agent never sends anything — it
-  submits its draft through `requestAction` with `actionType: 'noop'`,
-  so approving it is a no-op with an audit trail, not a real send; that's
-  step 6, deliberately not built yet. Both the LLM client and the
-  adapter live inside this package's `src/`, same boundary as everything
-  else — an agent calling out to Claude is still "a module holding a
-  credential," so it stays inside the approved execution path, never in
-  a future `packages/agents/` outside it.
+  events it's already triaged. Both the LLM client and the adapter live
+  inside this package's `src/`, same boundary as everything else — an
+  agent calling out to Claude is still "a module holding a credential,"
+  so it stays inside the approved execution path, never in a future
+  `packages/agents/` outside it.
+- The first real execute capability (`src/executors/sendEmail.ts`, step
+  6): approving a `send_email` decision now sends an actual email via
+  Resend — a genuine behavior change from step 5, where approving only
+  recorded a draft (`actionType: 'noop'`). Scoped to exactly one thing
+  (send this already-drafted `{to, subject, body}`), still gated behind
+  `requestAction`/`resolveApproval` like every other action; default
+  autonomy level 1 still applies, so nothing sends without an explicit
+  owner approval. The "from" address is per-business config
+  (`businesses.config.emailFrom`, set via `db/setBusinessConfig.mjs`),
+  never hardcoded — this executor stays business-agnostic, reading the
+  address through `BusinessStore` (`src/businesses/`, same
+  interface/memory/postgres shape as every other store here).
+  `registerSendEmailExecutor()` reads `RESEND_API_KEY` and wires the real
+  Resend client and `PostgresBusinessStore` — unlike `noop`, it is NOT
+  called on import (see `src/executors/noop.ts` vs `sendEmail.ts`),
+  because it needs real credentials and a real database to construct.
+  Every process that wants `send_email` to actually execute must call it
+  itself: `db/runWaitlistTriage.mjs` does, and so does
+  `packages/dashboard/src/lib/engine.ts` (a separate process — the
+  executor registry is per-process and in-memory, so registering it in
+  one process doesn't register it in another). The dashboard catches the
+  error from a missing `RESEND_API_KEY` rather than letting it crash
+  `getEngine()` — an unregistered executor already denies safely
+  (`engine.ts`'s own handling), so a missing key degrades to "send_email
+  approvals get denied," not "the whole dashboard is down."

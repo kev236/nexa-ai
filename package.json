@@ -15,6 +15,7 @@
     "db:create-owner": "node --env-file-if-exists=.env packages/permission-engine/db/createOwner.mjs",
     "db:backfill-nexalabs": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/backfillNexaLabs.mjs",
     "db:register-agent": "node --env-file-if-exists=.env packages/permission-engine/db/registerAgent.mjs",
+    "db:set-business-config": "node --env-file-if-exists=.env packages/permission-engine/db/setBusinessConfig.mjs",
     "db:run-waitlist-triage": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/runWaitlistTriage.mjs",
     "build:permission-engine": "npm run build --workspace=packages/permission-engine",
     "dashboard:dev": "npm run dev --workspace=packages/dashboard",

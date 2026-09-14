@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Step 5: runs the waitlist-triage agent over events that don't have a
+// Step 5 + 6: runs the waitlist-triage agent over events that don't have a
 // decision yet, drafts a reply for each via Claude, and submits it through
-// requestAction() for owner approval (actionType 'noop' — approving it
-// records the draft as 'executed' but sends nothing; there is no real
-// send-email action yet, that's step 6). Needs the package built first
-// (npm run build:permission-engine), DATABASE_URL, and ANTHROPIC_API_KEY.
+// requestAction() as actionType 'send_email' — approving it now sends an
+// actual email via Resend (step 6), not just records a draft. Needs the
+// package built first (npm run build:permission-engine), DATABASE_URL,
+// ANTHROPIC_API_KEY, RESEND_API_KEY, and the business's config.emailFrom
+// set (db/setBusinessConfig.mjs).
 //
 // Usage: node db/runWaitlistTriage.mjs <business-slug> <agent-key>
 import pg from 'pg'
@@ -15,8 +16,11 @@ import {
   createPostgresAuditLogStore,
   createPostgresDecisionStore,
   createPostgresEventStore,
+  registerSendEmailExecutor,
   triageEvent,
 } from '../dist/index.js'
+
+registerSendEmailExecutor()
 
 const [, , businessSlug = 'nexa-labs', agentKey = 'waitlist-triage'] = process.argv
 
@@ -66,25 +70,34 @@ try {
       continue
     }
 
+    const to = typeof event.payload?.email === 'string' ? event.payload.email : undefined
+    if (!to) {
+      console.log(`skipping event ${event.id} (${event.type}) — no email address in payload`)
+      skipped++
+      continue
+    }
+
     const result = await triageEvent(llmClient, event)
+    const subject =
+      event.type === 'waitlist_signup' ? "You're on the Nexa Labs waitlist" : 'Re: your message to Nexa Labs'
 
     await engine.decisionStore.record({
       businessId,
       agentId,
       eventId: event.id,
-      actionType: 'noop',
+      actionType: 'send_email',
       reasoning: result.reasoning,
-      expectedResult: { draftReply: result.draftReply },
+      expectedResult: { to, subject, body: result.draftReply },
       confidence: result.confidence,
     })
 
     const outcome = await engine.requestAction({
       businessId,
       agentId,
-      actionType: 'noop',
-      payload: { eventId: event.id, eventType: event.type, draftReply: result.draftReply },
+      actionType: 'send_email',
+      payload: { to, subject, body: result.draftReply },
       reasoning: result.reasoning,
-      expectedResult: { draftReply: result.draftReply },
+      expectedResult: { to, subject, body: result.draftReply },
     })
 
     console.log(`triaged event ${event.id} (${event.type}) -> ${outcome.status}`)

@@ -9,7 +9,10 @@ import type { JsonValue } from '../json.js'
  * bootstrap module in this same src/ tree that wires real adapters) —
  * never expose registerExecutor from index.ts.
  */
-export type ExecutorFn = (payload: JsonValue) => Promise<JsonValue>
+export type ExecutorFn = (
+  payload: JsonValue,
+  context: { businessId: string }
+) => Promise<JsonValue>
 
 const registry = new Map<string, ExecutorFn>()
 
