@@ -3,7 +3,9 @@ import pg from 'pg'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { PostgresApprovalStore } from '../src/approvals/postgresStore.js'
 import { PostgresAuditLogStore } from '../src/audit/postgresStore.js'
+import { PostgresOwnerStore } from '../src/owners/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
+import { hashPassword } from '../src/password.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
 
@@ -18,6 +20,8 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
   let businessId: string
   let agentId: string
   let ownerId: string
+  let ownerEmail: string
+  const ownerPassword = 'correct-horse-battery-staple'
 
   beforeEach(async () => {
     await pool.query(
@@ -33,9 +37,10 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       [businessId]
     )
     agentId = agent.rows[0]!.id
+    ownerEmail = `owner-${randomUUID()}@example.com`
     const owner = await pool.query<{ id: string }>(
-      `INSERT INTO owners (email, password_hash) VALUES ($1, 'x') RETURNING id`,
-      [`owner-${randomUUID()}@example.com`]
+      `INSERT INTO owners (email, password_hash) VALUES ($1, $2) RETURNING id`,
+      [ownerEmail, hashPassword(ownerPassword)]
     )
     ownerId = owner.rows[0]!.id
   })
@@ -100,5 +105,34 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const auditRecord = await engine.auditStore.get(outcome.auditId)
     expect(auditRecord?.status).toBe('denied')
     expect(auditRecord?.deniedReason).toMatch(new RegExp(`denied by ${ownerId}`))
+  })
+
+  it('verifies owner login credentials against a real hashed password', async () => {
+    const engine = createPermissionEngine({ ownerStore: new PostgresOwnerStore(pool) })
+
+    const success = await engine.verifyOwnerCredentials(ownerEmail, ownerPassword)
+    expect(success).toEqual({ ownerId })
+
+    const failure = await engine.verifyOwnerCredentials(ownerEmail, 'wrong password')
+    expect(failure).toBeNull()
+  })
+
+  it('lists pending approvals from real Postgres, oldest first', async () => {
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+    })
+
+    const first = await engine.requestAction(baseRequest({ payload: { order: 1 } }))
+    const second = await engine.requestAction(baseRequest({ payload: { order: 2 } }))
+    if (first.status !== 'pending_approval' || second.status !== 'pending_approval') {
+      throw new Error('expected pending_approval')
+    }
+    await engine.resolveApproval(first.approvalId, 'approved', ownerId)
+
+    const pending = await engine.listPendingApprovals()
+    expect(pending).toHaveLength(1)
+    expect(pending[0]?.id).toBe(second.approvalId)
+    expect(pending[0]?.request.payload).toEqual({ order: 2 })
   })
 })

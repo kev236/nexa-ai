@@ -72,14 +72,23 @@ costs a refund, a chargeback, or a customer.
 
 ```
 npm install
-cp .env.example .env   # fill in DATABASE_URL against a local Postgres
+cp .env.example .env   # fill in DATABASE_URL, TEST_DATABASE_URL, SESSION_SECRET
 npm run db:migrate
 npm run db:seed
+npm run db:create-owner -- <email> <password>   # the one owner account
 npm run typecheck
 npm run check:boundaries
 npm test
 ```
 
-See `docs/plan-001-foundations.md` for the design this is built from, and
+To run the approval dashboard locally:
+
+```
+cd packages/dashboard && ln -s ../../.env .env && cd ../..
+npm run dashboard:dev
+```
+
+See `docs/plan-001-foundations.md` for the design this is built from,
 `packages/permission-engine/README.md` for what exists today versus what's
-deliberately deferred.
+deliberately deferred, and `packages/dashboard/README.md` for the
+dashboard specifically.

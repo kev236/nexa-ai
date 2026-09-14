@@ -28,4 +28,10 @@ export class InMemoryApprovalStore implements ApprovalStore {
     record.resolvedBy = resolvedBy
     record.resolvedAt = new Date().toISOString()
   }
+
+  async listPending(): Promise<ApprovalRecord[]> {
+    return [...this.records.values()]
+      .filter((r) => r.status === 'pending')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  }
 }

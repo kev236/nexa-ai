@@ -14,4 +14,6 @@ export interface ApprovalStore {
   createPending(request: ActionRequest, auditId: string): Promise<string>
   get(approvalId: string): Promise<ApprovalRecord | undefined>
   resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy: string): Promise<void>
+  /** Oldest first — the dashboard's approval queue. */
+  listPending(): Promise<ApprovalRecord[]>
 }

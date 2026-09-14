@@ -7,18 +7,29 @@ code.
 
 ## Why `exports` only lists `.`
 
-`package.json#exports` maps `.` to `./src/index.ts` and nothing else.
-`src/executors/**` is deliberately absent from that map. Node's package
-resolution refuses a deep import into an unlisted subpath from any other
-workspace package — so `import { registerExecutor } from
-'@nexa-ai/permission-engine/executors/registry'` fails to resolve from
-outside this package, not because of a lint rule, but because there is no
-route to it. That's one of four independent layers behind the "no module
-outside the approved execution path may import a credential-holding
-client" invariant; `tools/import-boundary/` (repo root) is the second
-layer, catching violations that don't even try to go through package
-resolution (e.g. a relative `../../permission-engine/src/executors/...`
-reach-around). See the plan doc for the other two (no credentials in the
+`package.json#exports` maps `.` to `./dist/index.js` — built output, not
+`src/` directly. That's not the security boundary (see below); it's
+because Turbopack (the dashboard's bundler) doesn't resolve the
+`.js`-suffixed relative imports NodeNext requires in unbuilt TS source the
+way `tsc`/Node's own ESM loader do. Run `npm run build` here (or `npm run
+build:permission-engine` from the repo root) before anything that
+consumes this package as a dependency — `npm test` doesn't need it, since
+tests import `../src/*.ts` directly.
+
+`dist/executors/**` is deliberately absent from the `exports` map — only
+`.` is listed. Node's package resolution refuses a deep import into an
+unlisted subpath from any other workspace package — so `import {
+registerExecutor } from '@nexa-ai/permission-engine/executors/registry'`
+fails to resolve from outside this package, not because of a lint rule,
+but because there is no route to it. That's one of four independent
+layers behind the "no module outside the approved execution path may
+import a credential-holding client" invariant; `tools/import-boundary/`
+(repo root) is the second layer, catching violations that don't even try
+to go through package resolution (e.g. a relative
+`../../permission-engine/src/executors/...` reach-around — and now also
+proven against a real consumer: `packages/dashboard` is scanned by that
+same check and only ever imports this package by name, never `pg`
+directly). See the plan doc for the other two (no credentials in the
 agent process; network egress denial).
 
 Code inside this package (including its own tests) can still import
@@ -50,3 +61,8 @@ about code *outside* this package, not within it.
   full stop — matching the project's default-autonomy-is-1 rule. Don't
   add auto-execute paths here without an explicit owner decision recorded
   in config, per that same rule.
+- Owner accounts / login: `verifyOwnerCredentials` and `OwnerStore`
+  (`src/owners/`) exist and are consumed by `packages/dashboard`. There is
+  no `create` on `OwnerStore` on purpose — accounts are created only by
+  `db/createOwner.mjs`, run directly by a trusted operator; there is no
+  self-service signup path through the application.

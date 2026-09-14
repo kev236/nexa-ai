@@ -1,14 +1,18 @@
 import { assertActionRequest } from './validate.js'
 import type { AuditLogStore } from './audit/store.js'
 import { InMemoryAuditLogStore } from './audit/memoryStore.js'
-import type { ApprovalStore } from './approvals/store.js'
+import type { ApprovalStore, ApprovalRecord } from './approvals/store.js'
 import { InMemoryApprovalStore } from './approvals/memoryStore.js'
+import type { OwnerStore } from './owners/store.js'
+import { InMemoryOwnerStore } from './owners/memoryStore.js'
+import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
 
 export type PermissionEngineDeps = {
   auditStore?: AuditLogStore
   approvalStore?: ApprovalStore
+  ownerStore?: OwnerStore
 }
 
 export type PermissionEngine = {
@@ -18,8 +22,11 @@ export type PermissionEngine = {
     decision: 'approved' | 'denied',
     resolvedBy: string
   ): Promise<ActionOutcome>
+  listPendingApprovals(): Promise<ApprovalRecord[]>
+  verifyOwnerCredentials(email: string, password: string): Promise<{ ownerId: string } | null>
   auditStore: AuditLogStore
   approvalStore: ApprovalStore
+  ownerStore: OwnerStore
 }
 
 /**
@@ -31,6 +38,7 @@ export type PermissionEngine = {
 export function createPermissionEngine(deps: PermissionEngineDeps = {}): PermissionEngine {
   const auditStore = deps.auditStore ?? new InMemoryAuditLogStore()
   const approvalStore = deps.approvalStore ?? new InMemoryApprovalStore()
+  const ownerStore = deps.ownerStore ?? new InMemoryOwnerStore()
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -93,10 +101,45 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { status: 'executed', auditId: approval.auditId, result }
   }
 
-  return { requestAction, resolveApproval, auditStore, approvalStore }
+  async function listPendingApprovals(): Promise<ApprovalRecord[]> {
+    return approvalStore.listPending()
+  }
+
+  async function verifyOwnerCredentials(
+    email: string,
+    password: string
+  ): Promise<{ ownerId: string } | null> {
+    const owner = await ownerStore.findByEmail(email)
+    // Always run verifyPassword, even against a dummy hash when no owner
+    // exists — constant-time comparison inside verifyPassword only helps
+    // if this function doesn't itself leak "no such owner" via an early
+    // return with a different timing profile than a wrong-password path.
+    const hash = owner?.passwordHash ?? DUMMY_HASH_FOR_TIMING
+    const valid = verifyPassword(password, hash)
+    if (!owner || !valid) return null
+    return { ownerId: owner.id }
+  }
+
+  return {
+    requestAction,
+    resolveApproval,
+    listPendingApprovals,
+    verifyOwnerCredentials,
+    auditStore,
+    approvalStore,
+    ownerStore,
+  }
 }
+
+// A real scrypt hash of an unguessed, fixed value — generated the normal
+// way so its format is guaranteed correct — used only so a lookup miss
+// and a wrong password take the same code path through verifyPassword
+// rather than one returning early.
+const DUMMY_HASH_FOR_TIMING = hashPassword('nexa-ai-dummy-password-for-timing-safety-only')
 
 const defaultEngine = createPermissionEngine()
 
 export const requestAction = defaultEngine.requestAction
 export const resolveApproval = defaultEngine.resolveApproval
+export const listPendingApprovals = defaultEngine.listPendingApprovals
+export const verifyOwnerCredentials = defaultEngine.verifyOwnerCredentials

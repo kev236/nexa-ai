@@ -11,7 +11,11 @@
     "typecheck": "tsc -b --noEmit",
     "check:boundaries": "node tools/import-boundary/check.mjs",
     "db:migrate": "node --env-file-if-exists=.env packages/permission-engine/db/migrate.mjs",
-    "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs"
+    "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs",
+    "db:create-owner": "node --env-file-if-exists=.env packages/permission-engine/db/createOwner.mjs",
+    "build:permission-engine": "npm run build --workspace=packages/permission-engine",
+    "dashboard:dev": "npm run build:permission-engine && node_modules/.bin/next dev packages/dashboard",
+    "dashboard:build": "npm run build:permission-engine && node_modules/.bin/next build packages/dashboard"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

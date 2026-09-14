@@ -52,6 +52,13 @@ export class PostgresApprovalStore implements ApprovalStore {
       [approvalId, status, resolvedBy]
     )
   }
+
+  async listPending(): Promise<ApprovalRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT * FROM approvals WHERE status = 'pending' ORDER BY created_at ASC`
+    )
+    return result.rows.map(toRecord)
+  }
 }
 
 export function createPostgresApprovalStore(): ApprovalStore {

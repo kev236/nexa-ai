@@ -5,3 +5,7 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Next.js (packages/dashboard)
+.next/
+next-env.d.ts
