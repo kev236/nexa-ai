@@ -1,7 +1,7 @@
 {
   "scanRoots": ["packages"],
   "allowedPaths": [
-    "packages/permission-engine/src/executors/"
+    "packages/permission-engine/src/"
   ],
   "restrictedImports": [
     "pg",

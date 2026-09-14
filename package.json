@@ -7,9 +7,11 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "node --env-file-if-exists=.env node_modules/.bin/vitest run",
     "typecheck": "tsc -b --noEmit",
-    "check:boundaries": "node tools/import-boundary/check.mjs"
+    "check:boundaries": "node tools/import-boundary/check.mjs",
+    "db:migrate": "node --env-file-if-exists=.env packages/permission-engine/db/migrate.mjs",
+    "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

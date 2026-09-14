@@ -32,11 +32,19 @@ about code *outside* this package, not within it.
   approve → execute path shape. Real executors (Stripe, Resend, Sanity)
   arrive with the adapters in a later plan, once there's something for
   them to call.
-- Audit log / approval storage: in-memory only. `AuditLogStore` and
-  `ApprovalStore` are interfaces on purpose — a Postgres-backed
-  implementation of each is a later, separate change that satisfies the
-  same interface; nothing in `engine.ts` should need to change when that
-  lands.
+- Audit log / approval storage: `AuditLogStore` and `ApprovalStore` are
+  interfaces, exactly so a real implementation could be a drop-in — which
+  it now is. `createPermissionEngine()` still defaults to the in-memory
+  ones (used by most of the test suite for isolation); `PostgresAuditLogStore`
+  / `PostgresApprovalStore` (`src/audit/postgresStore.ts`,
+  `src/approvals/postgresStore.ts`) are the real ones, exercised against
+  an actual database in `test/postgresStore.test.ts` — nothing in
+  `engine.ts` changed to make that work. Schema and a forward-only
+  migration runner are in `db/`; see its own notes for what's
+  deliberately not modeled yet (`decisions` exists but nothing writes to
+  it; `approvals` doesn't yet carry risk/alternatives/recommendation).
+  `src/db.ts` holds the shared connection pool, read from `DATABASE_URL` —
+  see `.env.example` at the repo root.
 - Spending limits / autonomy levels above 1: not implemented. Every
   request that reaches a registered executor becomes `pending_approval`,
   full stop — matching the project's default-autonomy-is-1 rule. Don't

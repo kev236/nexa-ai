@@ -67,3 +67,19 @@ recommendation, a confidence score, and what happens if nothing is done.
 Say so and stop. A wrong guess in this system spends real money, emails real
 customers, or changes a live site. Asking costs a message. The alternative
 costs a refund, a chargeback, or a customer.
+
+## Development
+
+```
+npm install
+cp .env.example .env   # fill in DATABASE_URL against a local Postgres
+npm run db:migrate
+npm run db:seed
+npm run typecheck
+npm run check:boundaries
+npm test
+```
+
+See `docs/plan-001-foundations.md` for the design this is built from, and
+`packages/permission-engine/README.md` for what exists today versus what's
+deliberately deferred.
