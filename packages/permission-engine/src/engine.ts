@@ -9,6 +9,8 @@ import type { EventStore } from './events/store.js'
 import { InMemoryEventStore } from './events/memoryStore.js'
 import type { DecisionStore } from './decisions/store.js'
 import { InMemoryDecisionStore } from './decisions/memoryStore.js'
+import type { TransactionStore } from './transactions/store.js'
+import { InMemoryTransactionStore } from './transactions/memoryStore.js'
 import type { BusinessAdapter } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -20,6 +22,7 @@ export type PermissionEngineDeps = {
   ownerStore?: OwnerStore
   eventStore?: EventStore
   decisionStore?: DecisionStore
+  transactionStore?: TransactionStore
 }
 
 export type IngestSummary = { observed: number; inserted: number; skipped: number }
@@ -39,11 +42,13 @@ export type PermissionEngine = {
     mode: 'backfill' | 'poll',
     since?: string
   ): Promise<IngestSummary>
+  ingestTransactions(adapter: BusinessAdapter, businessId: string, since?: string): Promise<IngestSummary>
   auditStore: AuditLogStore
   approvalStore: ApprovalStore
   ownerStore: OwnerStore
   eventStore: EventStore
   decisionStore: DecisionStore
+  transactionStore: TransactionStore
 }
 
 /**
@@ -58,6 +63,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const ownerStore = deps.ownerStore ?? new InMemoryOwnerStore()
   const eventStore = deps.eventStore ?? new InMemoryEventStore()
   const decisionStore = deps.decisionStore ?? new InMemoryDecisionStore()
+  const transactionStore = deps.transactionStore ?? new InMemoryTransactionStore()
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -159,17 +165,46 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { observed: observed.length, inserted, skipped }
   }
 
+  async function ingestTransactions(
+    adapter: BusinessAdapter,
+    businessId: string,
+    since?: string
+  ): Promise<IngestSummary> {
+    if (!adapter.listTransactions) {
+      throw new Error(`adapter "${adapter.adapterType}" does not support listTransactions`)
+    }
+    const observed = await adapter.listTransactions(since)
+
+    let inserted = 0
+    let skipped = 0
+    for (const transaction of observed) {
+      const result = await transactionStore.record(businessId, {
+        type: transaction.type,
+        amountCents: transaction.amountCents,
+        currency: transaction.currency,
+        externalRef: transaction.externalRef,
+        status: transaction.status,
+        occurredAt: transaction.occurredAt,
+      })
+      if (result.inserted) inserted++
+      else skipped++
+    }
+    return { observed: observed.length, inserted, skipped }
+  }
+
   return {
     requestAction,
     resolveApproval,
     listPendingApprovals,
     verifyOwnerCredentials,
     ingestEvents,
+    ingestTransactions,
     auditStore,
     approvalStore,
     ownerStore,
     eventStore,
     decisionStore,
+    transactionStore,
   }
 }
 
@@ -186,3 +221,4 @@ export const resolveApproval = defaultEngine.resolveApproval
 export const listPendingApprovals = defaultEngine.listPendingApprovals
 export const verifyOwnerCredentials = defaultEngine.verifyOwnerCredentials
 export const ingestEvents = defaultEngine.ingestEvents
+export const ingestTransactions = defaultEngine.ingestTransactions

@@ -7,13 +7,14 @@ import { PostgresOwnerStore } from '../src/owners/postgresStore.js'
 import { PostgresEventStore } from '../src/events/postgresStore.js'
 import { PostgresDecisionStore } from '../src/decisions/postgresStore.js'
 import { PostgresBusinessStore } from '../src/businesses/postgresStore.js'
+import { PostgresTransactionStore } from '../src/transactions/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
 import { registerExecutor } from '../src/executors/registry.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
-import type { BusinessAdapter, ObservedEvent } from '../src/adapters/types.js'
+import type { BusinessAdapter, ObservedEvent, ObservedTransaction } from '../src/adapters/types.js'
 
 const connectionString = process.env.TEST_DATABASE_URL
 
@@ -31,7 +32,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE events, approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
     )
     const business = await pool.query<{ id: string }>(
       `INSERT INTO businesses (slug, name) VALUES ($1, 'Test Biz') RETURNING id`,
@@ -292,5 +293,43 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       subject: 'Hi',
       text: 'Thanks!',
     })
+  })
+
+  it('ingests transactions idempotently against real Postgres, scoped per business', async () => {
+    const engine = createPermissionEngine({ transactionStore: new PostgresTransactionStore(pool) })
+    const transactions: ObservedTransaction[] = [
+      { type: 'charge', amountCents: 5000, currency: 'eur', externalRef: 'ch_1', status: 'succeeded', occurredAt: '2026-01-01T00:00:00Z' },
+    ]
+    const adapter: BusinessAdapter = {
+      adapterType: 'fake',
+      async backfill() {
+        return []
+      },
+      async observe() {
+        return []
+      },
+      async listTransactions() {
+        return transactions
+      },
+      listActions() {
+        return []
+      },
+      async execute() {
+        throw new Error('not implemented')
+      },
+      async healthCheck() {
+        return { ok: true }
+      },
+    }
+
+    const first = await engine.ingestTransactions(adapter, businessId)
+    expect(first).toEqual({ observed: 1, inserted: 1, skipped: 0 })
+
+    const second = await engine.ingestTransactions(adapter, businessId)
+    expect(second).toEqual({ observed: 1, inserted: 0, skipped: 1 })
+
+    const stored = await engine.transactionStore.listByBusiness(businessId)
+    expect(stored).toHaveLength(1)
+    expect(stored[0]).toMatchObject({ type: 'charge', amountCents: 5000, currency: 'eur', externalRef: 'ch_1' })
   })
 })

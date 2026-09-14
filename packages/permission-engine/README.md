@@ -41,8 +41,10 @@ about code *outside* this package, not within it.
 - `requestAction` / `resolveApproval`: implemented, tested, exported.
 - Executors: `noop` (auto-registered on import, for testing the approve →
   execute path shape) and `send_email` (step 6 — see below, NOT
-  auto-registered). Other real executors (Stripe, more of Sanity) arrive
-  with later steps, once there's something for them to call.
+  auto-registered). Stripe (step 7) is read-only observability, not an
+  executor — nothing writes to it, so there's no `charge`/`refund`
+  actionType to register. Other real executors arrive with later steps,
+  once there's something for them to call.
 - Audit log / approval storage: `AuditLogStore` and `ApprovalStore` are
   interfaces, exactly so a real implementation could be a drop-in — which
   it now is. `createPermissionEngine()` still defaults to the in-memory
@@ -120,3 +122,20 @@ about code *outside* this package, not within it.
   `getEngine()` — an unregistered executor already denies safely
   (`engine.ts`'s own handling), so a missing key degrades to "send_email
   approvals get denied," not "the whole dashboard is down."
+- Read-only Stripe view (`NexaLabsAdapter.listTransactions()`, step 7):
+  lists charges/refunds/payouts (a single page each, limit 100 — same
+  "prove the shape" effort level as the Sanity side) and maps them into
+  `ObservedTransaction` (`src/adapters/types.ts`), a narrower, typed
+  sibling of `ObservedEvent` matching the `transactions` table's columns
+  rather than the free-form `events` one. `listTransactions` is optional
+  on `BusinessAdapter` — only an adapter backed by a payment processor
+  implements it; `engine.ingestTransactions(adapter, businessId, since?)`
+  throws a clear error if called against one that doesn't. Idempotent on
+  `(business_id, external_ref)`, same convention as events.
+  `STRIPE_SECRET_KEY` is optional at the adapter level too — without it,
+  `NexaLabsAdapter` still works for Sanity events, `listTransactions()`
+  just throws when called (`createNexaLabsAdapter()`'s doing, never
+  `process.env` read inside the adapter class itself, same pattern as
+  every other credential here). This is observability only: nothing in
+  this codebase creates a charge, refund, or payout — see the plan doc's
+  build order, step 7, and its "no write path to Stripe" deferral.

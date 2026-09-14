@@ -1,10 +1,20 @@
 import { createClient } from '@sanity/client'
+import Stripe from 'stripe'
 import type { JsonValue } from '../json.js'
-import type { ActionDefinition, BusinessAdapter, ObservedEvent } from './types.js'
+import type { ActionDefinition, BusinessAdapter, ObservedEvent, ObservedTransaction } from './types.js'
 
 /** Only what this adapter needs — keeps it unit-testable without a real Sanity client. */
 export type SanityFetchClient = {
   fetch<T = unknown>(query: string, params?: Record<string, unknown>): Promise<T>
+}
+
+type StripeListable = { id: string; amount: number; currency: string; status: string | null; created: number }
+
+/** Only what this adapter needs — keeps it unit-testable without a real Stripe client. */
+export type StripeReadClient = {
+  charges: { list(params: { limit?: number; created?: { gte: number } }): Promise<{ data: StripeListable[] }> }
+  refunds: { list(params: { limit?: number; created?: { gte: number } }): Promise<{ data: StripeListable[] }> }
+  payouts: { list(params: { limit?: number; created?: { gte: number } }): Promise<{ data: StripeListable[] }> }
 }
 
 type SanityDoc = {
@@ -27,7 +37,10 @@ const OBSERVED_TYPES = ['waitlist', 'contactMessage'] as const
 export class NexaLabsAdapter implements BusinessAdapter {
   readonly adapterType = 'nexalabs-web'
 
-  constructor(private readonly client: SanityFetchClient) {}
+  constructor(
+    private readonly client: SanityFetchClient,
+    private readonly stripe?: StripeReadClient
+  ) {}
 
   async backfill(): Promise<ObservedEvent[]> {
     return this.fetchDocuments()
@@ -35,6 +48,34 @@ export class NexaLabsAdapter implements BusinessAdapter {
 
   async observe(since: string): Promise<ObservedEvent[]> {
     return this.fetchDocuments(since)
+  }
+
+  /**
+   * Read-only Stripe view (plan doc section 3d, step 7): lists charges,
+   * refunds, and payouts — never creates any of them. A single page
+   * (limit 100) per resource, same "prove the shape, not scale" level of
+   * effort as this adapter's Sanity side. Omitted `since` returns
+   * everything available (a backfill); a value restricts to transactions
+   * created at or after it (a poll).
+   */
+  async listTransactions(since?: string): Promise<ObservedTransaction[]> {
+    if (!this.stripe) {
+      throw new Error('NexaLabsAdapter has no Stripe client configured (STRIPE_SECRET_KEY not set)')
+    }
+    const created = since ? { gte: Math.floor(new Date(since).getTime() / 1000) } : undefined
+    const params = { limit: 100, ...(created ? { created } : {}) }
+
+    const [charges, refunds, payouts] = await Promise.all([
+      this.stripe.charges.list(params),
+      this.stripe.refunds.list(params),
+      this.stripe.payouts.list(params),
+    ])
+
+    return [
+      ...charges.data.map((c) => toObservedTransaction('charge', c)),
+      ...refunds.data.map((r) => toObservedTransaction('refund', r)),
+      ...payouts.data.map((p) => toObservedTransaction('payout', p)),
+    ].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
   }
 
   private async fetchDocuments(since?: string): Promise<ObservedEvent[]> {
@@ -60,6 +101,20 @@ export class NexaLabsAdapter implements BusinessAdapter {
     } catch (err) {
       return { ok: false, detail: err instanceof Error ? err.message : String(err) }
     }
+  }
+}
+
+function toObservedTransaction(
+  type: ObservedTransaction['type'],
+  source: StripeListable
+): ObservedTransaction {
+  return {
+    type,
+    amountCents: source.amount,
+    currency: source.currency,
+    externalRef: source.id,
+    status: source.status ?? 'unknown',
+    occurredAt: new Date(source.created * 1000).toISOString(),
   }
 }
 
@@ -90,5 +145,12 @@ export function createNexaLabsAdapter(): BusinessAdapter {
     apiVersion: '2024-01-01',
     useCdn: false,
   })
-  return new NexaLabsAdapter(client)
+
+  // Optional — the Sanity side (events) still works without it. Only
+  // listTransactions() needs this; it throws its own clear error if
+  // called without it, rather than failing adapter construction.
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : undefined
+
+  return new NexaLabsAdapter(client, stripe)
 }

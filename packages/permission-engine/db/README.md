@@ -10,7 +10,8 @@ in its own transaction.
 npm run db:migrate             # applies pending migrations, using DATABASE_URL
 npm run db:seed                # inserts the one business row ('nexa-labs'), idempotent
 npm run db:create-owner        # -- <email> <password>, upserts by email
-npm run db:backfill-nexalabs   # step 4: one-time historical load from Sanity into `events`
+npm run db:backfill-nexalabs   # step 4/7: one-time historical load from Sanity into `events`,
+                                # plus (if STRIPE_SECRET_KEY is set) Stripe into `transactions`
 npm run db:register-agent      # -- <business-slug> <key> <role>, upserts by (business, key)
 npm run db:set-business-config # -- <business-slug> <json-config>, shallow-merges into businesses.config
 npm run db:run-waitlist-triage # step 5/6: drafts + sends replies for un-triaged events, needs
@@ -25,7 +26,13 @@ to whatever's already exported — see `.env.example` at the repo root.
 - `tasks`, `transactions` — not in the plan doc's step-2 table set; they
   land when something actually needs to write to them. `events` arrived
   in step 4's migration (0008) once the NexaLabsAdapter needed somewhere
-  to write observations.
+  to write observations. `transactions` arrived in step 7's migration
+  (`0010`) — read-only, populated only by `engine.ingestTransactions()`
+  reading `NexaLabsAdapter.listTransactions()` (Stripe charges/refunds/
+  payouts). `decision_id` is nullable and nothing sets it yet — no agent
+  reasons about a transaction and produces a decision that references one
+  yet, so the column exists ahead of that, same as the plan doc's schema
+  sketch, not ahead of a real writer.
 - `decisions` got its first real writes in step 5 (`0009` added
   `event_id`, linking a decision to the event it's about and letting the
   triage agent skip events it's already handled). It still doesn't carry

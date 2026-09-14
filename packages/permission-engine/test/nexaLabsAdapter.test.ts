@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NexaLabsAdapter, type SanityFetchClient } from '../src/adapters/nexaLabsAdapter.js'
+import { NexaLabsAdapter, type SanityFetchClient, type StripeReadClient } from '../src/adapters/nexaLabsAdapter.js'
 
 function fakeClient(docs: unknown[]): SanityFetchClient {
   return {
@@ -85,5 +85,56 @@ describe('NexaLabsAdapter', () => {
       },
     })
     expect(await unhealthy.healthCheck()).toEqual({ ok: false, detail: 'network down' })
+  })
+
+  it('refuses to list transactions without a Stripe client configured', async () => {
+    const adapter = new NexaLabsAdapter(fakeClient([]))
+    await expect(adapter.listTransactions()).rejects.toThrow(/no Stripe client configured/)
+  })
+
+  it('maps charges, refunds, and payouts into ObservedTransactions, sorted by time', async () => {
+    const stripe: StripeReadClient = {
+      charges: {
+        async list() {
+          return { data: [{ id: 'ch_1', amount: 5000, currency: 'eur', status: 'succeeded', created: 1735776000 }] }
+        },
+      },
+      refunds: {
+        async list() {
+          return { data: [{ id: 're_1', amount: 1000, currency: 'eur', status: 'succeeded', created: 1735689600 }] }
+        },
+      },
+      payouts: {
+        async list() {
+          return { data: [{ id: 'po_1', amount: 4000, currency: 'eur', status: 'paid', created: 1735862400 }] }
+        },
+      },
+    }
+    const adapter = new NexaLabsAdapter(fakeClient([]), stripe)
+
+    const transactions = await adapter.listTransactions()
+    expect(transactions).toEqual([
+      { type: 'refund', amountCents: 1000, currency: 'eur', externalRef: 're_1', status: 'succeeded', occurredAt: '2025-01-01T00:00:00.000Z' },
+      { type: 'charge', amountCents: 5000, currency: 'eur', externalRef: 'ch_1', status: 'succeeded', occurredAt: '2025-01-02T00:00:00.000Z' },
+      { type: 'payout', amountCents: 4000, currency: 'eur', externalRef: 'po_1', status: 'paid', occurredAt: '2025-01-03T00:00:00.000Z' },
+    ])
+  })
+
+  it('passes `since` through to Stripe list calls as a created.gte filter', async () => {
+    let captured: unknown
+    const stripe: StripeReadClient = {
+      charges: {
+        async list(params) {
+          captured = params
+          return { data: [] }
+        },
+      },
+      refunds: { async list() { return { data: [] } } },
+      payouts: { async list() { return { data: [] } } },
+    }
+    const adapter = new NexaLabsAdapter(fakeClient([]), stripe)
+
+    await adapter.listTransactions('2025-01-01T00:00:00.000Z')
+    expect(captured).toEqual({ limit: 100, created: { gte: 1735689600 } })
   })
 })

@@ -9,6 +9,7 @@ export {
   listPendingApprovals,
   verifyOwnerCredentials,
   ingestEvents,
+  ingestTransactions,
   createPermissionEngine,
 } from './engine.js'
 export type { PermissionEngine, PermissionEngineDeps, IngestSummary } from './engine.js'
@@ -20,13 +21,15 @@ export type { OwnerRecord, OwnerStore } from './owners/store.js'
 export type { EventRecord, EventStore } from './events/store.js'
 export type { DecisionRecord, DecisionInput, DecisionStore } from './decisions/store.js'
 export type { BusinessStore } from './businesses/store.js'
-export type { ActionDefinition, BusinessAdapter, ObservedEvent } from './adapters/types.js'
+export type { TransactionRecord, TransactionInput, TransactionStore } from './transactions/store.js'
+export type { ActionDefinition, BusinessAdapter, ObservedEvent, ObservedTransaction } from './adapters/types.js'
 export { createPostgresAuditLogStore } from './audit/postgresStore.js'
 export { createPostgresApprovalStore } from './approvals/postgresStore.js'
 export { createPostgresOwnerStore } from './owners/postgresStore.js'
 export { createPostgresEventStore } from './events/postgresStore.js'
 export { createPostgresDecisionStore } from './decisions/postgresStore.js'
 export { createPostgresBusinessStore } from './businesses/postgresStore.js'
+export { createPostgresTransactionStore } from './transactions/postgresStore.js'
 export { NexaLabsAdapter, createNexaLabsAdapter } from './adapters/nexaLabsAdapter.js'
 export { triageEvent } from './agents/waitlistTriageAgent.js'
 export type { TriageResult } from './agents/waitlistTriageAgent.js'
