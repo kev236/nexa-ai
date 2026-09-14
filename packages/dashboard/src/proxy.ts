@@ -6,6 +6,13 @@ import { readSession } from '@/lib/session'
 // Next.js auth guide. The real check is verifySession() in src/lib/dal.ts,
 // called from every page and Server Action; this just avoids an obvious
 // round-trip to /login or back for the common case.
+//
+// /api/cron routes are excluded below (matcher, not here) rather than
+// just letting them fall through this same logic — they authenticate
+// with CRON_SECRET (see src/app/api/cron/poll/route.ts), never a
+// session cookie, so this owner-session gate has nothing to check for
+// them and would otherwise redirect every cron request to /login before
+// the route's own auth even runs.
 export async function proxy(request: NextRequest) {
   const session = await readSession()
   const isLoginPage = request.nextUrl.pathname === '/login'
@@ -20,5 +27,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api/cron|_next/static|_next/image|favicon.ico).*)'],
 }

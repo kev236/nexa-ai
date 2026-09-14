@@ -1,9 +1,14 @@
 import 'server-only'
 import {
   createPermissionEngine,
+  createPostgresAgentStore,
   createPostgresApprovalStore,
   createPostgresAuditLogStore,
+  createPostgresBusinessStore,
+  createPostgresDecisionStore,
+  createPostgresEventStore,
   createPostgresOwnerStore,
+  createPostgresTransactionStore,
   registerSendEmailExecutor,
 } from '@nexa-ai/permission-engine'
 
@@ -12,6 +17,15 @@ import {
  * @nexa-ai/permission-engine's public exports, never through `pg`
  * directly (the import-boundary check at the repo root enforces this;
  * see tools/import-boundary/README.md). One instance per server process.
+ *
+ * Every store is Postgres-backed here, not just the three the
+ * approvals page originally needed — a Vercel serverless function gets
+ * a fresh process per invocation (or close to it), so the in-memory
+ * default stores createPermissionEngine() falls back to would silently
+ * lose every event/decision/transaction between cron runs. That gap
+ * existed from step 6 through step 8's first pass — caught by actually
+ * running the cron route locally against a real Postgres database
+ * rather than assuming the wiring was already there.
  */
 let engine: ReturnType<typeof createPermissionEngine> | undefined
 
@@ -21,6 +35,11 @@ export function getEngine() {
       auditStore: createPostgresAuditLogStore(),
       approvalStore: createPostgresApprovalStore(),
       ownerStore: createPostgresOwnerStore(),
+      eventStore: createPostgresEventStore(),
+      decisionStore: createPostgresDecisionStore(),
+      transactionStore: createPostgresTransactionStore(),
+      businessStore: createPostgresBusinessStore(),
+      agentStore: createPostgresAgentStore(),
     })
     // The executor registry is per-process and in-memory — the dashboard
     // is a separate process from db/runWaitlistTriage.mjs, so it must
