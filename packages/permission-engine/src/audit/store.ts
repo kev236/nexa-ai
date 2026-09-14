@@ -29,4 +29,6 @@ export interface AuditLogStore {
   recordDenied(auditId: string, reason: string): Promise<void>
   recordExecuted(auditId: string, result: JsonValue): Promise<void>
   get(auditId: string): Promise<AuditLogRecord | undefined>
+  /** Most recent first — the dashboard's activity feed (step 8). */
+  listByBusiness(businessId: string, limit?: number): Promise<AuditLogRecord[]>
 }

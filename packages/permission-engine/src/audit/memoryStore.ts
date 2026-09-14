@@ -48,6 +48,18 @@ export class InMemoryAuditLogStore implements AuditLogStore {
     return this.records.get(auditId)
   }
 
+  async listByBusiness(businessId: string, limit = 100): Promise<AuditLogRecord[]> {
+    // Ascending sort (stable — ties keep insertion order) then reverse,
+    // rather than sorting descending directly: two requests can land in
+    // the same millisecond, and a descending sort's stable tie-break
+    // would wrongly keep the earlier one first instead of the later one.
+    return [...this.records.values()]
+      .filter((r) => r.businessId === businessId)
+      .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))
+      .reverse()
+      .slice(0, limit)
+  }
+
   private mustGet(auditId: string): AuditLogRecord {
     const record = this.records.get(auditId)
     if (!record) throw new Error(`no audit_log record for id ${auditId}`)

@@ -1,11 +1,14 @@
 import type { JsonValue } from '../json.js'
 
-/**
- * Only what an executor needs so far: a business's own config (e.g.
- * config.emailFrom), never hardcoded in executor code per this project's
- * own invariant against business specifics in core code. Grows if a
- * second thing ever needs a business row (name, status, ...).
- */
+export type BusinessRecord = {
+  id: string
+  slug: string
+  name: string
+  status: 'active' | 'paused' | 'archived'
+}
+
 export interface BusinessStore {
   getConfig(businessId: string): Promise<JsonValue>
+  /** Step 8: lets a caller (e.g. the dashboard's cron route) resolve an id without raw SQL. */
+  getBySlug(slug: string): Promise<BusinessRecord | undefined>
 }

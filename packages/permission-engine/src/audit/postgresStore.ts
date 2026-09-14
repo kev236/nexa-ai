@@ -87,6 +87,14 @@ export class PostgresAuditLogStore implements AuditLogStore {
     const row = result.rows[0]
     return row ? toRecord(row) : undefined
   }
+
+  async listByBusiness(businessId: string, limit = 100): Promise<AuditLogRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT * FROM audit_log WHERE business_id = $1 ORDER BY requested_at DESC LIMIT $2`,
+      [businessId, limit]
+    )
+    return result.rows.map(toRecord)
+  }
 }
 
 export function createPostgresAuditLogStore(): AuditLogStore {

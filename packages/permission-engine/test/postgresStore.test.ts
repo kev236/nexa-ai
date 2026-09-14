@@ -8,6 +8,7 @@ import { PostgresEventStore } from '../src/events/postgresStore.js'
 import { PostgresDecisionStore } from '../src/decisions/postgresStore.js'
 import { PostgresBusinessStore } from '../src/businesses/postgresStore.js'
 import { PostgresTransactionStore } from '../src/transactions/postgresStore.js'
+import { PostgresAgentStore } from '../src/agents/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
@@ -25,6 +26,7 @@ const connectionString = process.env.TEST_DATABASE_URL
 describe.skipIf(!connectionString)('Postgres-backed stores', () => {
   const pool = new pg.Pool({ connectionString })
   let businessId: string
+  let businessSlug: string
   let agentId: string
   let ownerId: string
   let ownerEmail: string
@@ -34,9 +36,10 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     await pool.query(
       'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
     )
+    businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
       `INSERT INTO businesses (slug, name) VALUES ($1, 'Test Biz') RETURNING id`,
-      [`test-${randomUUID()}`]
+      [businessSlug]
     )
     businessId = business.rows[0]!.id
     const agent = await pool.query<{ id: string }>(
@@ -331,5 +334,37 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const stored = await engine.transactionStore.listByBusiness(businessId)
     expect(stored).toHaveLength(1)
     expect(stored[0]).toMatchObject({ type: 'charge', amountCents: 5000, currency: 'eur', externalRef: 'ch_1' })
+  })
+
+  it('resolves a business by slug against real Postgres (step 8)', async () => {
+    const store = new PostgresBusinessStore(pool)
+    expect(await store.getBySlug(businessSlug)).toEqual({
+      id: businessId,
+      slug: businessSlug,
+      name: 'Test Biz',
+      status: 'active',
+    })
+    expect(await store.getBySlug('no-such-slug')).toBeUndefined()
+  })
+
+  it('lists an activity feed from real Postgres, most recent first (step 8)', async () => {
+    const engine = createPermissionEngine({ auditStore: new PostgresAuditLogStore(pool) })
+    await engine.requestAction(baseRequest({ payload: { order: 1 } }))
+    await engine.requestAction(baseRequest({ payload: { order: 2 } }))
+
+    const feed = await engine.auditStore.listByBusiness(businessId)
+    expect(feed).toHaveLength(2)
+    expect(feed[0]?.payload).toEqual({ order: 2 })
+    expect(feed[1]?.payload).toEqual({ order: 1 })
+  })
+
+  it('reads an agent by key and lists agents for a business against real Postgres (step 8)', async () => {
+    const store = new PostgresAgentStore(pool)
+    const agent = await store.getByKey(businessId, 'test-agent')
+    expect(agent).toMatchObject({ id: agentId, businessId, key: 'test-agent', role: 'testing', autonomyLevel: 1, active: true })
+    expect(await store.getByKey(businessId, 'no-such-key')).toBeUndefined()
+
+    const list = await store.listByBusiness(businessId)
+    expect(list).toEqual([agent])
   })
 })

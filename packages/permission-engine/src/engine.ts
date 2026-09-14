@@ -11,6 +11,10 @@ import type { DecisionStore } from './decisions/store.js'
 import { InMemoryDecisionStore } from './decisions/memoryStore.js'
 import type { TransactionStore } from './transactions/store.js'
 import { InMemoryTransactionStore } from './transactions/memoryStore.js'
+import type { BusinessStore } from './businesses/store.js'
+import { InMemoryBusinessStore } from './businesses/memoryStore.js'
+import type { AgentStore } from './agents/store.js'
+import { InMemoryAgentStore } from './agents/memoryStore.js'
 import type { BusinessAdapter } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -23,6 +27,8 @@ export type PermissionEngineDeps = {
   eventStore?: EventStore
   decisionStore?: DecisionStore
   transactionStore?: TransactionStore
+  businessStore?: BusinessStore
+  agentStore?: AgentStore
 }
 
 export type IngestSummary = { observed: number; inserted: number; skipped: number }
@@ -49,6 +55,8 @@ export type PermissionEngine = {
   eventStore: EventStore
   decisionStore: DecisionStore
   transactionStore: TransactionStore
+  businessStore: BusinessStore
+  agentStore: AgentStore
 }
 
 /**
@@ -64,6 +72,8 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const eventStore = deps.eventStore ?? new InMemoryEventStore()
   const decisionStore = deps.decisionStore ?? new InMemoryDecisionStore()
   const transactionStore = deps.transactionStore ?? new InMemoryTransactionStore()
+  const businessStore = deps.businessStore ?? new InMemoryBusinessStore()
+  const agentStore = deps.agentStore ?? new InMemoryAgentStore()
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -205,6 +215,8 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     eventStore,
     decisionStore,
     transactionStore,
+    businessStore,
+    agentStore,
   }
 }
 

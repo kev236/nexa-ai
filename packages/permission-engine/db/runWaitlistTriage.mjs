@@ -17,7 +17,7 @@ import {
   createPostgresDecisionStore,
   createPostgresEventStore,
   registerSendEmailExecutor,
-  triageEvent,
+  runWaitlistTriageOnce,
 } from '../dist/index.js'
 
 registerSendEmailExecutor()
@@ -60,51 +60,8 @@ try {
   })
   const llmClient = createAnthropicClient()
 
-  const events = await engine.eventStore.listByBusiness(businessId, 500)
-  let triaged = 0
-  let skipped = 0
-
-  for (const event of events) {
-    if (await engine.decisionStore.hasDecisionForEvent(event.id)) {
-      skipped++
-      continue
-    }
-
-    const to = typeof event.payload?.email === 'string' ? event.payload.email : undefined
-    if (!to) {
-      console.log(`skipping event ${event.id} (${event.type}) — no email address in payload`)
-      skipped++
-      continue
-    }
-
-    const result = await triageEvent(llmClient, event)
-    const subject =
-      event.type === 'waitlist_signup' ? "You're on the Nexa Labs waitlist" : 'Re: your message to Nexa Labs'
-
-    await engine.decisionStore.record({
-      businessId,
-      agentId,
-      eventId: event.id,
-      actionType: 'send_email',
-      reasoning: result.reasoning,
-      expectedResult: { to, subject, body: result.draftReply },
-      confidence: result.confidence,
-    })
-
-    const outcome = await engine.requestAction({
-      businessId,
-      agentId,
-      actionType: 'send_email',
-      payload: { to, subject, body: result.draftReply },
-      reasoning: result.reasoning,
-      expectedResult: { to, subject, body: result.draftReply },
-    })
-
-    console.log(`triaged event ${event.id} (${event.type}) -> ${outcome.status}`)
-    triaged++
-  }
-
-  console.log(`done: ${triaged} triaged, ${skipped} already had a decision`)
+  const summary = await runWaitlistTriageOnce(engine, llmClient, businessId, agentId)
+  console.log(`done: ${summary.triaged} triaged, ${summary.skipped} skipped`)
 } finally {
   await pool.end()
 }

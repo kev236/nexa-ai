@@ -61,4 +61,16 @@ describe('audit before execute (invariant #2)', () => {
     expect(deniedRecord?.status).toBe('denied')
     expect(deniedRecord?.deniedReason).toMatch(/denied by owner_kevin/)
   })
+
+  it('lists a business activity feed, most recent first, scoped per business (step 8)', async () => {
+    const engine = createPermissionEngine()
+    await engine.requestAction(baseRequest({ businessId: 'biz_1', payload: { charge: 1 } }))
+    await engine.requestAction(baseRequest({ businessId: 'biz_1', payload: { charge: 2 } }))
+    await engine.requestAction(baseRequest({ businessId: 'biz_2', payload: { charge: 3 } }))
+
+    const feed = await engine.auditStore.listByBusiness('biz_1')
+    expect(feed).toHaveLength(2)
+    expect(feed[0]?.payload).toEqual({ charge: 2 })
+    expect(feed[1]?.payload).toEqual({ charge: 1 })
+  })
 })
