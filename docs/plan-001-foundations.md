@@ -187,6 +187,15 @@ businesses
   config          jsonb              -- business-specific knobs (currency, timezone, ...)
   created_at      timestamptz
 
+owners
+  id              uuid pk
+  email           text unique
+  password_hash   text               -- or a passkey/magic-link credential table instead; see 3b note
+  created_at      timestamptz
+  -- single-tenant today (one owner), but this is its own table rather than
+  -- an env-var-configured single admin so the dashboard's auth model
+  -- doesn't have to change shape the day a second person needs access.
+
 agents
   id              uuid pk
   business_id     uuid fk -> businesses
@@ -214,8 +223,10 @@ events
   source          text               -- adapter id, e.g. 'nexalabs-web', 'tiktok-channel'
   type            text               -- 'waitlist_signup', 'contact_message', 'video_posted', ...
   payload         jsonb
-  occurred_at     timestamptz
-  ingested_at     timestamptz
+  occurred_at     timestamptz        -- when it happened in the source system
+  ingested_at     timestamptz        -- when nexa-ai learned about it (poll vs. backfill vs. webhook differ here)
+  ingestion_mode  text               -- 'backfill' | 'poll' | 'webhook' — see 3c; keeps the one-time
+                                      -- historical load auditable and distinct from live ingestion
 
 decisions
   id                  uuid pk
@@ -244,7 +255,7 @@ approvals
   consequence_of_inaction text
   requested_at            timestamptz
   resolved_at             timestamptz nullable
-  resolved_by             text nullable  -- owner identity, not an agent
+  resolved_by             uuid fk -> owners nullable  -- an owner, never an agent
 
 transactions
   id              uuid pk
@@ -369,19 +380,42 @@ the DB role's own privileges.
 ### 3c. The adapter interface
 
 Designed against the harder future case, not the easy current one: a
-business that is only an API and a spreadsheet (the stated TikTok example)
-has no concept of "server," "webhook," or "database" of its own. The
-interface has to be satisfiable by polling an API and reading a
-spreadsheet, not just by a codebase nexa-ai can hook into.
+business that is only an API and a spreadsheet (the stated TikTok example,
+used as a design target — no second business is actually planned yet) has
+no concept of "server," "webhook," or "database" of its own. The interface
+has to be satisfiable by polling an API and reading a spreadsheet, not just
+by a codebase nexa-ai can hook into.
+
+You confirmed nexa-ai needs to react faster than a poll interval for at
+least some events, so pull-only isn't sufficient — the interface needs a
+push path too, kept optional because not every adapter (a spreadsheet,
+certainly not TikTok) can offer one:
 
 ```ts
 interface BusinessAdapter {
   readonly adapterType: string          // 'nexalabs-web', 'tiktok-channel', ...
 
+  backfill(): Promise<ObservedEvent[]>
+    // One-time historical load, run once when the adapter is first
+    // registered for a business. Separate from observe() so a slow full
+    // history pull doesn't block or get conflated with live polling —
+    // events land with ingestion_mode: 'backfill'.
+
   observe(since: Timestamp): Promise<ObservedEvent[]>
-    // Pull, not push. Polling is the lowest common denominator across
-    // "has webhooks," "has an API with no webhooks," and "is a
-    // spreadsheet someone edits by hand."
+    // Pull, on an interval. The lowest common denominator across "has
+    // webhooks," "has an API with no webhooks," and "is a spreadsheet
+    // someone edits by hand" — every adapter must implement this even if
+    // it also pushes, so polling remains the fallback of last resort.
+
+  registerWebhook?(callbackUrl: string): Promise<{ webhookId: string }>
+    // Optional. Where the source system supports it (Resend, Stripe,
+    // most modern APIs), the adapter registers a push subscription
+    // instead of relying on poll latency. The permission engine owns one
+    // HTTP receiver per adapter type; the adapter's job is only to
+    // verify the incoming payload's signature and translate it into
+    // ObservedEvent shape — it never gets direct write access to
+    // `events`, same as every other path here. Events land with
+    // ingestion_mode: 'webhook'.
 
   listActions(): ActionDefinition[]
     // Declares what this adapter can execute and the JSON schema each
@@ -399,20 +433,44 @@ interface BusinessAdapter {
 }
 ```
 
-Credentials are resolved from a `business_credentials` table (encrypted at
-rest, business_id + adapter_type + credential material) and injected when
-the executor constructs the adapter — inside the permission engine's
+Credentials are resolved from a `business_credentials` table and injected
+when the executor constructs the adapter — inside the permission engine's
 process boundary, per 3b. An adapter never reads `process.env` for its own
 secrets; it receives them.
+
+**On the "encryption at rest" question you weren't sure about** — plainly:
+`business_credentials` stores things like the Stripe secret key and Sanity
+API token. If the database were ever read by someone who shouldn't (a
+backup leak, a misconfigured access grant), plain-text credentials in that
+table would hand over everything at once. The fix isn't exotic: the column
+is stored encrypted, and the one key needed to decrypt it lives outside
+the database entirely — as an environment variable on whatever host runs
+the permission engine, never in a row, never in a log line. Concretely,
+for a single-owner system this size: one `CREDENTIALS_ENCRYPTION_KEY`
+environment variable, used to encrypt/decrypt that one column with a
+standard library primitive (e.g. AES-GCM) before it ever touches disk.
+That's it — no external secrets-manager service is needed at this scale.
+It only becomes worth a dedicated service (Vercel's encrypted env vars
+already do something similar for the app's *own* secrets, but this is
+about *business* credentials the app stores in its own database) once
+there are enough businesses/adapters that manual key rotation gets
+painful. One key, one env var, one encrypt/decrypt helper — nothing to
+build in advance of needing it.
 
 For nexalabs specifically, one `NexaLabsAdapter` wraps the Sanity read
 client (content + waitlist/contact documents), the Stripe API in read-only
 mode (list charges/sessions, never create them until there's an approved
-`actionType` for it), and Resend (read delivery/inbound events). It does
-not import anything from the `Nexa-labs` repo — it talks to the same
-external services that repo talks to, with its own credentials, which is
-what keeps the two repos genuinely decoupled rather than decoupled in
-name only. A TikTok adapter would wrap the TikTok API for `observe` and
+`actionType` for it — and note the live Stripe key is in **test mode**,
+confirmed, because there's no KVK yet; that's a real constraint on the
+business, not just the code, so nothing here should assume live charges
+are even legally possible yet), and Resend (read delivery/inbound events).
+It does not import anything from the `Nexa-labs` repo — it talks to the
+same external services that repo talks to, with its own credentials,
+which is what keeps the two repos genuinely decoupled rather than
+decoupled in name only. `registerWebhook` is realistic here first: Resend
+and Stripe both support webhooks, so nexalabs is also the adapter that
+proves out the push path, not just the pull path. A TikTok adapter would
+wrap the TikTok API for `observe` and
 a Google Sheets API client for whatever isn't available through the API,
 behind the identical interface — no changes to the permission engine, the
 data model, or any core code. That's the test of whether this interface
@@ -431,15 +489,24 @@ changes.
    `decisions`.** Seed exactly one business row (`nexa-labs`) and zero
    agent rows — agents get seeded via config, not hardcoded, per
    invariant #5.
-3. **Approval flow, end to end**, including however the owner actually
-   sees and resolves a pending approval (channel undecided — see open
-   questions). This has to exist before any agent does anything, because
-   default autonomy is level 1 and level 1 means every action stops here.
-4. **`NexaLabsAdapter`, observe-only.** Read waitlist signups, contact
-   messages, and blog/changelog activity into `events`. No `execute`
-   capability registered yet. This is intentionally the first integration
-   because it's the lowest-risk one available — nexalabs has no real
-   money flow today (checkout is disconnected) and no customer data
+3. **Approval flow, end to end, as a dashboard with owner login.**
+   Confirmed: a dashboard, not Slack/email/CLI, and it needs its own
+   auth (the `owners` table above — email + password or a magic link is
+   enough for one owner; no need for anything heavier at this scale).
+   This has to exist before any agent does anything, because default
+   autonomy is level 1 and level 1 means every action stops here.
+4. **`NexaLabsAdapter`: backfill, then observe, then webhooks.** Run
+   `backfill()` once against existing Sanity `waitlist` and
+   `contactMessage` documents (confirmed: backfill, don't start empty) so
+   `events` reflects everything that happened before nexa-ai existed,
+   then move to `observe()` polling, then add `registerWebhook` for
+   Resend/Stripe once the poll path is proven — confirmed nexa-ai needs
+   to react faster than a poll interval for at least some events, so
+   webhook registration isn't a someday nice-to-have, it belongs in this
+   step, not deferred. No `execute` capability registered yet. This is
+   the first integration because it's the lowest-risk one available —
+   nexalabs has no real money flow today (Stripe is in test mode, and
+   checkout is disconnected from the UI besides) and no customer data
    beyond leads, so mistakes here are cheap.
 5. **One agent, read-only.** Something like a waitlist/contact triage
    agent that observes events and produces decisions + approval requests
@@ -480,62 +547,74 @@ changes.
 
 ---
 
-## 4. Guesses I made, and questions that depend on things I wasn't told
+## 4. Resolved questions, remaining guesses, and what's still genuinely open
 
-**Guesses (flagging so they can be corrected, not assuming they're right):**
+**Resolved, and folded into the design above:**
 
-- **Language/runtime for nexa-ai: TypeScript on Node.** Nothing in the
-  readme mandates this. I picked it because it matches the team's existing
-  familiarity (nexalabs is TS/Next.js) and because the import-boundary
-  enforcement in 3b leans on `package.json#exports`, which is a Node/TS
-  mechanism — a different runtime (Python, Go) would need an equivalent
-  boundary tool, which changes concrete details but not the design.
-- **Database: Postgres.** Reasonable default for relational,
-  audit-heavy, foreign-keyed data; not stated anywhere.
-- **Where nexa-ai actually runs.** It needs a long-lived process to poll
-  adapters and hold agent workers — that's not a Vercel-shaped workload
-  the way nexalabs is. I haven't picked a host because I don't know your
-  constraints (cost, existing infra, whether it should live next to
-  nexalabs or fully separate).
-- **Agents are LLM-backed.** I inferred this from "model choice is a
-  routing decision" and "agent prompts are versioned files," but the
-  readme never says which provider, or confirms agents call an LLM at all
-  versus being simpler rule-based scripts to start.
+1. **Stripe is in test mode**, deliberately — there's no KVK yet, so live
+   charges aren't legally possible right now regardless of what the code
+   does. This also surfaced a real process detail worth designing for
+   later, not now: pricing isn't self-serve — you want to email a client
+   and negotiate price before anything is charged. That's a reason the
+   orphaned checkout button shouldn't just get reconnected as-is later;
+   a "negotiate then invoice" flow is a different shape than "click to
+   pay the listed price," and probably wants an agent-drafted-email step
+   ahead of any checkout link, gated through the approval flow like
+   everything else. Noted for a future plan, not this one.
+2. **Approval surface: a dashboard.** Folded into build order step 3.
+3. **The dashboard needs its own login.** Added an `owners` table to the
+   data model (3a) — single row today, but its own table so the auth
+   model doesn't change shape the day a second person needs access.
+   Email + password or a magic link is enough; nothing heavier is
+   justified for one owner.
+4. **Backfill confirmed.** `BusinessAdapter` now has a separate
+   `backfill()` method (3c), run once when an adapter is registered, so
+   existing nexalabs waitlist/contact history lands in `events` with
+   `ingestion_mode: 'backfill'` rather than nexa-ai starting blind.
+5. **TikTok is a design target, not a real plan.** No schedule change —
+   the interface is built to survive that case, but adapter #2 isn't
+   prioritized ahead of getting adapter #1 and the permission engine
+   right.
+6. **Encryption, explained and resolved for now:** one encryption key,
+   held as an environment variable outside the database, used to
+   encrypt/decrypt the `business_credentials` columns before they touch
+   disk. No external secrets-manager service needed yet — see the full
+   explanation inline in 3c.
+7. **Reactivity: confirmed, faster than polling is needed.** Added
+   `registerWebhook` to `BusinessAdapter` (3c) as a first-class, not
+   optional-someday, path — nexalabs (via Resend/Stripe webhooks) is now
+   also the adapter that proves out push, not just pull.
 
-**Questions I can't answer from what exists:**
+**Still open, now that Vercel is connected:**
 
-1. Is the deployed `STRIPE_SECRET_KEY` on nexalabs a live key or a test
-   key? This determines whether the orphaned checkout route is a live
-   financial exposure today or a dormant one. I don't have Vercel access
-   to check.
-2. How does the owner actually want to see and resolve approval
-   requests — a dashboard, Slack, email, a CLI? This blocks step 3 of the
-   build order and I don't want to guess at something this central to
-   daily use.
-3. Should nexa-ai have its own login/auth for that approval surface, or
-   is it accessed some other way (VPN-only, single-owner CLI with no
-   multi-user concept)?
-4. Do you want the existing nexalabs Sanity data (whatever waitlist/
-   contact documents already exist) backfilled into nexa-ai's `events`
-   table, or does nexa-ai only start observing from whenever it first
-   runs?
-5. Is there a real second business already planned (the TikTok channel is
-   used as a design example in your prompt — is that literal, or just the
-   hardest case to design against)? Doesn't block anything now, but
-   changes how soon adapter #2 is worth prioritizing.
-6. Encryption approach for `business_credentials` at rest — is there an
-   existing secrets manager you want this to use (Vercel env vars won't
-   cover a separately-hosted nexa-ai), or should this design assume KMS/
-   application-level envelope encryption from scratch?
-7. Scale/uptime expectations for nexa-ai itself — is "a small always-on
-   process polling every few minutes" sufficient, or does anything need
-   to react faster than a poll interval (e.g., a real-time webhook path
-   from an adapter, which would need its own credential-isolation story
-   on top of what's in 3c)?
+You've now given access to the Vercel account hosting nexalabs.tech,
+which changes my earlier guess about where nexa-ai runs. It's worth
+naming as a real option rather than leaving it a total blank: Vercel
+Cron (scheduled function invocations) covers the `observe()` polling
+loop, and Vercel serverless/edge functions can receive the
+`registerWebhook` callbacks — meaning nexa-ai might not need a separate
+always-on host at all, and could live on the same platform you're
+already paying for and already know. That's a real proposal, not a
+decision — it trades away a genuinely long-running worker process (the
+simpler mental model for something that "runs agents") for serverless
+functions with cold starts and execution-time limits, and I don't know
+if that tradeoff is one you want made for you. Worth an explicit yes/no
+before it's load-bearing in the next plan doc, along with the database
+that goes with it (Vercel Postgres / Neon, if this is the direction).
 
-One more thing worth saying plainly, not papering over: the "orphaned
-Stripe checkout with no completion webhook" situation in nexalabs is a
-pre-existing gap in that repo, not something nexa-ai's design needs to
-route around — but it means step 7 above (`transactions` read-only wiring)
-will initially have nothing real to observe. That's fine; it's there for
-when nexalabs's own checkout gets finished, not before.
+**Still unresolved, not addressed by anything above:**
+
+- **Language/runtime for nexa-ai: still an assumption (TypeScript/Node),
+  not a confirmed decision.** Everything about the import-boundary
+  enforcement in 3b (`package.json#exports`) is Node/TS-specific; a
+  different runtime keeps the same design but changes that mechanism.
+- **Agents are LLM-backed:** inferred from "model choice is a routing
+  decision" and "agent prompts are versioned files" in the readme, never
+  actually confirmed, and no provider named.
+
+The "orphaned Stripe checkout with no completion webhook" situation in
+nexalabs remains a pre-existing gap in that repo, not something nexa-ai's
+design needs to route around — and now that price negotiation happens by
+email first (point 1 above), it's likely that gap gets redesigned rather
+than just reconnected whenever checkout comes back. That's a call for
+whenever that work actually starts, not this document.
