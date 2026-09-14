@@ -7,6 +7,8 @@ import type { OwnerStore } from './owners/store.js'
 import { InMemoryOwnerStore } from './owners/memoryStore.js'
 import type { EventStore } from './events/store.js'
 import { InMemoryEventStore } from './events/memoryStore.js'
+import type { DecisionStore } from './decisions/store.js'
+import { InMemoryDecisionStore } from './decisions/memoryStore.js'
 import type { BusinessAdapter } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -17,6 +19,7 @@ export type PermissionEngineDeps = {
   approvalStore?: ApprovalStore
   ownerStore?: OwnerStore
   eventStore?: EventStore
+  decisionStore?: DecisionStore
 }
 
 export type IngestSummary = { observed: number; inserted: number; skipped: number }
@@ -40,6 +43,7 @@ export type PermissionEngine = {
   approvalStore: ApprovalStore
   ownerStore: OwnerStore
   eventStore: EventStore
+  decisionStore: DecisionStore
 }
 
 /**
@@ -53,6 +57,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const approvalStore = deps.approvalStore ?? new InMemoryApprovalStore()
   const ownerStore = deps.ownerStore ?? new InMemoryOwnerStore()
   const eventStore = deps.eventStore ?? new InMemoryEventStore()
+  const decisionStore = deps.decisionStore ?? new InMemoryDecisionStore()
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -162,6 +167,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     approvalStore,
     ownerStore,
     eventStore,
+    decisionStore,
   }
 }
 

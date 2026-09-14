@@ -81,3 +81,20 @@ about code *outside* this package, not within it.
   `createNexaLabsAdapter()`, the factory — the adapter class itself never
   touches `process.env`, taking a client in its constructor instead
   (`test/nexaLabsAdapter.test.ts` exercises it with a fake one, no network).
+- The first agent (`src/agents/waitlistTriageAgent.ts`, step 5):
+  `triageEvent(client, event)` drafts a reply via Claude (`claude-opus-5`,
+  the one place the model is named — `src/llm/client.ts`), forced through
+  a single tool call (`tool_choice`) so the result is always structured
+  data, never prose to parse. The system prompt is a versioned file
+  (`prompts/waitlist-triage.md`), not a string literal, per this
+  project's own convention. `DecisionStore` (`src/decisions/`) records
+  the reasoning and links it to the source event
+  (`decisions.event_id`, migration `0009`) so the runner script can skip
+  events it's already triaged. The agent never sends anything — it
+  submits its draft through `requestAction` with `actionType: 'noop'`,
+  so approving it is a no-op with an audit trail, not a real send; that's
+  step 6, deliberately not built yet. Both the LLM client and the
+  adapter live inside this package's `src/`, same boundary as everything
+  else — an agent calling out to Claude is still "a module holding a
+  credential," so it stays inside the approved execution path, never in
+  a future `packages/agents/` outside it.

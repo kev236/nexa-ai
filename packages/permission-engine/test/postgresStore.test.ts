@@ -5,6 +5,7 @@ import { PostgresApprovalStore } from '../src/approvals/postgresStore.js'
 import { PostgresAuditLogStore } from '../src/audit/postgresStore.js'
 import { PostgresOwnerStore } from '../src/owners/postgresStore.js'
 import { PostgresEventStore } from '../src/events/postgresStore.js'
+import { PostgresDecisionStore } from '../src/decisions/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import '../src/executors/noop.js'
@@ -180,5 +181,59 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     )
     const forOther = await engine.ingestEvents(adapter, otherBusiness.rows[0]!.id, 'backfill')
     expect(forOther).toEqual({ observed: 1, inserted: 1, skipped: 0 })
+  })
+
+  it('records decisions linked to events, and reports idempotency correctly', async () => {
+    const eventStore = new PostgresEventStore(pool)
+    const decisionStore = new PostgresDecisionStore(pool)
+    const engine = createPermissionEngine({ eventStore })
+
+    const adapter: BusinessAdapter = {
+      adapterType: 'fake',
+      async backfill() {
+        return [
+          { source: 'fake', type: 'waitlist_signup', payload: { email: 'a@b.com' }, occurredAt: '2026-01-01T00:00:00Z', externalId: 'ev-1' },
+        ]
+      },
+      async observe() {
+        return []
+      },
+      listActions() {
+        return []
+      },
+      async execute() {
+        throw new Error('not implemented')
+      },
+      async healthCheck() {
+        return { ok: true }
+      },
+    }
+    await engine.ingestEvents(adapter, businessId, 'backfill')
+    const [event] = await eventStore.listByBusiness(businessId)
+    if (!event) throw new Error('expected one event')
+
+    expect(await decisionStore.hasDecisionForEvent(event.id)).toBe(false)
+
+    const decisionId = await decisionStore.record({
+      businessId,
+      agentId,
+      eventId: event.id,
+      actionType: 'noop',
+      reasoning: 'test reasoning',
+      expectedResult: { draftReply: 'hi' },
+      confidence: 0.8,
+    })
+
+    expect(await decisionStore.hasDecisionForEvent(event.id)).toBe(true)
+
+    const decisions = await decisionStore.listByBusiness(businessId)
+    expect(decisions).toHaveLength(1)
+    expect(decisions[0]).toMatchObject({
+      id: decisionId,
+      eventId: event.id,
+      agentId,
+      reasoning: 'test reasoning',
+      confidence: 0.8,
+    })
   })
 })
