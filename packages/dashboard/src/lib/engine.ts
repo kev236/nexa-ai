@@ -9,6 +9,7 @@ import {
   createPostgresEventStore,
   createPostgresOwnerStore,
   createPostgresTransactionStore,
+  createResendEmailNotifier,
   registerSendEmailExecutor,
 } from '@nexa-ai/permission-engine'
 
@@ -31,15 +32,20 @@ let engine: ReturnType<typeof createPermissionEngine> | undefined
 
 export function getEngine() {
   if (!engine) {
+    const ownerStore = createPostgresOwnerStore()
+    const businessStore = createPostgresBusinessStore()
+
     engine = createPermissionEngine({
       auditStore: createPostgresAuditLogStore(),
       approvalStore: createPostgresApprovalStore(),
-      ownerStore: createPostgresOwnerStore(),
+      ownerStore,
       eventStore: createPostgresEventStore(),
       decisionStore: createPostgresDecisionStore(),
       transactionStore: createPostgresTransactionStore(),
-      businessStore: createPostgresBusinessStore(),
+      businessStore,
       agentStore: createPostgresAgentStore(),
+      // Step 10: caught below, not thrown — see the send_email note.
+      notifier: tryCreateNotifier(ownerStore, businessStore),
     })
     // The executor registry is per-process and in-memory — the dashboard
     // is a separate process from db/runWaitlistTriage.mjs, so it must
@@ -55,4 +61,19 @@ export function getEngine() {
     }
   }
   return engine
+}
+
+function tryCreateNotifier(
+  ownerStore: ReturnType<typeof createPostgresOwnerStore>,
+  businessStore: ReturnType<typeof createPostgresBusinessStore>
+) {
+  try {
+    return createResendEmailNotifier(ownerStore, businessStore)
+  } catch (err) {
+    // Same shape as the executor above — a missing RESEND_API_KEY means
+    // no notifications, not a broken dashboard. requestAction() already
+    // treats an unconfigured notifier as "nothing to do here."
+    console.error('email notifier not configured:', err instanceof Error ? err.message : err)
+    return undefined
+  }
 }

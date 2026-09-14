@@ -45,6 +45,22 @@ describe('verifyOwnerCredentials', () => {
   })
 })
 
+describe('OwnerStore.listAll (step 10)', () => {
+  it('lists every owner — who a notifier has to reach', async () => {
+    const ownerStore = new InMemoryOwnerStore([
+      { email: 'kevin@nexalabs.tech', passwordHash: hashPassword('a') },
+      { email: 'second-owner@example.com', passwordHash: hashPassword('b') },
+    ])
+    const owners = await ownerStore.listAll()
+    expect(owners.map((o) => o.email).sort()).toEqual(['kevin@nexalabs.tech', 'second-owner@example.com'])
+  })
+
+  it('returns an empty list when there are no owners', async () => {
+    const ownerStore = new InMemoryOwnerStore()
+    expect(await ownerStore.listAll()).toEqual([])
+  })
+})
+
 describe('listPendingApprovals', () => {
   it('lists only pending approvals, oldest first, across multiple businesses', async () => {
     const engine = createPermissionEngine()

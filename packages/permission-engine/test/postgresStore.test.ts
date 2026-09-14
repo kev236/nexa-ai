@@ -12,6 +12,7 @@ import { PostgresAgentStore } from '../src/agents/postgresStore.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
+import { createEmailNotifier } from '../src/notifications/emailNotifier.js'
 import { registerExecutor } from '../src/executors/registry.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
@@ -125,6 +126,13 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const failure = await engine.verifyOwnerCredentials(ownerEmail, 'wrong password')
     expect(failure).toBeNull()
+  })
+
+  it('lists every owner against real Postgres (step 10)', async () => {
+    const store = new PostgresOwnerStore(pool)
+    const owners = await store.listAll()
+    expect(owners.map((o) => o.id)).toContain(ownerId)
+    expect(owners.map((o) => o.email)).toContain(ownerEmail)
   })
 
   it('lists pending approvals from real Postgres, oldest first', async () => {
@@ -366,5 +374,28 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const list = await store.listByBusiness(businessId)
     expect(list).toEqual([agent])
+  })
+
+  it('notifies the real owner on requestAction, reading emailFrom from real Postgres (step 10)', async () => {
+    await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
+      businessId,
+      JSON.stringify({ emailFrom: 'Nexa AI <ops@test.example>' }),
+    ])
+
+    let sentTo: string | undefined
+    const resend: ResendClient = {
+      emails: {
+        send: async (payload) => {
+          sentTo = payload.to
+          return { data: { id: 'email_1' }, error: null }
+        },
+      },
+    }
+    const notifier = createEmailNotifier(resend, new PostgresOwnerStore(pool), new PostgresBusinessStore(pool))
+    const engine = createPermissionEngine({ notifier })
+
+    const outcome = await engine.requestAction(baseRequest())
+    expect(outcome.status).toBe('pending_approval')
+    expect(sentTo).toBe(ownerEmail)
   })
 })

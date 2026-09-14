@@ -205,3 +205,30 @@ about code *outside* this package, not within it.
   `NexaLabsAdapter` class rather than the `BusinessAdapter` interface,
   since this method isn't generic enough to belong on the interface —
   a future adapter's webhook source won't be Sanity.
+- Step 10 — owner notification: a new `Notifier` interface
+  (`src/notifications/notifier.ts`), one method,
+  `notifyPendingApproval(request, approvalId)`, called from
+  `requestAction()` whenever it produces a `pending_approval` outcome —
+  never on a request-time denial, since there's nothing for an owner to
+  do about those. `notifier` is an optional `PermissionEngineDeps`
+  field, same shape as every store; unset means no attempt, not an
+  error. A failure inside a *configured* notifier is caught and logged
+  by `requestAction()` itself, not swallowed inside the notifier — a
+  fake notifier in tests should still be able to throw predictably, and
+  a real send failure is worth a log line, not silence. This is why
+  `createEmailNotifier()` checks Resend's own `{data, error}` response
+  and throws on `error` rather than treating "the API call didn't
+  reject" as success.
+  `src/notifications/emailNotifier.ts`'s `createEmailNotifier(resend,
+  ownerStore, businessStore)` emails every row from the new
+  `OwnerStore.listAll()`, from the business's configured
+  `config.emailFrom` (same key `send_email` already reads — no new
+  config). One email per pending approval, not a digest — reconsider
+  only if real volume ever makes that noisy. Content is deliberately
+  thin (reasoning + a link, not the raw payload) per `readme.md`'s
+  "Personal data" section — a payload can carry a customer's name/
+  email/message, and full detail is one already-access-controlled
+  dashboard visit away. `createResendEmailNotifier()` is the real-
+  credentials factory, same shape as `registerSendEmailExecutor()`
+  (throws if `RESEND_API_KEY` is unset; the caller decides that's
+  non-fatal and catches it — see the dashboard's engine singleton).

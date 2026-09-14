@@ -45,3 +45,5 @@ export type { RunWaitlistTriageOptions, RunWaitlistTriageSummary } from './agent
 export { createAnthropicClient } from './llm/client.js'
 export type { MessagesClient } from './llm/client.js'
 export { registerSendEmailExecutor } from './executors/sendEmail.js'
+export type { Notifier } from './notifications/notifier.js'
+export { createEmailNotifier, createResendEmailNotifier } from './notifications/emailNotifier.js'

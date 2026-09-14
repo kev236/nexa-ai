@@ -18,6 +18,7 @@ import { InMemoryAgentStore } from './agents/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
+import type { Notifier } from './notifications/notifier.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
 
 export type PermissionEngineDeps = {
@@ -29,6 +30,8 @@ export type PermissionEngineDeps = {
   transactionStore?: TransactionStore
   businessStore?: BusinessStore
   agentStore?: AgentStore
+  /** Step 10: optional — no notifier configured means no attempt, not an error. */
+  notifier?: Notifier
 }
 
 export type IngestSummary = { observed: number; inserted: number; skipped: number }
@@ -76,6 +79,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const transactionStore = deps.transactionStore ?? new InMemoryTransactionStore()
   const businessStore = deps.businessStore ?? new InMemoryBusinessStore()
   const agentStore = deps.agentStore ?? new InMemoryAgentStore()
+  const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
     // Structural enforcement of "payload is data, not capability" — a
@@ -100,6 +104,20 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     // decision. There is no code path in this function that executes
     // anything — only resolveApproval does, and only after 'approved'.
     const approvalId = await approvalStore.createPending(request, auditId)
+
+    // Step 10: best-effort — a notification failure must never affect
+    // whether the request itself succeeded; the approval already exists
+    // and is already queryable regardless of whether anyone got emailed
+    // about it. Caught and logged here, not inside the notifier, so a
+    // fake notifier in tests can still throw predictably.
+    if (notifier) {
+      try {
+        await notifier.notifyPendingApproval(request, approvalId)
+      } catch (err) {
+        console.error('failed to notify owner of pending approval:', err)
+      }
+    }
+
     return { status: 'pending_approval', auditId, approvalId }
   }
 

@@ -22,4 +22,8 @@ export class InMemoryOwnerStore implements OwnerStore {
   async get(ownerId: string): Promise<OwnerRecord | undefined> {
     return this.records.get(ownerId)
   }
+
+  async listAll(): Promise<OwnerRecord[]> {
+    return [...this.records.values()]
+  }
 }

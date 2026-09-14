@@ -33,6 +33,11 @@ export class PostgresOwnerStore implements OwnerStore {
     const row = result.rows[0]
     return row ? toRecord(row) : undefined
   }
+
+  async listAll(): Promise<OwnerRecord[]> {
+    const result = await this.pool.query<Row>('SELECT * FROM owners ORDER BY created_at ASC')
+    return result.rows.map(toRecord)
+  }
 }
 
 export function createPostgresOwnerStore(): OwnerStore {

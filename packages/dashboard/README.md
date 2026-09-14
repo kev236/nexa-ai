@@ -146,3 +146,20 @@ secret, missing signature header, and a duplicate delivery all behaved
 correctly. Couldn't verify an actual delivery *from* Sanity itself
 (sanity.io is blocked from this sandbox, same as earlier steps) — that
 needs a real webhook configured and fired at a real deployment.
+
+## Owner notification (step 10)
+
+Every process that constructs the engine (this dashboard, and any
+future one) can wire a `Notifier` so `requestAction()` emails every
+owner the moment something needs a decision — closing the direction
+step 9 didn't: events can reach an agent fast now, but the owner still
+had to remember to check the dashboard to see what it drafted.
+
+`getEngine()` wires `createResendEmailNotifier()` the same way it wires
+`registerSendEmailExecutor()` — constructed once, and a missing
+`RESEND_API_KEY` is caught and logged (`email notifier not configured:
+...`), not thrown; login and the approval queue keep working with
+notifications simply off. Verified locally: with `RESEND_API_KEY`
+unset, a real login through a real browser produced exactly that log
+line alongside the executor's own, and the dashboard functioned
+normally throughout.
