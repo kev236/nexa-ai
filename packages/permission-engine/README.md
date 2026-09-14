@@ -161,3 +161,20 @@ about code *outside* this package, not within it.
   shape as Stripe. This doesn't change what "observability only" means:
   nothing here signs a transaction or moves funds, it only watches a
   wallet the owner controls independently.
+- Step 8 — closing the manual-only loop: `AuditLogStore.listByBusiness()`
+  (most-recent-first activity feed), `BusinessStore.getBySlug()` +
+  `BusinessRecord`, and a new read-only `AgentStore`
+  (`getByKey`/`listByBusiness`) — all added so a caller outside a
+  `db/*.mjs` script (which can use `pg` directly) can resolve a business
+  or agent by its stable identifier without raw SQL; `packages/dashboard`
+  is exactly that caller, for both its new Activity page and its cron
+  route. `runWaitlistTriageOnce()` (`src/agents/runWaitlistTriage.ts`) is
+  the triage-and-submit loop extracted out of
+  `db/runWaitlistTriage.mjs`, so the CLI script and the dashboard's
+  scheduled cron route (`packages/dashboard/src/app/api/cron/poll/`)
+  call the exact same logic instead of two copies quietly drifting.
+  Bounded per `readme.md`'s "Agents" section — every run takes an
+  optional `{ maxActions, timeoutMs }` (defaults 20 / 60s) and reports
+  `stoppedReason` if it hit one; a token budget is NOT enforced yet,
+  since `completeWithTool()`/`triageEvent()` don't surface per-call
+  usage to sum against one — flagged, not silently skipped.

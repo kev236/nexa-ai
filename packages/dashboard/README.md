@@ -51,4 +51,69 @@ npm run db:create-owner -- <email> <password>   # from the repo root
 renamed `middleware.ts` to `proxy.ts` — functionality is unchanged).
 `src/lib/dal.ts`'s `verifySession()` is the real check, called from every
 page and Server Action, per the guide's warning that Proxy "should not be
-your only line of defense."
+your only line of defense." Its matcher excludes `api/cron` — that route
+authenticates with `CRON_SECRET`, never a session cookie (Vercel Cron
+isn't a browser), so this session gate would otherwise redirect every
+cron request to `/login` before the route's own auth ran; caught by
+actually running the route locally, not by inspection.
+
+## Pages (step 8)
+
+Three, behind the shared `Nav` (`src/components/Nav.tsx`):
+
+- **Approvals** (`/`) — unchanged from step 3: the pending-approval
+  queue, approve/deny.
+- **Activity** (`/activity`) — an agent status strip (key, role,
+  autonomy level, active/inactive, and its most recent action + status,
+  derived from `AuditLogStore.listByBusiness()` — no new columns
+  needed), a recently-observed events list, and the full audit log as a
+  real feed. This is the "what is every agent doing" view.
+- **Money** (`/transactions`) — the `transactions` table (step 7),
+  which had no UI at all before this. Observability only, same as the
+  table itself.
+
+`src/lib/business.ts` is the one place that resolves "the" business by
+slug — the dashboard is honestly single-tenant today (no business
+picker anywhere in it, the same gap `listPendingApprovals()` already
+had by returning every business's approvals unscoped). Every page goes
+through this one function rather than repeating the slug.
+
+## Scheduled polling (step 8)
+
+`src/app/api/cron/poll/route.ts`, scheduled by `vercel.json`. Polls
+nexalabs (Sanity events, Stripe/crypto transactions if configured),
+then runs the waitlist-triage agent over anything new —
+`runWaitlistTriageOnce()`, the exact same function
+`db/runWaitlistTriage.mjs` calls, so the manual and scheduled paths
+can't drift apart. Bounded per `readme.md`'s "Agents" section
+(`maxActions`/`timeoutMs`, defaults 20 / 60s) — a run that hits either
+limit stops and reports rather than pushing through; the next scheduled
+run picks up the rest, since un-triaged events are exactly what it
+looks for again.
+
+Authenticated with `CRON_SECRET` (`Authorization: Bearer <value>`),
+matching Vercel's own documented pattern — also usable for `vercel
+crons run /api/cron/poll` or a manual authenticated request. Scheduled
+once daily (`0 9 * * *`) — the team's Vercel plan is Hobby, which caps
+cron frequency at once/day; a finer interval needs Pro.
+
+Fails closed (`readme.md`'s invariant #8): a missing business/agent
+row, a broken adapter, or any other real error returns 500 with a
+specific message, never a silent 200 having done less than it should.
+The one deliberate exception is `ingestTransactions()` throwing "no
+payment source configured" — Stripe and the crypto wallet are both
+optional, so that's an expected state, reported as skipped rather than
+failing the run.
+
+**Every store this app's engine singleton (`src/lib/engine.ts`) uses
+must be the Postgres-backed one.** A Vercel serverless function gets a
+fresh process per invocation (or close to it) — an in-memory store
+(`createPermissionEngine()`'s default when a dep is omitted) would
+silently lose everything between cron runs. This bit once already: step
+6/7 only wired up `auditStore`/`approvalStore`/`ownerStore`, leaving
+`eventStore`/`decisionStore`/`transactionStore`/`businessStore`/
+`agentStore` on their in-memory defaults without anyone noticing, since
+the approvals page never exercised them. Caught by running the cron
+route locally against real Postgres, not by inspection — worth
+remembering next time a new store type is added anywhere in
+`packages/permission-engine`.
