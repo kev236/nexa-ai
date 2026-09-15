@@ -19,6 +19,7 @@ import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { Notifier } from './notifications/notifier.js'
+import { readSpendingLimitConfig } from './money/spendingLimit.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
 
 export type PermissionEngineDeps = {
@@ -54,6 +55,16 @@ export type PermissionEngine = {
   ingestTransactions(adapter: BusinessAdapter, businessId: string, since?: string): Promise<IngestSummary>
   /** Step 9: the push counterpart to ingestEvents() — one already-verified, already-translated event from a webhook handler. */
   ingestWebhookEvent(businessId: string, event: ObservedEvent): Promise<{ inserted: boolean }>
+  /**
+   * Step 12: readme.md's "Failure and retries" — sweeps audit_log rows
+   * still 'requested' with no matching approval ever created, older than
+   * `olderThanMs`, and marks them 'abandoned'. Meant to be called
+   * periodically (the dashboard's cron route does, alongside triage) —
+   * not part of requestAction()'s own flow, since the crash this recovers
+   * from is exactly a process dying mid-requestAction, so nothing inside
+   * that same call could ever detect it.
+   */
+  reapAbandonedRequests(olderThanMs?: number, limit?: number): Promise<{ abandoned: number }>
   auditStore: AuditLogStore
   approvalStore: ApprovalStore
   ownerStore: OwnerStore
@@ -162,7 +173,46 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     // by accident.
     if (minConfidence === undefined) return false
     if (request.confidence === undefined) return false
-    return request.confidence >= minConfidence
+    if (request.confidence < minConfidence) return false
+
+    // Step 13: a spending cap gates auto-approval specifically, not the
+    // normal pending_approval path — a human already sees the cost
+    // before clicking Approve, so a cap only needs to stop the system
+    // from spending unsupervised. No expectedCost on this request means
+    // nothing to cap; skip straight to true.
+    if (request.expectedCost) {
+      return isWithinSpendingLimit(request)
+    }
+    return true
+  }
+
+  async function isWithinSpendingLimit(request: ActionRequest): Promise<boolean> {
+    if (!request.expectedCost) return true
+    const config = await businessStore.getConfig(request.businessId)
+    const limit = readSpendingLimitConfig(config)
+    if (!limit) return true // no cap configured — nothing to enforce
+
+    if (limit.currency !== request.expectedCost.currency) {
+      // Fail closed (invariant #8): a cap in a different currency than
+      // this request is ambiguous, not "no cap" — never guess an FX rate.
+      return false
+    }
+
+    const sinceMs = limit.windowHours * 60 * 60 * 1000
+    // readme.md's Money section: "spend is measured against the ledger
+    // plus outstanding unconsumed grants." By this point in
+    // requestAction(), this request's own approval already exists as a
+    // 'pending' grant (createPending() ran before shouldAutoApprove()
+    // does), so sumPendingCost already includes it — no need to add
+    // request.expectedCost.amountCents a second time. This is also what
+    // makes the check race-safe: two concurrent requests each create
+    // their own pending row first, so whichever checks second always
+    // sees the other's committed amount already counted.
+    const [spent, pending] = await Promise.all([
+      auditStore.sumExecutedCost(request.businessId, limit.currency, sinceMs),
+      approvalStore.sumPendingCost(request.businessId, limit.currency),
+    ])
+    return spent + pending <= limit.amountCents
   }
 
   async function resolveApproval(
@@ -271,6 +321,28 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { inserted: result.inserted }
   }
 
+  async function reapAbandonedRequests(
+    olderThanMs = DEFAULT_ABANDON_AFTER_MS,
+    limit = 100
+  ): Promise<{ abandoned: number }> {
+    const stale = await auditStore.listStaleRequested(olderThanMs, limit)
+    let abandoned = 0
+    for (const record of stale) {
+      const approval = await approvalStore.getByAuditId(record.id)
+      // A pending approval exists — this is just an ordinary item sitting
+      // in the queue the owner hasn't gotten to yet, not a crash. Leave
+      // it alone; only a request that never got an approval row at all
+      // is the window this recovers from (see the migration's comment).
+      if (approval) continue
+      await auditStore.recordAbandoned(
+        record.id,
+        `no approval record was ever created within ${olderThanMs}ms of the request — likely a crashed run`
+      )
+      abandoned++
+    }
+    return { abandoned }
+  }
+
   return {
     requestAction,
     resolveApproval,
@@ -279,6 +351,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     ingestEvents,
     ingestTransactions,
     ingestWebhookEvent,
+    reapAbandonedRequests,
     auditStore,
     approvalStore,
     ownerStore,
@@ -296,6 +369,12 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
 // rather than one returning early.
 const DUMMY_HASH_FOR_TIMING = hashPassword('nexa-ai-dummy-password-for-timing-safety-only')
 
+// 10 minutes: comfortably longer than the real gap between
+// recordRequested() and createPending() (milliseconds, normally) ever
+// takes, so this never mistakes an in-flight request for an abandoned
+// one — only a genuinely crashed run leaves that gap open this long.
+const DEFAULT_ABANDON_AFTER_MS = 10 * 60 * 1000
+
 const defaultEngine = createPermissionEngine()
 
 export const requestAction = defaultEngine.requestAction
@@ -305,3 +384,4 @@ export const verifyOwnerCredentials = defaultEngine.verifyOwnerCredentials
 export const ingestEvents = defaultEngine.ingestEvents
 export const ingestTransactions = defaultEngine.ingestTransactions
 export const ingestWebhookEvent = defaultEngine.ingestWebhookEvent
+export const reapAbandonedRequests = defaultEngine.reapAbandonedRequests

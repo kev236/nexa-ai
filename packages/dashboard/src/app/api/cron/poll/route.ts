@@ -18,6 +18,10 @@ import { triggerWaitlistTriage } from '@/lib/triage'
  * crypto transactions (no webhook path for those yet) and as a daily
  * backstop in case a webhook delivery is ever missed.
  *
+ * Step 12 added reapAbandonedRequests() here too — this daily run is
+ * the only place a crashed request ever gets discovered and marked, so
+ * it belongs alongside the other "things that happen once a day".
+ *
  * readme.md's "Fail closed" invariant: a real failure (missing
  * business/agent row, a broken adapter, a database error) returns 500
  * and reports why — it never returns 200 having silently done nothing
@@ -52,7 +56,13 @@ export async function GET(request: NextRequest) {
 
     const triage = await triggerWaitlistTriage(engine, business)
 
-    return NextResponse.json({ events, transactions, triage })
+    // Step 12: a stale, orphaned 'requested' row is exactly what a killed
+    // process leaves behind — see engine.ts's reapAbandonedRequests(). A
+    // daily sweep here is the only place this ever runs; nothing inside
+    // requestAction() itself could detect its own crash.
+    const abandoned = await engine.reapAbandonedRequests()
+
+    return NextResponse.json({ events, transactions, triage, abandoned })
   } catch (err) {
     console.error('cron poll failed:', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })

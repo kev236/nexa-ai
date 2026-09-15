@@ -21,6 +21,10 @@ export class InMemoryApprovalStore implements ApprovalStore {
     return this.records.get(approvalId)
   }
 
+  async getByAuditId(auditId: string): Promise<ApprovalRecord | undefined> {
+    return [...this.records.values()].find((r) => r.auditId === auditId)
+  }
+
   async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy?: string): Promise<void> {
     const record = this.records.get(approvalId)
     if (!record) throw new Error(`no approval record for id ${approvalId}`)
@@ -43,5 +47,16 @@ export class InMemoryApprovalStore implements ApprovalStore {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .reverse()
       .slice(0, limit)
+  }
+
+  async sumPendingCost(businessId: string, currency: string): Promise<number> {
+    return [...this.records.values()]
+      .filter(
+        (r) =>
+          r.request.businessId === businessId &&
+          r.status === 'pending' &&
+          r.request.expectedCost?.currency === currency
+      )
+      .reduce((sum, r) => sum + (r.request.expectedCost?.amountCents ?? 0), 0)
   }
 }

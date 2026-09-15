@@ -440,4 +440,60 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const outcome = await engine.requestAction(baseRequest({ confidence: 0.5 }))
     expect(outcome.status).toBe('pending_approval')
   })
+
+  it('reaps an orphaned requested row against real Postgres, but leaves one with a real pending approval alone (step 12)', async () => {
+    const auditStore = new PostgresAuditLogStore(pool)
+    const approvalStore = new PostgresApprovalStore(pool)
+    const engine = createPermissionEngine({ auditStore, approvalStore })
+
+    // Simulate the crash window directly: an audit row exists, no
+    // approval row ever got created for it.
+    const orphanedAuditId = await auditStore.recordRequested(baseRequest())
+
+    // A normal request — has a real pending approval, just unreviewed.
+    const normal = await engine.requestAction(baseRequest())
+    expect(normal.status).toBe('pending_approval')
+
+    // Negative olderThanMs: cutoff lands in the future, so both rows
+    // above (recorded moments ago) count as "stale" — isolates the
+    // orphan-detection logic itself from real-clock timing.
+    const result = await engine.reapAbandonedRequests(-1000)
+    expect(result).toEqual({ abandoned: 1 })
+
+    const orphanedRecord = await auditStore.get(orphanedAuditId)
+    expect(orphanedRecord?.status).toBe('abandoned')
+    expect(orphanedRecord?.abandonedReason).toMatch(/crashed/)
+
+    const normalRecord = await auditStore.get(normal.auditId)
+    expect(normalRecord?.status).toBe('requested')
+  })
+
+  it('auto-approval is gated by a real spending cap against real Postgres — ledger plus outstanding grants (step 13)', async () => {
+    await pool.query(
+      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
+      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
+    )
+    await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
+      businessId,
+      JSON.stringify({ spendingLimitCents: 1000, spendingLimitCurrency: 'USD', spendingLimitWindowHours: 24 }),
+    ])
+
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
+      businessStore: new PostgresBusinessStore(pool),
+    })
+
+    const underCap = await engine.requestAction(
+      baseRequest({ confidence: 0.95, expectedCost: { amountCents: 600, currency: 'USD' } })
+    )
+    expect(underCap.status).toBe('executed')
+
+    // 600 already spent; this one would push the ledger to 1100 > 1000.
+    const overCap = await engine.requestAction(
+      baseRequest({ confidence: 0.95, expectedCost: { amountCents: 500, currency: 'USD' } })
+    )
+    expect(overCap.status).toBe('pending_approval')
+  })
 })

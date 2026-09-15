@@ -110,6 +110,13 @@ payment source configured" — Stripe and the crypto wallet are both
 optional, so that's an expected state, reported as skipped rather than
 failing the run.
 
+Since step 12, this route also calls `engine.reapAbandonedRequests()` on
+every run — the only place a request abandoned by a crashed process ever
+gets discovered and marked (see the permission-engine README's step 12
+section). The Activity page labels such a row "abandoned" with an amber
+badge, distinct from a normal "denied" (red) or "executed" (green) one,
+and shows the reason the same way a denial's reason is shown.
+
 **Every store this app's engine singleton (`src/lib/engine.ts`) uses
 must be the Postgres-backed one.** A Vercel serverless function gets a
 fresh process per invocation (or close to it) — an in-memory store

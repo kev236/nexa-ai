@@ -46,6 +46,12 @@ export class PostgresApprovalStore implements ApprovalStore {
     return row ? toRecord(row) : undefined
   }
 
+  async getByAuditId(auditId: string): Promise<ApprovalRecord | undefined> {
+    const result = await this.pool.query<Row>('SELECT * FROM approvals WHERE audit_id = $1', [auditId])
+    const row = result.rows[0]
+    return row ? toRecord(row) : undefined
+  }
+
   async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy?: string): Promise<void> {
     await this.pool.query(
       `UPDATE approvals SET status = $2, resolved_by = $3, resolved_at = now() WHERE id = $1`,
@@ -66,6 +72,16 @@ export class PostgresApprovalStore implements ApprovalStore {
       [businessId, limit]
     )
     return result.rows.map(toRecord)
+  }
+
+  async sumPendingCost(businessId: string, currency: string): Promise<number> {
+    const result = await this.pool.query<{ total: string }>(
+      `SELECT COALESCE(SUM((request->'expectedCost'->>'amountCents')::bigint), 0) AS total
+       FROM approvals
+       WHERE business_id = $1 AND status = 'pending' AND request->'expectedCost'->>'currency' = $2`,
+      [businessId, currency]
+    )
+    return Number(result.rows[0]?.total ?? 0)
   }
 }
 

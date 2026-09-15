@@ -9,6 +9,8 @@
   --danger-bg: #fef2f2;
   --approve-bg: #ecfdf5;
   --approve: #047857;
+  --warn-bg: #fffbeb;
+  --warn: #b45309;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +24,8 @@
     --danger-bg: #2a1414;
     --approve-bg: #0f2419;
     --approve: #34d399;
+    --warn-bg: #2a2210;
+    --warn: #fbbf24;
   }
 }
 
@@ -235,6 +239,11 @@ section {
 .status-inactive {
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.status-abandoned {
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
 .event-list {

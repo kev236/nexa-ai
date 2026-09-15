@@ -44,6 +44,13 @@ export class InMemoryAuditLogStore implements AuditLogStore {
     record.resolvedAt = new Date().toISOString()
   }
 
+  async recordAbandoned(auditId: string, reason: string): Promise<void> {
+    const record = this.mustGet(auditId)
+    record.status = 'abandoned'
+    record.abandonedReason = reason
+    record.resolvedAt = new Date().toISOString()
+  }
+
   async get(auditId: string): Promise<AuditLogRecord | undefined> {
     return this.records.get(auditId)
   }
@@ -58,6 +65,28 @@ export class InMemoryAuditLogStore implements AuditLogStore {
       .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))
       .reverse()
       .slice(0, limit)
+  }
+
+  async listStaleRequested(olderThanMs: number, limit = 100): Promise<AuditLogRecord[]> {
+    const cutoff = Date.now() - olderThanMs
+    return [...this.records.values()]
+      .filter((r) => r.status === 'requested' && new Date(r.requestedAt).getTime() < cutoff)
+      .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))
+      .slice(0, limit)
+  }
+
+  async sumExecutedCost(businessId: string, currency: string, sinceMs: number): Promise<number> {
+    const cutoff = Date.now() - sinceMs
+    return [...this.records.values()]
+      .filter(
+        (r) =>
+          r.businessId === businessId &&
+          r.status === 'executed' &&
+          r.expectedCost?.currency === currency &&
+          r.resolvedAt !== undefined &&
+          new Date(r.resolvedAt).getTime() >= cutoff
+      )
+      .reduce((sum, r) => sum + (r.expectedCost?.amountCents ?? 0), 0)
   }
 
   private mustGet(auditId: string): AuditLogRecord {

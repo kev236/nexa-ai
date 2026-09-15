@@ -273,3 +273,61 @@ about code *outside* this package, not within it.
   same trust level as `db/createOwner.mjs`), and per-action-type autonomy
   finer than "this whole agent" (there's only one action type per agent
   today, so the distinction doesn't exist yet).
+- Step 12 — crash recovery, readme.md's "Failure and retries": "a crashed
+  or killed run leaves its audit row marked [abandoned]" was a stated
+  invariant with no implementation (flagged since step 8). The real gap:
+  `requestAction()` writes an `audit_log` row (`recordRequested`), then a
+  moment later writes a matching `approvals` row (`createPending`) — a
+  process killed in exactly that window leaves the audit row stuck at
+  `'requested'` forever, with no approval for a human to see in the
+  dashboard queue and no code path that would ever revisit it. New
+  `AuditLogStore.listStaleRequested(olderThanMs, limit?)` finds
+  `'requested'` rows older than a threshold; new
+  `ApprovalStore.getByAuditId(auditId)` (backed by a new unique index,
+  `approvals_audit_id_idx` — `createPending()` writes exactly one
+  approval per audit row, ever, so this documents and enforces a real
+  1:1) tells "no approval was ever created" (the crash) apart from "one
+  exists and is still legitimately pending" (an ordinary queue item the
+  owner hasn't reviewed yet — never touched). `reapAbandonedRequests(olderThanMs?,
+  limit?)` on `PermissionEngine` does the join between the two and calls
+  `AuditLogStore.recordAbandoned()`, a new terminal status alongside
+  `denied`/`executed` (migration `0011`, `abandoned_reason` column
+  mirroring `denied_reason`). Deliberately not part of `requestAction()`
+  itself — the crash this recovers from is a process dying mid-call, so
+  nothing inside that same call could ever detect it; it's called
+  periodically instead (`packages/dashboard`'s cron route, alongside the
+  triage run — see that package's README).
+- Step 13 — spending limits, readme.md's Money section: "spend is
+  measured against the ledger plus outstanding unconsumed grants, so two
+  concurrent requests cannot both slip under the same cap." A cap only
+  needs to constrain the one place this system could spend money
+  *unsupervised* — autonomy level 2's auto-approve path (step 11); a
+  normal `pending_approval` already always waits for a human who sees
+  the cost before clicking Approve, so a cap doesn't gate that path.
+  `businesses.config.spendingLimitCents` / `spendingLimitCurrency` /
+  `spendingLimitWindowHours` (`src/money/spendingLimit.ts`'s
+  `readSpendingLimitConfig()`, set via the existing generic
+  `db:set-business-config` — no new script) must all be present and
+  well-formed together, same "two independent values, no accidental
+  default" shape as autonomy level 2 itself; any one missing means no
+  cap is enforced, not a crash. When a request carries an `expectedCost`
+  and a cap is configured, `shouldAutoApprove()` additionally requires
+  `sumExecutedCost(businessId, currency, windowMs)` (new on
+  `AuditLogStore` — the ledger: already-`executed` spend, resolved
+  within the window) plus `sumPendingCost(businessId, currency)` (new on
+  `ApprovalStore` — the outstanding grants: every currently-`pending`
+  approval's cost) to stay at or under the cap. `createPending()` always
+  runs before `shouldAutoApprove()` in `requestAction()`, so this
+  request's own cost is already inside `sumPendingCost` by the time the
+  check runs — no double-counting, and exactly what makes the check
+  race-safe: two concurrent requests each create their pending grant
+  first, so whichever's check runs second always sees the other's
+  already counted (`test/spendingLimit.test.ts` exercises this with a
+  real `Promise.all` of two concurrent `requestAction()` calls, not just
+  sequential logic). A cap in a different currency than the request
+  fails closed (denies auto-approval, invariant #8) rather than guessing
+  an FX rate. Nothing in this codebase sets `expectedCost` on a real
+  action yet (`send_email` has no direct dollar cost) — this is real,
+  tested infrastructure ready for the first action type that does,
+  matching the same "build the mechanism generically, not against one
+  hardcoded case" shape as step 11.

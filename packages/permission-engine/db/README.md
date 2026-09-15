@@ -60,3 +60,23 @@ to whatever's already exported — see `.env.example` at the repo root.
   back out of it.
 
 These are deferrals, recorded here so they're not mistaken for oversights.
+
+## Migration 0011 (step 12)
+
+Adds `'abandoned'` to `audit_log.status`'s CHECK constraint and an
+`abandoned_reason` column (mirrors `denied_reason`) — see the
+permission-engine README's step 12 section for what marks a row
+abandoned and why. Also adds `approvals_audit_id_idx`, a unique index on
+`approvals.audit_id`: `createPending()` has always written exactly one
+approval per audit row, this just documents and enforces that real 1:1
+relationship, and is what makes `ApprovalStore.getByAuditId()` a fast
+lookup rather than a table scan.
+
+Step 13's spending limits needed no migration — `businesses.config` is
+already a jsonb column, so `spendingLimitCents` /
+`spendingLimitCurrency` / `spendingLimitWindowHours` are just three more
+keys in it, set the same way `emailFrom` is:
+
+```
+npm run db:set-business-config -- nexa-labs '{"spendingLimitCents":100000,"spendingLimitCurrency":"USD","spendingLimitWindowHours":24}'
+```

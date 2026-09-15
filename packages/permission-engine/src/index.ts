@@ -11,6 +11,7 @@ export {
   ingestEvents,
   ingestTransactions,
   ingestWebhookEvent,
+  reapAbandonedRequests,
   createPermissionEngine,
 } from './engine.js'
 export type { PermissionEngine, PermissionEngineDeps, IngestSummary } from './engine.js'
