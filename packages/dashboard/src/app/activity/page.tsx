@@ -2,7 +2,7 @@ import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
-import type { AgentRecord, AuditLogRecord } from '@nexa-ai/permission-engine'
+import type { AgentRecord, ApprovalRecord, AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,17 +11,32 @@ function lastActivityFor(agent: AgentRecord, feed: AuditLogRecord[]): AuditLogRe
   return feed.find((r) => r.agentId === agent.id)
 }
 
+/**
+ * Step 11: an executed record with an approval that has no resolvedBy was
+ * never seen by a human — the owner pre-authorized it via autonomy level 2
+ * config (see engine.ts's shouldAutoApprove). Surfacing that distinction
+ * here is what keeps auto-approval transparent instead of invisible.
+ */
+function approvalLabel(record: AuditLogRecord, approvalsByAuditId: Map<string, ApprovalRecord>): string | undefined {
+  if (record.status !== 'executed') return undefined
+  const approval = approvalsByAuditId.get(record.id)
+  if (!approval) return undefined
+  return approval.resolvedBy ? 'approved by owner' : 'auto-approved by policy'
+}
+
 export default async function ActivityPage() {
   await verifySession()
   const engine = getEngine()
   const business = await getBusiness()
 
-  const [agents, feed, events] = await Promise.all([
+  const [agents, feed, events, approvals] = await Promise.all([
     engine.agentStore.listByBusiness(business.id),
     engine.auditStore.listByBusiness(business.id, 50),
     engine.eventStore.listByBusiness(business.id, 10),
+    engine.approvalStore.listByBusiness(business.id, 50),
   ])
   const recentEvents = [...events].reverse()
+  const approvalsByAuditId = new Map(approvals.map((a) => [a.auditId, a]))
 
   return (
     <>
@@ -93,21 +108,25 @@ export default async function ActivityPage() {
         {feed.length === 0 ? (
           <p className="empty">Nothing requested yet.</p>
         ) : (
-          feed.map((record) => (
-            <div className="card" key={record.id}>
-              <div className="card-header">
-                <span className="action-type">{record.actionType}</span>
-                <span className="meta">
-                  agent {record.agentId} · {new Date(record.requestedAt).toLocaleString()}
-                </span>
+          feed.map((record) => {
+            const label = approvalLabel(record, approvalsByAuditId)
+            return (
+              <div className="card" key={record.id}>
+                <div className="card-header">
+                  <span className="action-type">{record.actionType}</span>
+                  <span className="meta">
+                    agent {record.agentId} · {new Date(record.requestedAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="reasoning">{record.reasoning}</p>
+                <p className="meta">
+                  <span className={`status-badge status-${record.status}`}>{record.status}</span>
+                  {record.status === 'denied' && record.deniedReason ? ` — ${record.deniedReason}` : null}
+                  {label ? ` — ${label}` : null}
+                </p>
               </div>
-              <p className="reasoning">{record.reasoning}</p>
-              <p className="meta">
-                <span className={`status-badge status-${record.status}`}>{record.status}</span>
-                {record.status === 'denied' && record.deniedReason ? ` — ${record.deniedReason}` : null}
-              </p>
-            </div>
-          ))
+            )
+          })
         )}
       </section>
     </>

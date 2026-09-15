@@ -398,4 +398,46 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(outcome.status).toBe('pending_approval')
     expect(sentTo).toBe(ownerEmail)
   })
+
+  it('auto-executes at autonomy level 2 against real Postgres, with no resolvedBy and no notification (step 11)', async () => {
+    await pool.query(
+      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
+      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
+    )
+    registerExecutor('send_email', async (payload) => payload)
+
+    let notified = false
+    const notifier = { async notifyPendingApproval() { notified = true } }
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
+      notifier,
+    })
+
+    const outcome = await engine.requestAction(
+      baseRequest({ actionType: 'send_email', confidence: 0.95, payload: { to: 'lead@example.com' } })
+    )
+    expect(outcome.status).toBe('executed')
+    expect(notified).toBe(false)
+
+    const [approval] = await engine.approvalStore.listByBusiness(businessId)
+    expect(approval?.status).toBe('approved')
+    expect(approval?.resolvedBy).toBeUndefined()
+  })
+
+  it('stays pending_approval against real Postgres when confidence is below the real configured threshold', async () => {
+    await pool.query(
+      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
+      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
+    )
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
+    })
+
+    const outcome = await engine.requestAction(baseRequest({ confidence: 0.5 }))
+    expect(outcome.status).toBe('pending_approval')
+  })
 })

@@ -51,6 +51,7 @@ describe('createEmailNotifier', () => {
       expect.objectContaining({ from: 'Nexa AI <ops@nexalabs.tech>', to: 'second@example.com' })
     )
     const [payload] = sent as Array<{ subject: string; text: string }>
+    if (!payload) throw new Error('expected at least one send')
     expect(payload.subject).toContain('noop')
     expect(payload.text).toContain('a lead asked about pricing')
     expect(payload.text).toContain('approval_1')

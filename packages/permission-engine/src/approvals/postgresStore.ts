@@ -46,16 +46,24 @@ export class PostgresApprovalStore implements ApprovalStore {
     return row ? toRecord(row) : undefined
   }
 
-  async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy: string): Promise<void> {
+  async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy?: string): Promise<void> {
     await this.pool.query(
       `UPDATE approvals SET status = $2, resolved_by = $3, resolved_at = now() WHERE id = $1`,
-      [approvalId, status, resolvedBy]
+      [approvalId, status, resolvedBy ?? null]
     )
   }
 
   async listPending(): Promise<ApprovalRecord[]> {
     const result = await this.pool.query<Row>(
       `SELECT * FROM approvals WHERE status = 'pending' ORDER BY created_at ASC`
+    )
+    return result.rows.map(toRecord)
+  }
+
+  async listByBusiness(businessId: string, limit = 100): Promise<ApprovalRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT * FROM approvals WHERE business_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [businessId, limit]
     )
     return result.rows.map(toRecord)
   }

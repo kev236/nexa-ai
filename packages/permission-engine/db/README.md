@@ -17,6 +17,9 @@ npm run db:register-agent      # -- <business-slug> <key> <role>, upserts by (bu
 npm run db:set-business-config # -- <business-slug> <json-config>, shallow-merges into businesses.config
 npm run db:run-waitlist-triage # step 5/6: drafts + sends replies for un-triaged events, needs
                                 # ANTHROPIC_API_KEY, RESEND_API_KEY, and config.emailFrom set
+npm run db:set-agent-autonomy  # -- <business-slug> <agent-key> <level> [min-confidence], step 11:
+                                # promotes one agent to auto-execute above a confidence threshold;
+                                # a level >= 2 without a threshold is refused, not defaulted
 ```
 
 Both read `.env` if present (Node's `--env-file-if-exists`), or fall back
@@ -47,9 +50,13 @@ to whatever's already exported — see `.env.example` at the repo root.
   `config.emailFrom` is just a key read out of it. `db/setBusinessConfig.mjs`
   is the one generic way to write any key into it, not just this one.
 - `approvals` doesn't carry `expected_cost` / `risk` / `alternatives` /
-  `recommendation` / `confidence` / `consequence_of_inaction` columns from
-  the plan doc's fuller sketch — `ActionRequest` doesn't carry those
-  fields either yet, and adding nullable columns nothing writes to isn't
-  worth doing ahead of the agent that would populate them.
+  `recommendation` / `consequence_of_inaction` columns from the plan
+  doc's fuller sketch — `ActionRequest` doesn't carry those fields
+  either yet, and adding nullable columns nothing writes to isn't worth
+  doing ahead of the agent that would populate them. `confidence` is the
+  exception (step 11): it lives inside `approvals.request`'s existing
+  jsonb blob, not a new column — the whole `ActionRequest` is already
+  stored there, so no migration was needed for a field engine.ts reads
+  back out of it.
 
 These are deferrals, recorded here so they're not mistaken for oversights.

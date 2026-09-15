@@ -58,11 +58,10 @@ about code *outside* this package, not within it.
   it; `approvals` doesn't yet carry risk/alternatives/recommendation).
   `src/db.ts` holds the shared connection pool, read from `DATABASE_URL` —
   see `.env.example` at the repo root.
-- Spending limits / autonomy levels above 1: not implemented. Every
-  request that reaches a registered executor becomes `pending_approval`,
-  full stop — matching the project's default-autonomy-is-1 rule. Don't
-  add auto-execute paths here without an explicit owner decision recorded
-  in config, per that same rule.
+- Spending limits: not implemented. Autonomy levels above 1 are — see
+  step 11 below; every other request still reaches a registered executor
+  as `pending_approval`, matching the project's default-autonomy-is-1
+  rule.
 - Owner accounts / login: `verifyOwnerCredentials` and `OwnerStore`
   (`src/owners/`) exist and are consumed by `packages/dashboard`. There is
   no `create` on `OwnerStore` on purpose — accounts are created only by
@@ -232,3 +231,45 @@ about code *outside* this package, not within it.
   credentials factory, same shape as `registerSendEmailExecutor()`
   (throws if `RESEND_API_KEY` is unset; the caller decides that's
   non-fatal and catches it — see the dashboard's engine singleton).
+- Step 11 — autonomy level 2, one proven action type auto-executing: a
+  new `ActionRequest.confidence?: number` (0-1, validated in
+  `validate.ts`) lets an agent report how sure it is a draft is
+  send-ready — `runWaitlistTriageOnce()` now threads the triage LLM's own
+  confidence score through. `requestAction()` checks
+  `shouldAutoApprove()` before creating a `pending_approval`: it looks up
+  the agent (`AgentStore.getById()`, new), and only auto-executes if
+  *both* `agents.autonomy_level >= 2` *and* `config.autoApproveMinConfidence`
+  are set and the request's confidence clears that threshold — either
+  condition alone does nothing, on purpose, so promoting an agent can't
+  happen by accident (`db/setAgentAutonomy.mjs` sets both together, and
+  refuses to set a level >= 2 without a threshold). This still reads as
+  "nobody but the owner approves anything" (`readme.md`'s Approvals
+  section): the owner pre-authorizes a narrow, proven action type in
+  config — a real decision — rather than the system deciding on its own;
+  see the same section's "Promoting a single narrow action type to a
+  higher level is an owner decision made in config, never a code
+  default." Auto-approval reuses the exact same `resolveApproval()`
+  execute path a human's dashboard click uses — no second code path to
+  keep in sync — just with `resolvedBy` omitted. `ApprovalStore.resolve()`'s
+  `resolvedBy` is now optional throughout (`approvals.resolved_by` has a
+  real FK to `owners(id)`, so a synthetic "system" value was never an
+  option); `resolved_by IS NULL AND status = 'approved'` is the
+  intentional, documented signal that an approval was auto-resolved by
+  policy rather than a person — no other code path produces that
+  combination. The owner is never notified for something already
+  auto-approved (nothing to review), but still is for the same agent
+  falling back to `pending_approval` (low confidence, or an inactive
+  agent, or autonomy level 1). The check fails closed: any error reading
+  agent config is caught and logged, and the request proceeds as
+  `pending_approval` rather than either auto-approving or crashing the
+  whole `requestAction()` call. New `ApprovalStore.listByBusiness()`
+  (most-recent-first, mirrors `AuditLogStore.listByBusiness()`) lets a
+  caller see how an approval was actually resolved —
+  `packages/dashboard`'s Activity page uses it to label each executed
+  action "approved by owner" or "auto-approved by policy," so
+  auto-approval stays visible to the owner rather than invisible.
+  Deliberately out of scope for this step: a UI to change autonomy level
+  from the dashboard (still a `db/setAgentAutonomy.mjs` operator action,
+  same trust level as `db/createOwner.mjs`), and per-action-type autonomy
+  finer than "this whole agent" (there's only one action type per agent
+  today, so the distinction doesn't exist yet).

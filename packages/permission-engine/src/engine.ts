@@ -105,6 +105,32 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     // anything — only resolveApproval does, and only after 'approved'.
     const approvalId = await approvalStore.createPending(request, auditId)
 
+    // Step 11: autonomy level 2 — an owner can pre-authorize a narrow,
+    // proven action type in config (an agent's autonomyLevel plus a
+    // confidence threshold), skipping the wait for that specific
+    // narrow case. "Nobody but the owner approves anything" (readme.md)
+    // still holds here: the owner made this decision in advance, by
+    // setting the policy, not the system deciding on its own — see
+    // shouldAutoApprove(). Fails closed on any error (readme.md
+    // invariant #8): a broken check never silently promotes a request
+    // to auto-approved, it just falls back to the safer, slower path.
+    let autoApprove = false
+    try {
+      autoApprove = await shouldAutoApprove(request)
+    } catch (err) {
+      console.error('autonomy check failed, falling back to pending_approval:', err)
+    }
+
+    if (autoApprove) {
+      // No "needs your approval" notification for something that's
+      // already been decided — resolveApproval runs the exact same
+      // execute path a human's Approve click would, just triggered
+      // here instead of waiting for one. resolvedBy stays unset,
+      // which is how the audit trail distinguishes this from a real
+      // human resolution (see ApprovalStore.resolve()'s own comment).
+      return resolveApproval(approvalId, 'approved')
+    }
+
     // Step 10: best-effort — a notification failure must never affect
     // whether the request itself succeeded; the approval already exists
     // and is already queryable regardless of whether anyone got emailed
@@ -121,10 +147,28 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { status: 'pending_approval', auditId, approvalId }
   }
 
+  async function shouldAutoApprove(request: ActionRequest): Promise<boolean> {
+    const agent = await agentStore.getById(request.agentId)
+    if (!agent || !agent.active || agent.autonomyLevel < 2) return false
+
+    const config = agent.config
+    const minConfidence =
+      typeof config === 'object' && config !== null && !Array.isArray(config) && typeof config.autoApproveMinConfidence === 'number'
+        ? config.autoApproveMinConfidence
+        : undefined
+    // Both autonomyLevel >= 2 AND an explicit threshold must be set —
+    // bumping the level alone does nothing, on purpose. Two deliberate
+    // config values, not one flag, so promoting an agent can't happen
+    // by accident.
+    if (minConfidence === undefined) return false
+    if (request.confidence === undefined) return false
+    return request.confidence >= minConfidence
+  }
+
   async function resolveApproval(
     approvalId: string,
     decision: 'approved' | 'denied',
-    resolvedBy: string
+    resolvedBy?: string
   ): Promise<ActionOutcome> {
     const approval = await approvalStore.get(approvalId)
     if (!approval) throw new Error(`no such approval: ${approvalId}`)

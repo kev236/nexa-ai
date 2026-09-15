@@ -7,6 +7,10 @@ export class InMemoryAgentStore implements AgentStore {
     return [...this.records.values()].find((r) => r.businessId === businessId && r.key === key)
   }
 
+  async getById(agentId: string): Promise<AgentRecord | undefined> {
+    return this.records.get(agentId)
+  }
+
   async listByBusiness(businessId: string): Promise<AgentRecord[]> {
     return [...this.records.values()]
       .filter((r) => r.businessId === businessId)

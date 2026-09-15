@@ -38,4 +38,10 @@ export function assertActionRequest(request: unknown): asserts request is Action
     }
     assertNonEmptyString(cost.currency, 'ActionRequest.expectedCost.currency')
   }
+
+  if (r.confidence !== undefined) {
+    if (typeof r.confidence !== 'number' || !Number.isFinite(r.confidence) || r.confidence < 0 || r.confidence > 1) {
+      throw new TypeError('ActionRequest.confidence must be a finite number between 0 and 1 when present')
+    }
+  }
 }

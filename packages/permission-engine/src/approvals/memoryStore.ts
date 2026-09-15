@@ -21,7 +21,7 @@ export class InMemoryApprovalStore implements ApprovalStore {
     return this.records.get(approvalId)
   }
 
-  async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy: string): Promise<void> {
+  async resolve(approvalId: string, status: 'approved' | 'denied', resolvedBy?: string): Promise<void> {
     const record = this.records.get(approvalId)
     if (!record) throw new Error(`no approval record for id ${approvalId}`)
     record.status = status
@@ -33,5 +33,15 @@ export class InMemoryApprovalStore implements ApprovalStore {
     return [...this.records.values()]
       .filter((r) => r.status === 'pending')
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  }
+
+  async listByBusiness(businessId: string, limit = 100): Promise<ApprovalRecord[]> {
+    // Ascending then reverse, not a direct descending sort — see
+    // audit/memoryStore.ts's listByBusiness for why (stable-sort ties).
+    return [...this.records.values()]
+      .filter((r) => r.request.businessId === businessId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .reverse()
+      .slice(0, limit)
   }
 }

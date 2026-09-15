@@ -68,7 +68,11 @@ Three, behind the shared `Nav` (`src/components/Nav.tsx`):
   autonomy level, active/inactive, and its most recent action + status,
   derived from `AuditLogStore.listByBusiness()` — no new columns
   needed), a recently-observed events list, and the full audit log as a
-  real feed. This is the "what is every agent doing" view.
+  real feed. This is the "what is every agent doing" view. Since step
+  11, each executed entry is also labeled "approved by owner" or
+  "auto-approved by policy" (`ApprovalStore.listByBusiness()`, joined by
+  `auditId`) — so an agent promoted to autonomy level 2 stays visible
+  here, not silently invisible next to human-approved actions.
 - **Money** (`/transactions`) — the `transactions` table (step 7),
   which had no UI at all before this. Observability only, same as the
   table itself.
@@ -163,3 +167,18 @@ notifications simply off. Verified locally: with `RESEND_API_KEY`
 unset, a real login through a real browser produced exactly that log
 line alongside the executor's own, and the dashboard functioned
 normally throughout.
+
+## Autonomy level 2 visibility (step 11)
+
+The dashboard doesn't set autonomy level — that stays an operator
+action (`npm run db:set-agent-autonomy` at the repo root), same trust
+level as creating the owner account. What this app adds is visibility:
+the Activity page's audit log now labels each executed action by how it
+was resolved, so promoting an agent to auto-execute doesn't make its
+decisions disappear from view. Verified locally against real Postgres:
+set an agent to level 2 with a confidence threshold, drove a real
+`requestAction()` call through the built package straight against the
+dev database, confirmed it auto-executed, and confirmed the Activity
+page rendered it as "auto-approved by policy" in a real browser — right
+next to an existing "approved by owner" entry from a real human
+decision made in an earlier step.

@@ -70,7 +70,7 @@ describe('NexaLabsAdapter', () => {
     const client: SanityFetchClient = {
       async fetch(_query, params) {
         capturedParams = params
-        return []
+        return [] as never
       },
     }
     const adapter = new NexaLabsAdapter(client)
@@ -81,7 +81,7 @@ describe('NexaLabsAdapter', () => {
   it('has no registered actions and refuses to execute', async () => {
     const adapter = new NexaLabsAdapter(fakeClient([]))
     expect(adapter.listActions()).toEqual([])
-    await expect(adapter.execute('anything', {})).rejects.toThrow(/no registered actions/)
+    await expect(adapter.execute('anything')).rejects.toThrow(/no registered actions/)
   })
 
   it('reports health based on whether the query succeeds', async () => {

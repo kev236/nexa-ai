@@ -94,6 +94,14 @@ export async function runWaitlistTriageOnce(
       payload: { to, subject, body: result.draftReply },
       reasoning: result.reasoning,
       expectedResult: { to, subject, body: result.draftReply },
+      // Step 11: feeds the autonomy-level-2 auto-approve gate. The
+      // prompt (prompts/waitlist-triage.md) already instructs the model
+      // to lower this for anything ambiguous or needing a human's
+      // specific knowledge — a contact-message pricing question, say —
+      // so a plain confidence-threshold check at the engine layer
+      // naturally distinguishes "safe to auto-send" from "needs a
+      // human" without this function hardcoding that distinction itself.
+      confidence: result.confidence,
     })
 
     triaged++
