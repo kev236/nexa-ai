@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { logout } from '@/app/actions'
 
-export function Nav({ active }: { active: 'approvals' | 'activity' | 'money' }) {
+export function Nav({ active }: { active: 'approvals' | 'activity' | 'money' | 'opportunities' }) {
   return (
     <nav className="nav">
       <div className="nav-links">
@@ -13,6 +13,9 @@ export function Nav({ active }: { active: 'approvals' | 'activity' | 'money' }) 
         </Link>
         <Link href="/transactions" className={active === 'money' ? 'nav-link active' : 'nav-link'}>
           Money
+        </Link>
+        <Link href="/opportunities" className={active === 'opportunities' ? 'nav-link active' : 'nav-link'}>
+          Opportunities
         </Link>
       </div>
       <form action={logout}>

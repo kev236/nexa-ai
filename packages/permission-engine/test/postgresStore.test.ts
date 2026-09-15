@@ -9,6 +9,9 @@ import { PostgresDecisionStore } from '../src/decisions/postgresStore.js'
 import { PostgresBusinessStore } from '../src/businesses/postgresStore.js'
 import { PostgresTransactionStore } from '../src/transactions/postgresStore.js'
 import { PostgresAgentStore } from '../src/agents/postgresStore.js'
+import { PostgresOpportunityStore } from '../src/opportunities/postgresStore.js'
+import { SCORE_DIMENSIONS } from '../src/opportunities/scoring.js'
+import type { OpportunityScores } from '../src/opportunities/scoring.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
@@ -37,7 +40,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -577,5 +580,39 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const [transaction] = await transactionStore.listByBusiness(businessId)
     expect(transaction?.decisionId).toBeDefined()
     expect(await transactionStore.listUnreviewed(businessId)).toHaveLength(0)
+  })
+
+  it('records, scores, and archives an opportunity against real Postgres (step 15)', async () => {
+    const store = new PostgresOpportunityStore(pool)
+    const scores = {} as Record<string, number>
+    for (const { key } of SCORE_DIMENSIONS) scores[key] = 75
+    scores.competition = 51 // pulls the average down slightly, off a round number
+
+    const id = await store.create({
+      name: 'Real Postgres Opportunity',
+      problem: 'Teams waste time on manual invoice reconciliation',
+      targetCustomer: 'Small finance teams',
+      scores: scores as unknown as OpportunityScores,
+      recommendation: 'BUILD MVP',
+    })
+
+    const record = await store.get(id)
+    expect(record?.status).toBe('open')
+    expect(record?.totalScore).toBe(73) // (75*11 + 51) / 12 = 73.0 (rounded)
+
+    await store.update(id, {
+      name: 'Renamed Opportunity',
+      problem: 'Teams waste time on manual invoice reconciliation',
+      targetCustomer: 'Small finance teams',
+      scores: scores as unknown as OpportunityScores,
+      recommendation: 'MONITOR',
+    })
+    expect((await store.get(id))?.name).toBe('Renamed Opportunity')
+
+    await store.setStatus(id, 'archived')
+    expect((await store.get(id))?.status).toBe('archived')
+
+    const list = await store.list()
+    expect(list.some((o) => o.id === id)).toBe(true)
   })
 })

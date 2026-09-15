@@ -378,3 +378,31 @@ about code *outside* this package, not within it.
   `decisions`; the "worth flagging" path is covered by a fake-client
   Postgres integration test instead, since forcing that outcome from the
   real model isn't reliable to script.
+- Step 15 — the opportunity-scoring format: the owner's own "empire OS"
+  vision doc (not part of this repo) sketched a large autonomous
+  business-discovery/launch pipeline; what was actually asked for was
+  much narrower — just its 12-dimension scoring format, as a manual tool
+  in the dashboard. `src/opportunities/scoring.ts`'s
+  `OpportunityScores`/`SCORE_DIMENSIONS` defines the rubric — every
+  dimension is on the same 0-100 "how favorable is this" scale (so a
+  high Competition score means *little* competitive pressure, not a
+  high literal amount of it), which is what makes `computeTotalScore()`
+  a defensible plain average across all 12: the doc gives no explicit
+  weights, and inventing a weighting scheme would be presenting a guess
+  as a formula. `assertOpportunityScores()` requires every dimension,
+  finite, 0-100 — thrown, never silently clamped or defaulted.
+  `OpportunityStore` (`create`/`update`/`setStatus`/`get`/`list`, both
+  in-memory and Postgres-backed — migration `0012`) is a new kind of
+  store in this codebase: no agent or executor ever touches it, so
+  unlike every other write path here it does not go through
+  `requestAction()`/approvals — it's pure owner-authored notes, same
+  trust level as an owner account (`OwnerStore`), gated only by the
+  dashboard's existing session auth. No `business_id` either, same
+  deliberate exception as `owners` (see that migration's comment) — an
+  opportunity describes a business that doesn't exist yet, so it isn't
+  scoped to one of the (currently one) existing businesses.
+  `totalScore` is computed and stored server-side on every write, never
+  trusted from the caller. Verified live end to end against real
+  Postgres and a real browser: created an opportunity (all 12 dimensions
+  at 80 → 80/100), edited it (one dimension 80→20 → recomputed to
+  75/100, matching (11×80+20)/12 exactly), archived it, and reopened it.

@@ -7,6 +7,7 @@ import {
   createPostgresBusinessStore,
   createPostgresDecisionStore,
   createPostgresEventStore,
+  createPostgresOpportunityStore,
   createPostgresOwnerStore,
   createPostgresTransactionStore,
   createResendEmailNotifier,
@@ -44,6 +45,7 @@ export function getEngine() {
       transactionStore: createPostgresTransactionStore(),
       businessStore,
       agentStore: createPostgresAgentStore(),
+      opportunityStore: createPostgresOpportunityStore(),
       // Step 10: caught below, not thrown — see the send_email note.
       notifier: tryCreateNotifier(ownerStore, businessStore),
     })

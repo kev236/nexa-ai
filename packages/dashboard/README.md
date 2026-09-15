@@ -58,9 +58,9 @@ Sanity is a browser), so this session gate would otherwise redirect
 every such request to `/login` before the route's own auth ran; caught
 by actually running the routes locally, not by inspection.
 
-## Pages (step 8)
+## Pages (step 8, +1 in step 15)
 
-Three, behind the shared `Nav` (`src/components/Nav.tsx`):
+Four, behind the shared `Nav` (`src/components/Nav.tsx`):
 
 - **Approvals** (`/`) — unchanged from step 3: the pending-approval
   queue, approve/deny.
@@ -76,6 +76,19 @@ Three, behind the shared `Nav` (`src/components/Nav.tsx`):
 - **Money** (`/transactions`) — the `transactions` table (step 7),
   which had no UI at all before this. Observability only, same as the
   table itself.
+- **Opportunities** (`/opportunities`, `/opportunities/new`,
+  `/opportunities/[id]/edit`, step 15) — the 12-dimension opportunity-
+  scoring format from the owner's own vision doc, as a manual dashboard
+  tool: create, edit, archive/reopen, sorted highest score first. No
+  agent involvement at all — pure owner-authored notes, gated only by
+  the same session login every other page uses. `OpportunityForm.tsx`
+  (`'use client'`, shared by the new/edit pages) deliberately does not
+  import `SCORE_DIMENSIONS` from `@nexa-ai/permission-engine` directly —
+  that package's index also re-exports the Postgres-backed stores
+  (which import `pg`), and a client bundle pulling that in breaks the
+  build. The dimension list is fetched server-side (the page component)
+  and passed down as a prop instead — caught by actually running
+  `next build`, not by inspection.
 
 `src/lib/business.ts` is the one place that resolves "the" business by
 slug — the dashboard is honestly single-tenant today (no business

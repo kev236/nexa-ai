@@ -24,6 +24,9 @@ export type { EventRecord, EventStore } from './events/store.js'
 export type { DecisionRecord, DecisionInput, DecisionStore } from './decisions/store.js'
 export type { BusinessRecord, BusinessStore } from './businesses/store.js'
 export type { AgentRecord, AgentStore } from './agents/store.js'
+export type { OpportunityRecord, OpportunityInput, OpportunityStore } from './opportunities/store.js'
+export type { OpportunityScores } from './opportunities/scoring.js'
+export { SCORE_DIMENSIONS, computeTotalScore } from './opportunities/scoring.js'
 export type { TransactionRecord, TransactionInput, TransactionStore } from './transactions/store.js'
 export type { ActionDefinition, BusinessAdapter, ObservedEvent, ObservedTransaction } from './adapters/types.js'
 export { createPostgresAuditLogStore } from './audit/postgresStore.js'
@@ -34,6 +37,7 @@ export { createPostgresDecisionStore } from './decisions/postgresStore.js'
 export { createPostgresBusinessStore } from './businesses/postgresStore.js'
 export { createPostgresTransactionStore } from './transactions/postgresStore.js'
 export { createPostgresAgentStore } from './agents/postgresStore.js'
+export { createPostgresOpportunityStore } from './opportunities/postgresStore.js'
 export {
   NexaLabsAdapter,
   createNexaLabsAdapter,

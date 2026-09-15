@@ -91,3 +91,13 @@ keys in it, set the same way `emailFrom` is:
 ```
 npm run db:set-business-config -- nexa-labs '{"spendingLimitCents":100000,"spendingLimitCurrency":"USD","spendingLimitWindowHours":24}'
 ```
+
+## Migration 0012 (step 15)
+
+Adds `opportunities` — the manual opportunity-scoring tool, entered and
+managed entirely through the dashboard's own `/opportunities` pages, not
+a CLI script (there's no agent or trusted-operator workflow for it the
+way `db:create-owner`/`db:register-agent` exist for admin actions — it's
+plain owner-authored data behind the dashboard's session login). No
+`business_id` column, deliberately — see the permission-engine README's
+step 15 section.

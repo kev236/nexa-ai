@@ -15,6 +15,8 @@ import type { BusinessStore } from './businesses/store.js'
 import { InMemoryBusinessStore } from './businesses/memoryStore.js'
 import type { AgentStore } from './agents/store.js'
 import { InMemoryAgentStore } from './agents/memoryStore.js'
+import type { OpportunityStore } from './opportunities/store.js'
+import { InMemoryOpportunityStore } from './opportunities/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -31,6 +33,8 @@ export type PermissionEngineDeps = {
   transactionStore?: TransactionStore
   businessStore?: BusinessStore
   agentStore?: AgentStore
+  /** Step 15: no agent touches this — pure owner-authored notes, same trust level as OwnerStore. */
+  opportunityStore?: OpportunityStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -73,6 +77,7 @@ export type PermissionEngine = {
   transactionStore: TransactionStore
   businessStore: BusinessStore
   agentStore: AgentStore
+  opportunityStore: OpportunityStore
 }
 
 /**
@@ -90,6 +95,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const transactionStore = deps.transactionStore ?? new InMemoryTransactionStore()
   const businessStore = deps.businessStore ?? new InMemoryBusinessStore()
   const agentStore = deps.agentStore ?? new InMemoryAgentStore()
+  const opportunityStore = deps.opportunityStore ?? new InMemoryOpportunityStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -360,6 +366,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     transactionStore,
     businessStore,
     agentStore,
+    opportunityStore,
   }
 }
 
