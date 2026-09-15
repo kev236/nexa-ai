@@ -18,11 +18,11 @@
     "db:register-agent": "node --env-file-if-exists=.env packages/permission-engine/db/registerAgent.mjs",
     "db:register-business": "node --env-file-if-exists=.env packages/permission-engine/db/registerBusiness.mjs",
     "db:set-business-config": "node --env-file-if-exists=.env packages/permission-engine/db/setBusinessConfig.mjs",
-    "db:set-agent-autonomy": "node --env-file-if-exists=.env packages/permission-engine/db/setAgentAutonomy.mjs",
     "db:run-waitlist-triage": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/runWaitlistTriage.mjs",
     "db:run-transaction-review": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/runTransactionReview.mjs",
     "db:import-campaign": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/importCampaign.mjs",
     "db:generate-concepts": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/generateConcepts.mjs",
+    "db:discover-opportunities": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/runOpportunityDiscovery.mjs",
     "build:permission-engine": "npm run build --workspace=packages/permission-engine",
     "dashboard:dev": "npm run dev --workspace=packages/dashboard",
     "dashboard:build": "npm run build --workspace=packages/dashboard"

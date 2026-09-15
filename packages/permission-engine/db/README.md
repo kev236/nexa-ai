@@ -16,10 +16,8 @@ npm run db:backfill-nexalabs   # step 4/7: one-time historical load from Sanity 
 npm run db:register-agent      # -- <business-slug> <key> <role>, upserts by (business, key)
 npm run db:set-business-config # -- <business-slug> <json-config>, shallow-merges into businesses.config
 npm run db:run-waitlist-triage # step 5/6: drafts + sends replies for un-triaged events, needs
-                                # ANTHROPIC_API_KEY, RESEND_API_KEY, and config.emailFrom set
-npm run db:set-agent-autonomy  # -- <business-slug> <agent-key> <level> [min-confidence], step 11:
-                                # promotes one agent to auto-execute above a confidence threshold;
-                                # a level >= 2 without a threshold is refused, not defaulted
+                                # ANTHROPIC_API_KEY, RESEND_API_KEY, and config.emailFrom set — since
+                                # step 18, sends the moment it's drafted, no approval step
 npm run db:run-transaction-review # step 14: reviews un-reviewed transactions, drafts an owner
                                    # alert for anything worth flagging; needs ANTHROPIC_API_KEY,
                                    # RESEND_API_KEY, and an owner account (db:create-owner) to
@@ -32,6 +30,10 @@ npm run db:import-campaign     # -- <business-slug> <path-to-file>, step 16: nor
 npm run db:generate-concepts   # -- <business-slug> <campaign-id> [agent-key], step 16: generates
                                 # 6 scored content concepts for one campaign via the Creative
                                 # Agent; needs ANTHROPIC_API_KEY
+npm run db:discover-opportunities # -- <business-slug> [agent-key], step 17: proposes up to 3 new
+                                   # scored opportunities via the Opportunity Discovery Agent;
+                                   # needs ANTHROPIC_API_KEY — unlike generate-concepts, the agent
+                                   # must already be registered (see below), not optional
 ```
 
 Registering the transaction-review agent (step 14, optional — only
@@ -39,6 +41,14 @@ useful once Stripe or the crypto wallet is configured):
 
 ```
 npm run db:register-agent -- nexa-labs transaction-review "Reviews new transactions and flags anything the owner should look at"
+```
+
+Registering the opportunity-discovery agent (step 17 — required before
+`db:discover-opportunities` or the dashboard's "Discover opportunities"
+button will do anything other than return a clear error):
+
+```
+npm run db:register-agent -- nexa-labs opportunity-discovery "Proposes new scored business/product opportunities for owner review"
 ```
 
 Both read `.env` if present (Node's `--env-file-if-exists`), or fall back
@@ -93,12 +103,12 @@ lookup rather than a table scan.
 
 Step 13's spending limits needed no migration — `businesses.config` is
 already a jsonb column, so `spendingLimitCents` /
-`spendingLimitCurrency` / `spendingLimitWindowHours` are just three more
-keys in it, set the same way `emailFrom` is:
-
-```
-npm run db:set-business-config -- nexa-labs '{"spendingLimitCents":100000,"spendingLimitCurrency":"USD","spendingLimitWindowHours":24}'
-```
+`spendingLimitCurrency` / `spendingLimitWindowHours` were just three
+more keys in it, set the same way `emailFrom` is. **Removed by step 18**
+(see migration 0014 and the permission-engine README): money now always
+requires an owner decision regardless of amount, so these config keys —
+if still set on a business from before — are inert, not read by
+anything.
 
 ## Migration 0012 (step 15)
 
@@ -128,3 +138,23 @@ npm run db:generate-concepts -- promote-fun <campaign-id>
 
 Campaigns can also be imported directly from the dashboard
 (`/campaigns/new`) — both paths call the same `importCampaignOnce()`.
+
+## Migration 0014 (step 18)
+
+Drops `agents.autonomy_level`. Step 18 replaced step 11's per-agent,
+confidence-threshold-gated auto-approval with a single default policy
+(auto-approve everything except money) — the column and
+`config.autoApproveMinConfidence` it worked alongside no longer mean
+anything to `engine.ts`'s `shouldAutoApprove()`, so rather than leave a
+column nothing reads, this migration removes it. `db/setAgentAutonomy.mjs`
+was deleted alongside it — there's no longer a level to set.
+
+## Migration 0015 (step 17)
+
+Adds `opportunities.proposed_by_agent_id` (nullable, `REFERENCES
+agents(id)`) — set when the Opportunity Discovery Agent proposed a row
+(via the new `propose_opportunity` executor,
+`src/executors/proposeOpportunity.ts`) rather than the owner typing one
+in directly. See the permission-engine README's step 17 section for why
+a proposal goes through `requestAction()` at all despite spending no
+money and needing no approval.

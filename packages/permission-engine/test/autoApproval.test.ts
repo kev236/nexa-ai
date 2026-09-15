@@ -27,7 +27,6 @@ function baseAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
     businessId: 'biz_1',
     key: 'waitlist-triage',
     role: 'testing',
-    autonomyLevel: 1,
     config: {},
     active: true,
     createdAt: '2026-01-01T00:00:00Z',
@@ -54,51 +53,19 @@ describe('ActionRequest.confidence validation', () => {
   })
 })
 
-describe('autonomy level 2 auto-approve gate', () => {
-  it('stays pending_approval at the default level 1, even with high confidence', async () => {
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 1, config: { autoApproveMinConfidence: 0.5 } }))
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.99 }))
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('stays pending_approval at level 2 with no threshold configured', async () => {
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 2, config: {} }))
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.99 }))
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('stays pending_approval at level 2 when the request carries no confidence', async () => {
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.5 } }))
-    const outcome = await engine.requestAction(baseRequest())
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('stays pending_approval when confidence is below the threshold', async () => {
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.9 } }))
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.8 }))
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('stays pending_approval for an inactive agent, even if otherwise eligible', async () => {
-    const engine = engineWithAgent(
-      baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.5 }, active: false })
-    )
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.99 }))
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('stays pending_approval when the agent cannot be found at all', async () => {
-    const engine = createPermissionEngine({ agentStore: new InMemoryAgentStore() })
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.99 }))
-    expect(outcome.status).toBe('pending_approval')
-  })
-
-  it('auto-executes at level 2 once confidence clears the configured threshold', async () => {
+/**
+ * Step 18: approval policy simplified. Auto-approve is now the default
+ * for any active agent's request — money (`expectedCost`) is the one
+ * thing that still stops and waits. Replaces step 11's opt-in
+ * autonomy-level-2 + confidence-threshold system.
+ */
+describe('auto-approve everything except money (step 18)', () => {
+  it('auto-executes a non-money action for an active agent, regardless of confidence', async () => {
     registerExecutor('send_email', async (payload) => payload)
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.9 } }))
+    const engine = engineWithAgent(baseAgent())
 
     const outcome = await engine.requestAction(
-      baseRequest({ actionType: 'send_email', confidence: 0.95, payload: { to: 'a@b.com' } })
+      baseRequest({ actionType: 'send_email', payload: { to: 'a@b.com' } })
     )
 
     expect(outcome.status).toBe('executed')
@@ -114,12 +81,39 @@ describe('autonomy level 2 auto-approve gate', () => {
     expect(approvals).toHaveLength(0) // nothing left waiting
   })
 
+  it('auto-executes even with no confidence on the request at all', async () => {
+    registerExecutor('send_email', async (payload) => payload)
+    const engine = engineWithAgent(baseAgent())
+    const outcome = await engine.requestAction(baseRequest({ actionType: 'send_email', payload: { to: 'a@b.com' } }))
+    expect(outcome.status).toBe('executed')
+  })
+
+  it('stays pending_approval for a money-spending action, no matter how small', async () => {
+    const engine = engineWithAgent(baseAgent())
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 1, currency: 'USD' } })
+    )
+    expect(outcome.status).toBe('pending_approval')
+  })
+
+  it('stays pending_approval for an inactive agent, even for a non-money action', async () => {
+    const engine = engineWithAgent(baseAgent({ active: false }))
+    const outcome = await engine.requestAction(baseRequest())
+    expect(outcome.status).toBe('pending_approval')
+  })
+
+  it('stays pending_approval when the agent cannot be found at all', async () => {
+    const engine = createPermissionEngine({ agentStore: new InMemoryAgentStore() })
+    const outcome = await engine.requestAction(baseRequest())
+    expect(outcome.status).toBe('pending_approval')
+  })
+
   it('records the approval as approved with no resolvedBy — distinguishing it from a human decision', async () => {
     registerExecutor('send_email', async (payload) => payload)
-    const engine = engineWithAgent(baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.9 } }))
+    const engine = engineWithAgent(baseAgent())
 
     const outcome = await engine.requestAction(
-      baseRequest({ actionType: 'send_email', confidence: 0.95, payload: { to: 'a@b.com' } })
+      baseRequest({ actionType: 'send_email', payload: { to: 'a@b.com' } })
     )
     if (outcome.status !== 'executed') throw new Error('expected executed')
 
@@ -137,36 +131,31 @@ describe('autonomy level 2 auto-approve gate', () => {
         calls.push({ request, approvalId })
       },
     }
-    const agentStore = new InMemoryAgentStore(
-      new Map([[AGENT_ID, baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.9 } })]])
-    )
+    const agentStore = new InMemoryAgentStore(new Map([[AGENT_ID, baseAgent()]]))
     const engine = createPermissionEngine({ agentStore, notifier })
 
-    await engine.requestAction(baseRequest({ actionType: 'send_email', confidence: 0.95, payload: { to: 'a@b.com' } }))
+    await engine.requestAction(baseRequest({ actionType: 'send_email', payload: { to: 'a@b.com' } }))
     expect(calls).toHaveLength(0)
   })
 
-  it('still notifies when the same agent falls back to pending (confidence too low)', async () => {
-    registerExecutor('send_email', async (payload) => payload)
+  it('still notifies when a money-spending request falls back to pending', async () => {
     const calls: unknown[] = []
     const notifier: Notifier = {
       async notifyPendingApproval(request, approvalId) {
         calls.push({ request, approvalId })
       },
     }
-    const agentStore = new InMemoryAgentStore(
-      new Map([[AGENT_ID, baseAgent({ autonomyLevel: 2, config: { autoApproveMinConfidence: 0.9 } })]])
-    )
+    const agentStore = new InMemoryAgentStore(new Map([[AGENT_ID, baseAgent()]]))
     const engine = createPermissionEngine({ agentStore, notifier })
 
     const outcome = await engine.requestAction(
-      baseRequest({ actionType: 'send_email', confidence: 0.5, payload: { to: 'a@b.com' } })
+      baseRequest({ expectedCost: { amountCents: 1, currency: 'USD' } })
     )
     expect(outcome.status).toBe('pending_approval')
     expect(calls).toHaveLength(1)
   })
 
-  it('fails closed to pending_approval when the autonomy check itself throws', async () => {
+  it('fails closed to pending_approval when the auto-approve check itself throws', async () => {
     const agentStore = {
       async getByKey() {
         return undefined
@@ -180,7 +169,7 @@ describe('autonomy level 2 auto-approve gate', () => {
     }
     const engine = createPermissionEngine({ agentStore })
 
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.99 }))
+    const outcome = await engine.requestAction(baseRequest())
     expect(outcome.status).toBe('pending_approval')
   })
 })

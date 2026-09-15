@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { setOpportunityStatus } from '@/app/actions'
 import { Nav } from '@/components/Nav'
+import { DiscoverOpportunitiesButton } from '@/components/DiscoverOpportunitiesButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,8 +19,8 @@ export default async function OpportunitiesPage() {
       <div className="page-header">
         <h1>Opportunities</h1>
         <p className="subtitle">
-          The 12-dimension scoring format from the Nexa AI vision doc — manual notes the owner scores and
-          revisits, highest score first. Nothing here is discovered or acted on automatically.
+          The 12-dimension scoring format from the Nexa AI vision doc — score one yourself, or have the
+          Opportunity Discovery Agent propose a batch (marked &ldquo;discovered&rdquo; below). Highest score first.
         </p>
       </div>
 
@@ -27,6 +28,7 @@ export default async function OpportunitiesPage() {
         <Link href="/opportunities/new" className="button-link">
           New opportunity
         </Link>
+        <DiscoverOpportunitiesButton />
       </div>
 
       <section>
@@ -37,7 +39,10 @@ export default async function OpportunitiesPage() {
           open.map((o) => (
             <div className="card" key={o.id}>
               <div className="card-header">
-                <span className="action-type">{o.name}</span>
+                <span className="action-type-row">
+                  <span className="action-type">{o.name}</span>
+                  {o.proposedByAgentId && <span className="status-badge status-requested">discovered</span>}
+                </span>
                 <span className="score-badge">{o.totalScore}/100</span>
               </div>
               <p className="reasoning">{o.problem}</p>
@@ -65,7 +70,10 @@ export default async function OpportunitiesPage() {
           {archived.map((o) => (
             <div className="card" key={o.id}>
               <div className="card-header">
-                <span className="action-type">{o.name}</span>
+                <span className="action-type-row">
+                  <span className="action-type">{o.name}</span>
+                  {o.proposedByAgentId && <span className="status-badge status-requested">discovered</span>}
+                </span>
                 <span className="score-badge">{o.totalScore}/100</span>
               </div>
               <p className="reasoning">{o.problem}</p>

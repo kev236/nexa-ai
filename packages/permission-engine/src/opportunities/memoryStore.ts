@@ -18,6 +18,7 @@ export class InMemoryOpportunityStore implements OpportunityStore {
       totalScore: computeTotalScore(input.scores),
       recommendation: input.recommendation,
       status: 'open',
+      proposedByAgentId: input.proposedByAgentId,
       createdAt: now,
       updatedAt: now,
     })

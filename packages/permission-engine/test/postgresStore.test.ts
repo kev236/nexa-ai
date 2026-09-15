@@ -16,9 +16,11 @@ import { PostgresCampaignStore } from '../src/campaigns/postgresStore.js'
 import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStore.js'
 import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
 import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
+import { runOpportunityDiscoveryOnce } from '../src/agents/runOpportunityDiscovery.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
+import { createProposeOpportunityExecutor } from '../src/executors/proposeOpportunity.js'
 import { createEmailNotifier } from '../src/notifications/emailNotifier.js'
 import { registerExecutor } from '../src/executors/registry.js'
 import { runTransactionReviewOnce } from '../src/agents/runTransactionReview.js'
@@ -87,7 +89,11 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       approvalStore: new PostgresApprovalStore(pool),
     })
 
-    const outcome = await engine.requestAction(baseRequest())
+    // Since step 18, only a money-spending request still waits on a
+    // manual resolveApproval() call — everything else auto-executes.
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 500, currency: 'USD' } })
+    )
     expect(outcome.status).toBe('pending_approval')
     if (outcome.status !== 'pending_approval') return
 
@@ -113,7 +119,9 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       auditStore: new PostgresAuditLogStore(pool),
       approvalStore: new PostgresApprovalStore(pool),
     })
-    const outcome = await engine.requestAction(baseRequest())
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 500, currency: 'USD' } })
+    )
     if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
 
     await engine.resolveApproval(outcome.approvalId, 'denied', ownerId)
@@ -150,8 +158,9 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       approvalStore: new PostgresApprovalStore(pool),
     })
 
-    const first = await engine.requestAction(baseRequest({ payload: { order: 1 } }))
-    const second = await engine.requestAction(baseRequest({ payload: { order: 2 } }))
+    const cost = { amountCents: 500, currency: 'USD' }
+    const first = await engine.requestAction(baseRequest({ payload: { order: 1 }, expectedCost: cost }))
+    const second = await engine.requestAction(baseRequest({ payload: { order: 2 }, expectedCost: cost }))
     if (first.status !== 'pending_approval' || second.status !== 'pending_approval') {
       throw new Error('expected pending_approval')
     }
@@ -275,7 +284,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(await store.getConfig(businessId)).toEqual({})
   })
 
-  it('runs send_email through requestAction -> resolveApproval, reading emailFrom from real Postgres', async () => {
+  it('runs send_email through requestAction, auto-executing and reading emailFrom from real Postgres', async () => {
     await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
       businessId,
       JSON.stringify({ emailFrom: 'Test Biz <hello@test.example>' }),
@@ -295,18 +304,18 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const engine = createPermissionEngine({
       auditStore: new PostgresAuditLogStore(pool),
       approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
     })
 
+    // No expectedCost — since step 18, sending an email isn't money, so
+    // this auto-executes the moment it's requested, no resolveApproval() call needed.
     const outcome = await engine.requestAction(
       baseRequest({
         actionType: 'send_email',
         payload: { to: 'lead@example.com', subject: 'Hi', body: 'Thanks!' },
       })
     )
-    if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
-
-    const resolved = await engine.resolveApproval(outcome.approvalId, 'approved', ownerId)
-    expect(resolved.status).toBe('executed')
+    expect(outcome.status).toBe('executed')
     expect(sentPayload).toEqual({
       from: 'Test Biz <hello@test.example>',
       to: 'lead@example.com',
@@ -378,7 +387,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
   it('reads an agent by key and lists agents for a business against real Postgres (step 8)', async () => {
     const store = new PostgresAgentStore(pool)
     const agent = await store.getByKey(businessId, 'test-agent')
-    expect(agent).toMatchObject({ id: agentId, businessId, key: 'test-agent', role: 'testing', autonomyLevel: 1, active: true })
+    expect(agent).toMatchObject({ id: agentId, businessId, key: 'test-agent', role: 'testing', active: true })
     expect(await store.getByKey(businessId, 'no-such-key')).toBeUndefined()
 
     const list = await store.listByBusiness(businessId)
@@ -403,16 +412,16 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const notifier = createEmailNotifier(resend, new PostgresOwnerStore(pool), new PostgresBusinessStore(pool))
     const engine = createPermissionEngine({ notifier })
 
-    const outcome = await engine.requestAction(baseRequest())
+    // expectedCost forces this to actually stay pending — a notification
+    // only ever fires on that path, per step 18's policy.
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 500, currency: 'USD' } })
+    )
     expect(outcome.status).toBe('pending_approval')
     expect(sentTo).toBe(ownerEmail)
   })
 
-  it('auto-executes at autonomy level 2 against real Postgres, with no resolvedBy and no notification (step 11)', async () => {
-    await pool.query(
-      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
-      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
-    )
+  it('auto-executes any non-money action for an active agent against real Postgres, with no resolvedBy and no notification (step 18)', async () => {
     registerExecutor('send_email', async (payload) => payload)
 
     let notified = false
@@ -425,7 +434,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     })
 
     const outcome = await engine.requestAction(
-      baseRequest({ actionType: 'send_email', confidence: 0.95, payload: { to: 'lead@example.com' } })
+      baseRequest({ actionType: 'send_email', payload: { to: 'lead@example.com' } })
     )
     expect(outcome.status).toBe('executed')
     expect(notified).toBe(false)
@@ -435,18 +444,28 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(approval?.resolvedBy).toBeUndefined()
   })
 
-  it('stays pending_approval against real Postgres when confidence is below the real configured threshold', async () => {
-    await pool.query(
-      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
-      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
-    )
+  it('stays pending_approval against real Postgres for a money-spending action, even from an active agent (step 18)', async () => {
     const engine = createPermissionEngine({
       auditStore: new PostgresAuditLogStore(pool),
       approvalStore: new PostgresApprovalStore(pool),
       agentStore: new PostgresAgentStore(pool),
     })
 
-    const outcome = await engine.requestAction(baseRequest({ confidence: 0.5 }))
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 1, currency: 'USD' } })
+    )
+    expect(outcome.status).toBe('pending_approval')
+  })
+
+  it('a deactivated agent gets no auto-approval even for a non-money action (step 18)', async () => {
+    await pool.query(`UPDATE agents SET active = false WHERE id = $1`, [agentId])
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
+    })
+
+    const outcome = await engine.requestAction(baseRequest())
     expect(outcome.status).toBe('pending_approval')
   })
 
@@ -460,7 +479,11 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const orphanedAuditId = await auditStore.recordRequested(baseRequest())
 
     // A normal request — has a real pending approval, just unreviewed.
-    const normal = await engine.requestAction(baseRequest())
+    // expectedCost forces this to actually stay pending under step 18's
+    // "auto-approve everything except money" policy.
+    const normal = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 500, currency: 'USD' } })
+    )
     expect(normal.status).toBe('pending_approval')
 
     // Negative olderThanMs: cutoff lands in the future, so both rows
@@ -477,14 +500,14 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(normalRecord?.status).toBe('requested')
   })
 
-  it('auto-approval is gated by a real spending cap against real Postgres — ledger plus outstanding grants (step 13)', async () => {
-    await pool.query(
-      `UPDATE agents SET autonomy_level = 2, config = $2::jsonb WHERE id = $1`,
-      [agentId, JSON.stringify({ autoApproveMinConfidence: 0.9 })]
-    )
+  it('a legacy spendingLimit business config no longer affects anything against real Postgres (step 13, superseded by step 18)', async () => {
+    // step 13's spending-cap-gated-auto-approval was removed — money never
+    // auto-approves anymore regardless of amount, so there's nothing left
+    // for a configured cap to gate. This guards against that config
+    // silently mattering again if shouldAutoApprove ever changes.
     await pool.query(`UPDATE businesses SET config = $2::jsonb WHERE id = $1`, [
       businessId,
-      JSON.stringify({ spendingLimitCents: 1000, spendingLimitCurrency: 'USD', spendingLimitWindowHours: 24 }),
+      JSON.stringify({ spendingLimitCents: 1_000_000, spendingLimitCurrency: 'USD', spendingLimitWindowHours: 24 }),
     ])
 
     const engine = createPermissionEngine({
@@ -494,24 +517,24 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       businessStore: new PostgresBusinessStore(pool),
     })
 
-    const underCap = await engine.requestAction(
-      baseRequest({ confidence: 0.95, expectedCost: { amountCents: 600, currency: 'USD' } })
+    // Well under the configured (and now-inert) cap — still requires approval.
+    const outcome = await engine.requestAction(
+      baseRequest({ expectedCost: { amountCents: 1, currency: 'USD' } })
     )
-    expect(underCap.status).toBe('executed')
-
-    // 600 already spent; this one would push the ledger to 1100 > 1000.
-    const overCap = await engine.requestAction(
-      baseRequest({ confidence: 0.95, expectedCost: { amountCents: 500, currency: 'USD' } })
-    )
-    expect(overCap.status).toBe('pending_approval')
+    expect(outcome.status).toBe('pending_approval')
   })
 
-  it('runs the transaction-review agent end to end against real Postgres — a flagged transaction becomes a pending approval (step 14)', async () => {
-    registerExecutor('send_email', async (payload) => payload)
+  it('runs the transaction-review agent end to end against real Postgres — a flagged transaction gets its alert auto-sent to the owner (step 14, auto-send since step 18)', async () => {
+    let sentPayload: unknown
+    registerExecutor('send_email', async (payload) => {
+      sentPayload = payload
+      return payload
+    })
     const transactionStore = new PostgresTransactionStore(pool)
     const engine = createPermissionEngine({
       auditStore: new PostgresAuditLogStore(pool),
       approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
       transactionStore,
       decisionStore: new PostgresDecisionStore(pool),
     })
@@ -573,9 +596,11 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const summary = await runTransactionReviewOnce(engine, llmClient, businessId, agentId, ownerEmail)
     expect(summary).toEqual({ reviewed: 1, flagged: 1 })
 
+    // No expectedCost on the alert — since step 18 it auto-sends rather
+    // than waiting in the queue, so nothing's left pending.
     const pending = await engine.listPendingApprovals()
-    expect(pending).toHaveLength(1)
-    expect(pending[0]?.request.payload).toEqual({
+    expect(pending).toHaveLength(0)
+    expect(sentPayload).toEqual({
       to: ownerEmail,
       subject: 'Nexa AI: refund worth a look',
       body: 'A $50 refund just went out.',
@@ -618,6 +643,70 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const list = await store.list()
     expect(list.some((o) => o.id === id)).toBe(true)
+  })
+
+  it('runs the Opportunity Discovery Agent end to end against real Postgres, auto-executing and tagging the proposer (step 17)', async () => {
+    const opportunityStore = new PostgresOpportunityStore(pool)
+    registerExecutor('propose_opportunity', createProposeOpportunityExecutor(opportunityStore))
+
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      agentStore: new PostgresAgentStore(pool),
+      opportunityStore,
+    })
+
+    const discoveryScores = {} as Record<string, number>
+    for (const { key } of SCORE_DIMENSIONS) discoveryScores[key] = 65
+
+    const llmClient: MessagesClient = {
+      messages: {
+        async create() {
+          return {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5',
+            stop_reason: 'tool_use',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'record_opportunity_proposals',
+                input: {
+                  opportunities: [
+                    {
+                      name: 'Nexa ReceiptSort',
+                      problem: 'Freelancers lose hours sorting receipts for tax season',
+                      targetCustomer: 'Solo freelancers',
+                      recommendation: 'RESEARCH FURTHER',
+                      scores: discoveryScores,
+                    },
+                  ],
+                  reasoning: 'A grounded extension of the existing invoicing-adjacent tooling.',
+                  confidence: 0.6,
+                },
+              },
+            ],
+          } as never
+        },
+      },
+    }
+
+    const result = await runOpportunityDiscoveryOnce(engine, llmClient, businessId, agentId)
+    expect(result.proposed).toBe(1)
+    expect(result.outcomes).toEqual([{ name: 'Nexa ReceiptSort', status: 'executed' }])
+
+    const stored = await opportunityStore.list()
+    const proposed = stored.find((o) => o.name === 'Nexa ReceiptSort')
+    expect(proposed).toBeDefined()
+    expect(proposed?.proposedByAgentId).toBe(agentId)
+    expect(proposed?.status).toBe('open')
+
+    // Auto-executed per step 18 — nothing left waiting on the owner.
+    expect(await engine.listPendingApprovals()).toHaveLength(0)
   })
 
   it('imports a campaign and generates scored concepts against real Postgres (step 16)', async () => {

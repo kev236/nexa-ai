@@ -8,7 +8,6 @@ type Row = {
   business_id: string
   key: string
   role: string
-  autonomy_level: number
   config: JsonValue
   active: boolean
   created_at: string
@@ -20,7 +19,6 @@ function toRecord(row: Row): AgentRecord {
     businessId: row.business_id,
     key: row.key,
     role: row.role,
-    autonomyLevel: row.autonomy_level,
     config: row.config,
     active: row.active,
     createdAt: row.created_at,

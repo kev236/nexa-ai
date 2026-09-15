@@ -25,7 +25,6 @@ import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { Notifier } from './notifications/notifier.js'
-import { readSpendingLimitConfig } from './money/spendingLimit.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
 
 export type PermissionEngineDeps = {
@@ -128,21 +127,22 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
       return { status: 'denied', auditId, reason }
     }
 
-    // Default autonomy is level 1 (invariant #7): every action that has
-    // somewhere to go still stops here and waits for an explicit owner
-    // decision. There is no code path in this function that executes
-    // anything — only resolveApproval does, and only after 'approved'.
+    // Every request still gets a pending approval row before anything
+    // executes — audit-before-execute (invariant #2) doesn't change here,
+    // only how fast a decision gets made.
     const approvalId = await approvalStore.createPending(request, auditId)
 
-    // Step 11: autonomy level 2 — an owner can pre-authorize a narrow,
-    // proven action type in config (an agent's autonomyLevel plus a
-    // confidence threshold), skipping the wait for that specific
-    // narrow case. "Nobody but the owner approves anything" (readme.md)
-    // still holds here: the owner made this decision in advance, by
-    // setting the policy, not the system deciding on its own — see
-    // shouldAutoApprove(). Fails closed on any error (readme.md
-    // invariant #8): a broken check never silently promotes a request
-    // to auto-approved, it just falls back to the safer, slower path.
+    // Step 18: approval policy simplified — money is the one thing that
+    // still needs the owner. Everything else auto-executes the moment an
+    // active agent requests it; see shouldAutoApprove(). This replaces
+    // step 11's opt-in autonomy-level-2 system (a narrow, per-agent,
+    // confidence-gated promotion) — the owner decided the narrow version
+    // wasn't worth the friction and asked for the reverse default.
+    // "Audit before execute" (invariant #2) is untouched: every action,
+    // auto- or owner-approved, still gets a pending approval row and an
+    // audit record first. Fails closed on any error (invariant #8): a
+    // broken check never silently promotes a request to auto-approved,
+    // it just falls back to the safer, slower path.
     let autoApprove = false
     try {
       autoApprove = await shouldAutoApprove(request)
@@ -176,61 +176,26 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     return { status: 'pending_approval', auditId, approvalId }
   }
 
+  /**
+   * Step 18: auto-approve everything except money. An agent must still
+   * exist and be active — a deleted or disabled agent gets no auto-
+   * approval, same as before — but there's no more per-agent opt-in
+   * (autonomyLevel/autoApproveMinConfidence, step 11) and no more
+   * spending-cap-gated auto-approval (step 13): `expectedCost` being
+   * present is now itself the sole reason to stop and wait, full stop,
+   * regardless of amount, confidence, or agent config. A cap that only
+   * ever gated auto-approval has nothing left to gate once money never
+   * auto-approves — see money/ in this package's git history for the
+   * removed spendingLimit module, and the step 18 README section for
+   * why it wasn't reworked to also gate owner approval: the owner
+   * clicking Approve on a costed request *is* the safety control now,
+   * the same way it already is for every other costed decision they've
+   * ever made through this dashboard.
+   */
   async function shouldAutoApprove(request: ActionRequest): Promise<boolean> {
     const agent = await agentStore.getById(request.agentId)
-    if (!agent || !agent.active || agent.autonomyLevel < 2) return false
-
-    const config = agent.config
-    const minConfidence =
-      typeof config === 'object' && config !== null && !Array.isArray(config) && typeof config.autoApproveMinConfidence === 'number'
-        ? config.autoApproveMinConfidence
-        : undefined
-    // Both autonomyLevel >= 2 AND an explicit threshold must be set —
-    // bumping the level alone does nothing, on purpose. Two deliberate
-    // config values, not one flag, so promoting an agent can't happen
-    // by accident.
-    if (minConfidence === undefined) return false
-    if (request.confidence === undefined) return false
-    if (request.confidence < minConfidence) return false
-
-    // Step 13: a spending cap gates auto-approval specifically, not the
-    // normal pending_approval path — a human already sees the cost
-    // before clicking Approve, so a cap only needs to stop the system
-    // from spending unsupervised. No expectedCost on this request means
-    // nothing to cap; skip straight to true.
-    if (request.expectedCost) {
-      return isWithinSpendingLimit(request)
-    }
-    return true
-  }
-
-  async function isWithinSpendingLimit(request: ActionRequest): Promise<boolean> {
-    if (!request.expectedCost) return true
-    const config = await businessStore.getConfig(request.businessId)
-    const limit = readSpendingLimitConfig(config)
-    if (!limit) return true // no cap configured — nothing to enforce
-
-    if (limit.currency !== request.expectedCost.currency) {
-      // Fail closed (invariant #8): a cap in a different currency than
-      // this request is ambiguous, not "no cap" — never guess an FX rate.
-      return false
-    }
-
-    const sinceMs = limit.windowHours * 60 * 60 * 1000
-    // readme.md's Money section: "spend is measured against the ledger
-    // plus outstanding unconsumed grants." By this point in
-    // requestAction(), this request's own approval already exists as a
-    // 'pending' grant (createPending() ran before shouldAutoApprove()
-    // does), so sumPendingCost already includes it — no need to add
-    // request.expectedCost.amountCents a second time. This is also what
-    // makes the check race-safe: two concurrent requests each create
-    // their own pending row first, so whichever checks second always
-    // sees the other's committed amount already counted.
-    const [spent, pending] = await Promise.all([
-      auditStore.sumExecutedCost(request.businessId, limit.currency, sinceMs),
-      approvalStore.sumPendingCost(request.businessId, limit.currency),
-    ])
-    return spent + pending <= limit.amountCents
+    if (!agent || !agent.active) return false
+    return !request.expectedCost
   }
 
   async function resolveApproval(
@@ -265,6 +230,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     await approvalStore.resolve(approvalId, 'approved', resolvedBy)
     const result = await executor(approval.request.payload, {
       businessId: approval.request.businessId,
+      agentId: approval.request.agentId,
     })
     await auditStore.recordExecuted(approval.auditId, result)
     return { status: 'executed', auditId: approval.auditId, result }

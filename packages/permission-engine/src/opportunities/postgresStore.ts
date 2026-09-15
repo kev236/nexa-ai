@@ -12,6 +12,7 @@ type Row = {
   total_score: number
   recommendation: string
   status: OpportunityRecord['status']
+  proposed_by_agent_id: string | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +27,7 @@ function toRecord(row: Row): OpportunityRecord {
     totalScore: row.total_score,
     recommendation: row.recommendation,
     status: row.status,
+    proposedByAgentId: row.proposed_by_agent_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -37,8 +39,8 @@ export class PostgresOpportunityStore implements OpportunityStore {
   async create(input: OpportunityInput): Promise<string> {
     assertOpportunityScores(input.scores)
     const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO opportunities (name, problem, target_customer, scores, total_score, recommendation, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', now(), now())
+      `INSERT INTO opportunities (name, problem, target_customer, scores, total_score, recommendation, status, proposed_by_agent_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, now(), now())
        RETURNING id`,
       [
         input.name,
@@ -47,6 +49,7 @@ export class PostgresOpportunityStore implements OpportunityStore {
         JSON.stringify(input.scores),
         computeTotalScore(input.scores),
         input.recommendation,
+        input.proposedByAgentId ?? null,
       ]
     )
     const id = result.rows[0]?.id

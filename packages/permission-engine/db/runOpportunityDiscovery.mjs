@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Step 5 + 6: runs the waitlist-triage agent over events that don't have a
-// decision yet, drafts a reply for each via Claude, and submits it through
-// requestAction() as actionType 'send_email' — approving it now sends an
-// actual email via Resend (step 6), not just records a draft. Needs the
-// package built first (npm run build:permission-engine), DATABASE_URL,
-// ANTHROPIC_API_KEY, RESEND_API_KEY, and the business's config.emailFrom
-// set (db/setBusinessConfig.mjs).
+// Step 17: runs the Opportunity Discovery Agent, proposing up to 3 new
+// scored opportunities and submitting each through requestAction() as
+// actionType 'propose_opportunity' — auto-executed under step 18's
+// policy (proposing an idea isn't money), writing straight into the
+// opportunities table the owner already reviews on the dashboard. Needs
+// the package built first (npm run build:permission-engine),
+// DATABASE_URL, and ANTHROPIC_API_KEY.
 //
-// Usage: node db/runWaitlistTriage.mjs <business-slug> <agent-key>
+// Usage: node db/runOpportunityDiscovery.mjs <business-slug> <agent-key>
 import pg from 'pg'
 import {
   createAnthropicClient,
@@ -15,15 +15,12 @@ import {
   createPostgresAgentStore,
   createPostgresApprovalStore,
   createPostgresAuditLogStore,
-  createPostgresDecisionStore,
-  createPostgresEventStore,
-  registerSendEmailExecutor,
-  runWaitlistTriageOnce,
+  createPostgresOpportunityStore,
+  registerProposeOpportunityExecutor,
+  runOpportunityDiscoveryOnce,
 } from '../dist/index.js'
 
-registerSendEmailExecutor()
-
-const [, , businessSlug = 'nexa-labs', agentKey = 'waitlist-triage'] = process.argv
+const [, , businessSlug = 'nexa-labs', agentKey = 'opportunity-discovery'] = process.argv
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -53,19 +50,21 @@ try {
     process.exit(1)
   }
 
+  const opportunityStore = createPostgresOpportunityStore()
+  registerProposeOpportunityExecutor(opportunityStore)
+
   const engine = createPermissionEngine({
     auditStore: createPostgresAuditLogStore(),
     approvalStore: createPostgresApprovalStore(),
     agentStore: createPostgresAgentStore(),
-    eventStore: createPostgresEventStore(),
-    decisionStore: createPostgresDecisionStore(),
+    opportunityStore,
   })
   const llmClient = createAnthropicClient()
 
-  const summary = await runWaitlistTriageOnce(engine, llmClient, businessId, agentId)
-  console.log(`done: ${summary.triaged} triaged, ${summary.skipped} skipped`)
-  if (summary.stoppedReason) {
-    console.log(`stopped early (${summary.stoppedReason}) — run again to continue where this left off`)
+  const { proposed, outcomes } = await runOpportunityDiscoveryOnce(engine, llmClient, businessId, agentId)
+  console.log(`proposed ${proposed} opportunit${proposed === 1 ? 'y' : 'ies'}:`)
+  for (const o of outcomes) {
+    console.log(`  - ${o.name} (${o.status})`)
   }
 } finally {
   await pool.end()

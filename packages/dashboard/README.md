@@ -60,35 +60,43 @@ by actually running the routes locally, not by inspection.
 
 ## Pages (step 8, +1 in step 15, +1 in step 16)
 
-Five, behind the shared `Nav` (`src/components/Nav.tsx`):
+Five, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
+bento-grid overview at the top of Approvals:
 
-- **Approvals** (`/`) — unchanged from step 3: the pending-approval
-  queue, approve/deny.
+- **Approvals** (`/`) — the pending-approval queue, approve/deny. Since
+  the bento-grid overview, also opens with an at-a-glance summary
+  (pending count, active agents, latest activity, money, top
+  opportunity, campaigns) above the queue itself.
 - **Activity** (`/activity`) — an agent status strip (key, role,
-  autonomy level, active/inactive, and its most recent action + status,
-  derived from `AuditLogStore.listByBusiness()` — no new columns
-  needed), a recently-observed events list, and the full audit log as a
-  real feed. This is the "what is every agent doing" view. Since step
-  11, each executed entry is also labeled "approved by owner" or
-  "auto-approved by policy" (`ApprovalStore.listByBusiness()`, joined by
-  `auditId`) — so an agent promoted to autonomy level 2 stays visible
-  here, not silently invisible next to human-approved actions.
+  active/inactive, and its most recent action + status, derived from
+  `AuditLogStore.listByBusiness()` — no new columns needed), a
+  recently-observed events list, and the full audit log as a real feed.
+  This is the "what is every agent doing" view. Each executed entry is
+  also labeled "approved by owner" or "auto-approved by policy"
+  (`ApprovalStore.listByBusiness()`, joined by `auditId`) — since step
+  18, that's most entries, not the exception, so this label is what
+  keeps auto-approval visible rather than silently invisible.
 - **Money** (`/transactions`) — the `transactions` table (step 7),
   which had no UI at all before this. Observability only, same as the
   table itself.
 - **Opportunities** (`/opportunities`, `/opportunities/new`,
-  `/opportunities/[id]/edit`, step 15) — the 12-dimension opportunity-
-  scoring format from the owner's own vision doc, as a manual dashboard
-  tool: create, edit, archive/reopen, sorted highest score first. No
-  agent involvement at all — pure owner-authored notes, gated only by
-  the same session login every other page uses. `OpportunityForm.tsx`
-  (`'use client'`, shared by the new/edit pages) deliberately does not
-  import `SCORE_DIMENSIONS` from `@nexa-ai/permission-engine` directly —
-  that package's index also re-exports the Postgres-backed stores
-  (which import `pg`), and a client bundle pulling that in breaks the
-  build. The dimension list is fetched server-side (the page component)
-  and passed down as a prop instead — caught by actually running
-  `next build`, not by inspection.
+  `/opportunities/[id]/edit`, step 15; `+ /opportunities` gained a
+  "Discover opportunities" button in step 17) — the 12-dimension
+  opportunity-scoring format from the owner's own vision doc: create,
+  edit, archive/reopen by hand, sorted highest score first, same as
+  step 15. Step 17 added a second source — the Opportunity Discovery
+  Agent proposes up to 3 new scored opportunities per run
+  (`discoverOpportunities()` in `app/opportunities/actions.ts`, calling
+  `runOpportunityDiscoveryOnce()`), badged "discovered" wherever
+  `proposedByAgentId` is set, to distinguish an agent's proposal from
+  the owner's own notes at a glance. `OpportunityForm.tsx` (`'use
+  client'`, shared by the new/edit pages) deliberately does not import
+  `SCORE_DIMENSIONS` from `@nexa-ai/permission-engine` directly — that
+  package's index also re-exports the Postgres-backed stores (which
+  import `pg`), and a client bundle pulling that in breaks the build.
+  The dimension list is fetched server-side (the page component) and
+  passed down as a prop instead — caught by actually running `next
+  build`, not by inspection.
 - **Campaigns** (`/campaigns`, `/campaigns/new`, `/campaigns/[id]`, step
   16) — Promote.fun campaign import and creative-concept review. The
   list and new-campaign pages are what you'd expect; the detail page
@@ -212,17 +220,21 @@ unset, a real login through a real browser produced exactly that log
 line alongside the executor's own, and the dashboard functioned
 normally throughout.
 
-## Autonomy level 2 visibility (step 11)
+## Auto-approval visibility (step 11, policy replaced in step 18)
 
-The dashboard doesn't set autonomy level — that stays an operator
-action (`npm run db:set-agent-autonomy` at the repo root), same trust
-level as creating the owner account. What this app adds is visibility:
-the Activity page's audit log now labels each executed action by how it
-was resolved, so promoting an agent to auto-execute doesn't make its
-decisions disappear from view. Verified locally against real Postgres:
-set an agent to level 2 with a confidence threshold, drove a real
-`requestAction()` call through the built package straight against the
-dev database, confirmed it auto-executed, and confirmed the Activity
-page rendered it as "auto-approved by policy" in a real browser — right
-next to an existing "approved by owner" entry from a real human
-decision made in an earlier step.
+What this app adds is visibility, not the policy itself (that's
+`engine.ts`'s `shouldAutoApprove()`, permission-engine's own concern):
+the Activity page's audit log labels each executed action by how it was
+resolved, so an agent auto-executing doesn't make its decisions
+disappear from view. Originally built for step 11's narrow, opt-in
+autonomy-level-2 promotion (`npm run db:set-agent-autonomy`, an operator
+action, now removed) — since step 18 the same label now applies to
+*most* executed actions by default, not the exception, since only
+money-spending requests still wait on an owner click. Verified locally
+against real Postgres both times: step 11's original version set an
+agent to level 2 with a confidence threshold and confirmed the label;
+step 18's `npm run db:discover-opportunities` (packages/permission-engine/db/README.md)
+and a live "Discover opportunities" button click both produced real
+"auto-approved by policy" rows with no code changes needed to this
+page — the label logic (`resolvedBy` unset = auto-approved) never
+depended on *why* something auto-approved, only *whether* it did.

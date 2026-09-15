@@ -1,14 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { completeWithTool, type MessagesClient } from '../llm/client.js'
 import type { TransactionRecord } from '../transactions/store.js'
 
 // Same lazy-resolution reasoning as waitlistTriageAgent.ts's promptPath():
 // resolved inside the function, not at module load, so a bundler
 // rewriting import.meta.url can't break every consumer of this package
-// on import, only a call that actually reaches this function.
+// on import, only a call that actually reaches this function. Also
+// avoids `new URL(relative, import.meta.url)` itself now — see that
+// same comment for the confirmed bundler bug that shape triggers.
 function promptPath(): string {
-  return fileURLToPath(new URL('../../prompts/transaction-review.md', import.meta.url))
+  return join(dirname(fileURLToPath(import.meta.url)), '../../prompts/transaction-review.md')
 }
 
 const REVIEW_TOOL = {

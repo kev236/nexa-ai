@@ -13,6 +13,7 @@ import pg from 'pg'
 import {
   createAnthropicClient,
   createPermissionEngine,
+  createPostgresAgentStore,
   createPostgresApprovalStore,
   createPostgresAuditLogStore,
   createPostgresDecisionStore,
@@ -63,6 +64,7 @@ try {
   const engine = createPermissionEngine({
     auditStore: createPostgresAuditLogStore(),
     approvalStore: createPostgresApprovalStore(),
+    agentStore: createPostgresAgentStore(),
     transactionStore: createPostgresTransactionStore(),
     decisionStore: createPostgresDecisionStore(),
   })

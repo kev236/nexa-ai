@@ -22,8 +22,12 @@ const DEFAULT_TIMEOUT_MS = 60_000
 /**
  * The waitlist-triage agent's one run: every un-triaged event with an
  * email address in its payload gets a drafted reply submitted as a
- * 'send_email' action for owner approval (step 6) — default autonomy
- * level 1 still applies, nothing sends without an explicit approval.
+ * 'send_email' action (step 6). Since step 18's auto-approve policy,
+ * that reply sends the moment it's drafted — replying to a lead isn't
+ * money, so it no longer waits on an owner click. Every send still goes
+ * through requestAction()/an audit record first (audit before execute,
+ * invariant #2), so it's fully visible on the Activity page even though
+ * nobody had to approve it.
  * Extracted here (step 8) so db/runWaitlistTriage.mjs (a manual CLI run)
  * and the dashboard's scheduled cron route call the exact same logic —
  * previously only the script had it, so the two would have drifted.
@@ -94,13 +98,10 @@ export async function runWaitlistTriageOnce(
       payload: { to, subject, body: result.draftReply },
       reasoning: result.reasoning,
       expectedResult: { to, subject, body: result.draftReply },
-      // Step 11: feeds the autonomy-level-2 auto-approve gate. The
-      // prompt (prompts/waitlist-triage.md) already instructs the model
-      // to lower this for anything ambiguous or needing a human's
-      // specific knowledge — a contact-message pricing question, say —
-      // so a plain confidence-threshold check at the engine layer
-      // naturally distinguishes "safe to auto-send" from "needs a
-      // human" without this function hardcoding that distinction itself.
+      // Recorded for the audit trail even though step 18's auto-approve
+      // policy no longer reads it (a reply to a lead is not money, so it
+      // sends the moment it's drafted, regardless of confidence) — still
+      // useful context on the Activity page for judging a given reply.
       confidence: result.confidence,
     })
 

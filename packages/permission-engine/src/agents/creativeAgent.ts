@@ -1,11 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { completeWithTool, type MessagesClient } from '../llm/client.js'
 import { computeConceptScore, type ContentAngle, type ContentConcept } from '../contentConcepts/types.js'
 import type { CampaignRecord } from '../campaigns/store.js'
 
+// Not `new URL('../../prompts/...', import.meta.url)` — that two-argument
+// form is exactly what bundlers (Next/Turbopack, in packages/dashboard)
+// special-case for static asset resolution, and it was rewriting this
+// into something fileURLToPath() rejects with "must be of type string or
+// an instance of URL. Received an instance of URL" — a real, confirmed
+// failure the first time this ran through a live dashboard server action
+// rather than a CLI script or a test. Converting import.meta.url to a
+// string first and joining paths plainly avoids the bundler rewrite.
 function promptPath(): string {
-  return fileURLToPath(new URL('../../prompts/creative-concepts.md', import.meta.url))
+  return join(dirname(fileURLToPath(import.meta.url)), '../../prompts/creative-concepts.md')
 }
 
 const CONCEPT_ANGLES = [

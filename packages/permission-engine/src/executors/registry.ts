@@ -11,7 +11,7 @@ import type { JsonValue } from '../json.js'
  */
 export type ExecutorFn = (
   payload: JsonValue,
-  context: { businessId: string }
+  context: { businessId: string; agentId: string }
 ) => Promise<JsonValue>
 
 const registry = new Map<string, ExecutorFn>()

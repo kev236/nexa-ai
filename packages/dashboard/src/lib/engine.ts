@@ -14,6 +14,7 @@ import {
   createPostgresTransactionStore,
   createResendEmailNotifier,
   registerSendEmailExecutor,
+  registerProposeOpportunityExecutor,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -37,6 +38,7 @@ export function getEngine() {
   if (!engine) {
     const ownerStore = createPostgresOwnerStore()
     const businessStore = createPostgresBusinessStore()
+    const opportunityStore = createPostgresOpportunityStore()
 
     engine = createPermissionEngine({
       auditStore: createPostgresAuditLogStore(),
@@ -47,7 +49,7 @@ export function getEngine() {
       transactionStore: createPostgresTransactionStore(),
       businessStore,
       agentStore: createPostgresAgentStore(),
-      opportunityStore: createPostgresOpportunityStore(),
+      opportunityStore,
       campaignStore: createPostgresCampaignStore(),
       contentConceptStore: createPostgresContentConceptStore(),
       // Step 10: caught below, not thrown — see the send_email note.
@@ -65,6 +67,9 @@ export function getEngine() {
     } catch (err) {
       console.error('send_email executor not registered:', err instanceof Error ? err.message : err)
     }
+    // Step 17: never throws (no external credentials needed), so no
+    // try/catch — unlike send_email, there's no "unconfigured" state.
+    registerProposeOpportunityExecutor(opportunityStore)
   }
   return engine
 }

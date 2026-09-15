@@ -1,17 +1,25 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { completeWithTool, type MessagesClient } from '../llm/client.js'
 import type { EventRecord } from '../events/store.js'
 
 // Agent prompts are versioned files, not string literals in application
 // code — this project's own convention. Resolved lazily, inside the
-// function, not at module load: a bundler (Next/Turbopack, in
-// packages/dashboard) rewrites import.meta.url in ways that break this
-// resolution, and since this package's index re-exports everything
-// eagerly, a top-level failure here would crash any consumer that merely
-// imports the package — even one that never calls triageEvent.
+// function, not at module load, so a top-level failure here can't crash
+// any consumer that merely imports the package.
+//
+// Also deliberately NOT `new URL('../../prompts/...', import.meta.url)`
+// — confirmed live (a real dashboard server action, not a CLI script or
+// a test) that Next/Turbopack rewrites exactly that two-argument shape
+// for static asset resolution, and the rewritten value fails
+// fileURLToPath() with "must be of type string or an instance of URL.
+// Received an instance of URL." Converting import.meta.url to a string
+// first, then joining paths plainly, sidesteps the rewrite entirely —
+// this was previously only worked around by staying lazy, which hid the
+// bug from module-load time but not from an actual call.
 function promptPath(): string {
-  return fileURLToPath(new URL('../../prompts/waitlist-triage.md', import.meta.url))
+  return join(dirname(fileURLToPath(import.meta.url)), '../../prompts/waitlist-triage.md')
 }
 
 const TRIAGE_TOOL = {

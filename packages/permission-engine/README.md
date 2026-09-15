@@ -58,10 +58,12 @@ about code *outside* this package, not within it.
   it; `approvals` doesn't yet carry risk/alternatives/recommendation).
   `src/db.ts` holds the shared connection pool, read from `DATABASE_URL` —
   see `.env.example` at the repo root.
-- Spending limits: not implemented. Autonomy levels above 1 are — see
-  step 11 below; every other request still reaches a registered executor
-  as `pending_approval`, matching the project's default-autonomy-is-1
-  rule.
+- Approval policy: since step 18, every request auto-executes unless it
+  carries an `expectedCost` (money) — see that step below. Steps 11 and
+  13 (autonomy levels, spending-cap-gated auto-approval) were the
+  original, narrower mechanism this replaced; their bullets stay below
+  as a historical record of how the system got here, not current
+  behavior.
 - Owner accounts / login: `verifyOwnerCredentials` and `OwnerStore`
   (`src/owners/`) exist and are consumed by `packages/dashboard`. There is
   no `create` on `OwnerStore` on purpose — accounts are created only by
@@ -231,7 +233,10 @@ about code *outside* this package, not within it.
   credentials factory, same shape as `registerSendEmailExecutor()`
   (throws if `RESEND_API_KEY` is unset; the caller decides that's
   non-fatal and catches it — see the dashboard's engine singleton).
-- Step 11 — autonomy level 2, one proven action type auto-executing: a
+- Step 11 — autonomy level 2, one proven action type auto-executing
+  (**superseded by step 18** — `agents.autonomy_level` and
+  `config.autoApproveMinConfidence` no longer exist; kept below as the
+  historical record of the mechanism step 18 replaced): a
   new `ActionRequest.confidence?: number` (0-1, validated in
   `validate.ts`) lets an agent report how sure it is a draft is
   send-ready — `runWaitlistTriageOnce()` now threads the triage LLM's own
@@ -297,7 +302,11 @@ about code *outside* this package, not within it.
   nothing inside that same call could ever detect it; it's called
   periodically instead (`packages/dashboard`'s cron route, alongside the
   triage run — see that package's README).
-- Step 13 — spending limits, readme.md's Money section: "spend is
+- Step 13 — spending limits (**removed by step 18** — money now always
+  requires an owner decision regardless of amount, so a cap gating
+  *auto*-approval has nothing left to gate; `src/money/` and
+  `test/spendingLimit.test.ts` no longer exist, kept below as the
+  historical record), readme.md's Money section: "spend is
   measured against the ledger plus outstanding unconsumed grants, so two
   concurrent requests cannot both slip under the same cap." A cap only
   needs to constrain the one place this system could spend money
@@ -464,3 +473,118 @@ about code *outside* this package, not within it.
   testimonials — the model's own reasoning explicitly flagged what it
   deliberately avoided claiming), and confirmed the weighted score and
   `recommended` flag both matched the deterministic formula by hand.
+
+- Step 17 — an agent for step 15's opportunities table: the owner asked
+  for a step toward "an ultimate managing/business-making AI" that
+  didn't try to build the whole thing at once. `src/agents/
+  opportunityDiscoveryAgent.ts`'s `discoverOpportunities()` reads the
+  existing opportunities list (so it doesn't repeat one already
+  recorded) and proposes up to 3 new ones, scored across the same 12
+  dimensions step 15's owner-authored form uses — `computeTotalScore()`
+  is the same function either way, never trusted as arithmetic the model
+  did itself. The prompt (`prompts/opportunity-discovery.md`) is
+  explicit that this model has no live search/trend/analytics access:
+  it's told never to claim something is "trending now" or cite a
+  statistic it wasn't given, and to propose fewer ideas rather than
+  invent grounding for a weak one — reasoned brainstorming, not a live
+  research pipeline, matching invariant #6 ("never fabricate... a
+  feature, a statistic").
+
+  Unlike steps 15/16's writes, a proposal *does* go through
+  `requestAction()` — a new `propose_opportunity` action type
+  (`src/executors/proposeOpportunity.ts`) writes into the same
+  `OpportunityStore.create()` steps 15 used directly, with the calling
+  `context.agentId` (registry's `ExecutorFn` context gained this field
+  this step) recorded on the row as `proposedByAgentId` (migration
+  `0015`, `opportunities.proposed_by_agent_id`). Routing through
+  `requestAction()` for something that never needed approval — writing
+  an opportunity spends no money and contacts no one — is deliberate:
+  it's what puts every proposal on the audit trail (invariant #2)
+  alongside every other agent's actions, and it's what makes step 18's
+  auto-approve-by-default policy visibly apply to this agent's writes
+  too, not a special case. `src/agents/runOpportunityDiscovery.ts`'s
+  `runOpportunityDiscoveryOnce()` is the one run: discover, then submit
+  each proposal individually (separate audit rows, not one bundled
+  write). `packages/dashboard/src/app/opportunities/actions.ts` wires a
+  "Discover opportunities" button on the dashboard; the CLI equivalent
+  is `npm run db:discover-opportunities -- <business-slug>
+  [agent-key]`, needing `npm run db:register-agent -- nexa-labs
+  opportunity-discovery "..."` first — unlike the Creative Agent's
+  optional `agentId`, this one is required, since `requestAction()`
+  needs a real, active agent row to auto-approve against.
+
+  Verified live end to end against real Postgres, a real browser, and
+  the real Claude API (both via `db:discover-opportunities` and by
+  actually clicking the dashboard button): three real proposals per run,
+  genuinely distinct and grounded (a DPA/subprocessor-change monitor, a
+  documentation-link-rot checker, a SaaS auto-renewal tracker — not
+  generic "AI productivity app" filler), each landing in Postgres with
+  `proposed_by_agent_id` set, auto-executed with no pending approval
+  left behind, and correctly badged "discovered" on the dashboard to
+  distinguish them from owner-authored rows.
+
+  Building this step surfaced a real, pre-existing bug affecting every
+  prompt-loading agent in this package (waitlist-triage, transaction-
+  review, campaign normalization, creative concepts, and this one):
+  `promptPath()`'s `fileURLToPath(new URL('../../prompts/...',
+  import.meta.url))` pattern — previously made *lazy* (resolved inside
+  the function, not at module load) specifically because "a bundler
+  rewrites import.meta.url in ways that break this resolution," per
+  waitlistTriageAgent.ts's own pre-existing comment — was never actually
+  fixed, only kept from crashing on *import*. Calling any of these
+  agents through a real Next.js dashboard server action (not a CLI
+  script, not a test — first caught by actually clicking the "Discover
+  opportunities" button in a real browser) threw `"path" argument must
+  be of type string or an instance of URL. Received an instance of
+  URL` — Turbopack specifically rewrites the two-argument `new URL(path,
+  import.meta.url)` shape for static asset resolution, and the rewritten
+  value isn't a real `URL` instance to `fileURLToPath()`. Fixed in all
+  five files by converting `import.meta.url` to a string first
+  (`fileURLToPath(import.meta.url)`) and joining the prompt's relative
+  path with plain `node:path` functions instead of a second `new URL()`
+  call — confirmed fixed live for both this agent and the Creative
+  Agent's "Generate concepts" button.
+
+- Step 18 — approval policy simplified: the owner asked to remove
+  approval for everything except spending money. `shouldAutoApprove()`
+  (`engine.ts`) is now three lines — an active agent, and no
+  `expectedCost` on the request — replacing step 11's opt-in
+  autonomy-level-2-plus-confidence-threshold system entirely (not
+  layered alongside it: `agents.autonomy_level` is dropped, migration
+  `0014`, and `config.autoApproveMinConfidence` is no longer read by
+  anything). Money is now an unconditional stop, not a cap-gated one —
+  step 13's spending-limit ledger only ever gated *auto*-approval, and
+  since a costed request never reaches that path anymore, `src/money/`
+  and its tests were removed rather than left as dead code with no
+  caller. "Audit before execute" (invariant #2) is unchanged: every
+  action, auto- or owner-approved, still gets a pending approval row and
+  an audit record before anything executes — only how fast a decision
+  happens changed. `ExecutorFn`'s context gained `agentId` alongside
+  `businessId` (`resolveApproval()` now passes both) — the first
+  consumer is step 17's `propose_opportunity` executor, tagging who
+  proposed an opportunity.
+
+  This is a real, deliberate departure from "nobody but the owner
+  approves anything" as it worked before — not from the invariant
+  itself (the owner set this policy, same reasoning step 11's comment
+  already made for a narrower version of the same idea), but from what
+  it means in practice: replies drafted by the waitlist-triage agent now
+  email real leads with zero review, and transaction-review alerts now
+  email the owner immediately rather than waiting for an Approve click.
+  Both agents' prompts (`prompts/waitlist-triage.md`,
+  `prompts/transaction-review.md`) were rewritten to match — they no
+  longer tell the model "a human reviews every draft before it goes
+  anywhere," which was false the moment this shipped and would have
+  encouraged the model to hedge less carefully than it now needs to.
+  waitlist-triage's prompt specifically now asks for an honest holding
+  reply instead of an invented detail when a message is ambiguous, since
+  there's no human left to catch one.
+
+  Two of this package's own CLI scripts (`db/runWaitlistTriage.mjs`,
+  `db/runTransactionReview.mjs`) had never wired a real `agentStore` into
+  their `createPermissionEngine()` call — harmless under the old
+  default-pending policy (nothing auto-approved either way), but under
+  this one it would have silently made every run behave as though no
+  agent existed, permanently falling back to `pending_approval` no
+  matter what. Fixed alongside this change, caught by running the full
+  suite against real Postgres rather than by inspection.

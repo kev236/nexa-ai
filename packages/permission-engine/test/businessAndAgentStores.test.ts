@@ -23,7 +23,6 @@ describe('InMemoryAgentStore', () => {
     businessId: 'biz_1',
     key: 'waitlist-triage',
     role: 'Drafts replies to waitlist signups',
-    autonomyLevel: 1,
     config: {},
     active: true,
     createdAt: '2026-01-01T00:00:00Z',

@@ -9,6 +9,8 @@ export type OpportunityRecord = {
   totalScore: number
   recommendation: string
   status: 'open' | 'archived'
+  /** Step 17: set when the Opportunity Discovery Agent proposed this row rather than the owner typing it in — see proposeOpportunity.ts. */
+  proposedByAgentId?: string
   createdAt: string
   updatedAt: string
 }
@@ -19,14 +21,16 @@ export type OpportunityInput = {
   targetCustomer: string
   scores: OpportunityScores
   recommendation: string
+  proposedByAgentId?: string
 }
 
 /**
- * Step 15: a manual scoring tool, not an action — no agent or executor
- * ever touches this store, so unlike every other write path in this
- * system it does not go through requestAction()/approvals. It's admin
- * data the owner authors directly, same trust level as an owner account
- * (OwnerStore), not customer-facing or money-moving.
+ * Step 15: a manual scoring tool the owner fills in directly — no
+ * business_id, since an opportunity describes a business that doesn't
+ * exist yet. Step 17 added one agent-facing write path (proposeOpportunity's
+ * executor, called through requestAction() like any other agent action)
+ * alongside the owner's own direct writes; this store itself still has
+ * no opinion about who's calling create() — see proposedByAgentId.
  */
 export interface OpportunityStore {
   /** totalScore is computed server-side from scores, never accepted from the caller. */

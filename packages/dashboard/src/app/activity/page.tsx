@@ -12,10 +12,11 @@ function lastActivityFor(agent: AgentRecord, feed: AuditLogRecord[]): AuditLogRe
 }
 
 /**
- * Step 11: an executed record with an approval that has no resolvedBy was
- * never seen by a human — the owner pre-authorized it via autonomy level 2
- * config (see engine.ts's shouldAutoApprove). Surfacing that distinction
- * here is what keeps auto-approval transparent instead of invisible.
+ * Step 18: an executed record with an approval that has no resolvedBy
+ * auto-executed rather than waiting on the owner — everything except a
+ * money-spending action does, by default (see engine.ts's
+ * shouldAutoApprove). Surfacing that distinction here is what keeps
+ * auto-approval transparent instead of invisible.
  */
 function approvalLabel(record: AuditLogRecord, approvalsByAuditId: Map<string, ApprovalRecord>): string | undefined {
   if (record.status !== 'executed') return undefined
@@ -63,7 +64,6 @@ export default async function ActivityPage() {
                     </span>
                   </div>
                   <p className="agent-role">{agent.role}</p>
-                  <p className="meta">autonomy level {agent.autonomyLevel}</p>
                   {last ? (
                     <p className="meta">
                       last: <span className={`status-badge status-${last.status}`}>{last.status}</span>{' '}

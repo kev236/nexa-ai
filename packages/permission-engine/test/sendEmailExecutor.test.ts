@@ -27,7 +27,7 @@ describe('send_email executor', () => {
 
     const result = await executor(
       { to: 'lead@example.com', subject: 'Hi', body: 'Thanks for joining.' },
-      { businessId: 'biz_1' }
+      { businessId: 'biz_1', agentId: 'agent_1' }
     )
 
     expect(captured).toEqual({
@@ -42,14 +42,14 @@ describe('send_email executor', () => {
   it('rejects a payload missing required string fields', async () => {
     const executor = createSendEmailExecutor(fakeResend(), new InMemoryBusinessStore())
     await expect(
-      executor({ to: 'lead@example.com' }, { businessId: 'biz_1' })
+      executor({ to: 'lead@example.com' }, { businessId: 'biz_1', agentId: 'agent_1' })
     ).rejects.toThrow(TypeError)
   })
 
   it('throws when the business has no config.emailFrom set', async () => {
     const executor = createSendEmailExecutor(fakeResend(), new InMemoryBusinessStore())
     await expect(
-      executor({ to: 'lead@example.com', subject: 'Hi', body: 'Hi' }, { businessId: 'biz_1' })
+      executor({ to: 'lead@example.com', subject: 'Hi', body: 'Hi' }, { businessId: 'biz_1', agentId: 'agent_1' })
     ).rejects.toThrow(/no config.emailFrom set/)
   })
 
@@ -61,7 +61,7 @@ describe('send_email executor', () => {
     const executor = createSendEmailExecutor(resend, businesses)
 
     await expect(
-      executor({ to: 'lead@example.com', subject: 'Hi', body: 'Hi' }, { businessId: 'biz_1' })
+      executor({ to: 'lead@example.com', subject: 'Hi', body: 'Hi' }, { businessId: 'biz_1', agentId: 'agent_1' })
     ).rejects.toThrow(/invalid_from_address/)
   })
 })

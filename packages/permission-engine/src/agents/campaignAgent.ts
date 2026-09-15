@@ -1,11 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { completeWithTool, type MessagesClient } from '../llm/client.js'
 
 // Same lazy-resolution reasoning as every other prompt path in this
-// package — see waitlistTriageAgent.ts's promptPath() comment.
+// package — see waitlistTriageAgent.ts's promptPath() comment. Also
+// avoids `new URL(relative, import.meta.url)` itself now — see
+// creativeAgent.ts's identical comment for the confirmed bundler bug
+// that shape triggers.
 function promptPath(): string {
-  return fileURLToPath(new URL('../../prompts/campaign-normalization.md', import.meta.url))
+  return join(dirname(fileURLToPath(import.meta.url)), '../../prompts/campaign-normalization.md')
 }
 
 const NORMALIZE_TOOL = {

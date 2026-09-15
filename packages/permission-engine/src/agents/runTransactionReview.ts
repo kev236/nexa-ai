@@ -27,11 +27,12 @@ const DEFAULT_TIMEOUT_MS = 60_000
  * (transactions.decision_id IS NULL — TransactionStore.listUnreviewed())
  * gets a review decision recorded, and — only when the model decides it's
  * worth flagging — a drafted alert submitted as a 'send_email' action to
- * the first registered owner, for owner approval. Default autonomy level
- * 1 still applies; nothing sends without an explicit approval. A routine
+ * the first registered owner. Since step 18, that alert isn't money, so
+ * it sends the moment it's drafted — no owner click required, though it
+ * still goes to the owner's own inbox, not a customer. A routine
  * transaction gets a decision recorded (so it's not reviewed again) but
- * no requestAction() call at all — there's nothing for a human to approve
- * about "this was fine."
+ * no requestAction() call at all — there's nothing to send about "this
+ * was fine."
  *
  * Bounded the same way runWaitlistTriageOnce is (readme.md's "Agents"
  * section: every run needs a wall-clock timeout and a max action count).
@@ -86,11 +87,9 @@ export async function runTransactionReviewOnce(
         payload: { to: ownerEmail, subject, body: result.draftAlert },
         reasoning: result.reasoning,
         expectedResult,
-        // Same autonomy-level-2 gate as waitlist-triage's drafts — see
-        // runWaitlistTriage.ts's identical comment. Not expected to be
-        // promoted in practice (a financial alert is a poor fit for
-        // auto-send), but the mechanism doesn't hardcode that judgment;
-        // it's an owner config decision either way.
+        // Recorded for the audit trail — see runWaitlistTriage.ts's
+        // identical comment for why step 18's auto-approve policy
+        // doesn't read this anymore.
         confidence: result.confidence,
       })
       flagged++
