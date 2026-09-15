@@ -1,19 +1,10 @@
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
+import { formatAmount } from '@/lib/format'
 import { Nav } from '@/components/Nav'
 
 export const dynamic = 'force-dynamic'
-
-function formatAmount(amountCents: number, currency: string): string {
-  const amount = amountCents / 100
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(amount)
-  } catch {
-    // Not every currency here is a real ISO code (USDC isn't) — Intl throws on those.
-    return `${amount.toFixed(2)} ${currency.toUpperCase()}`
-  }
-}
 
 export default async function TransactionsPage() {
   await verifySession()
