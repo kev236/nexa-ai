@@ -117,6 +117,15 @@ section). The Activity page labels such a row "abandoned" with an amber
 badge, distinct from a normal "denied" (red) or "executed" (green) one,
 and shows the reason the same way a denial's reason is shown.
 
+Since step 14, this route also calls `triggerTransactionReview()`
+(`src/lib/transactionReview.ts`, same shape as `triggerWaitlistTriage()`)
+after ingesting transactions — the second agent, reviewing what's new
+and drafting an owner alert for anything worth a look. Optional per
+business: if no `transaction-review` agent is registered yet, this
+reports `{ skipped: '...' }` rather than failing the whole cron run,
+since reviewing transactions only makes sense once Stripe or the crypto
+wallet is actually configured for this business.
+
 **Every store this app's engine singleton (`src/lib/engine.ts`) uses
 must be the Postgres-backed one.** A Vercel serverless function gets a
 fresh process per invocation (or close to it) — an in-memory store

@@ -14,8 +14,10 @@ import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
 import { createEmailNotifier } from '../src/notifications/emailNotifier.js'
 import { registerExecutor } from '../src/executors/registry.js'
+import { runTransactionReviewOnce } from '../src/agents/runTransactionReview.js'
 import '../src/executors/noop.js'
 import type { ActionRequest } from '../src/types.js'
+import type { MessagesClient } from '../src/llm/client.js'
 import type { BusinessAdapter, ObservedEvent, ObservedTransaction } from '../src/adapters/types.js'
 
 const connectionString = process.env.TEST_DATABASE_URL
@@ -495,5 +497,85 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
       baseRequest({ confidence: 0.95, expectedCost: { amountCents: 500, currency: 'USD' } })
     )
     expect(overCap.status).toBe('pending_approval')
+  })
+
+  it('runs the transaction-review agent end to end against real Postgres — a flagged transaction becomes a pending approval (step 14)', async () => {
+    registerExecutor('send_email', async (payload) => payload)
+    const transactionStore = new PostgresTransactionStore(pool)
+    const engine = createPermissionEngine({
+      auditStore: new PostgresAuditLogStore(pool),
+      approvalStore: new PostgresApprovalStore(pool),
+      transactionStore,
+      decisionStore: new PostgresDecisionStore(pool),
+    })
+
+    const adapter: BusinessAdapter = {
+      adapterType: 'fake',
+      async backfill() {
+        return []
+      },
+      async observe() {
+        return []
+      },
+      async listTransactions() {
+        return [
+          { type: 'refund', amountCents: 5000, currency: 'usd', externalRef: 'rf_1', status: 'succeeded', occurredAt: '2026-01-01T00:00:00Z' },
+        ]
+      },
+      listActions() {
+        return []
+      },
+      async execute() {
+        throw new Error('not implemented')
+      },
+      async healthCheck() {
+        return { ok: true }
+      },
+    }
+    await engine.ingestTransactions(adapter, businessId)
+
+    const llmClient: MessagesClient = {
+      messages: {
+        async create() {
+          return {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5',
+            stop_reason: 'tool_use',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'record_transaction_review',
+                input: {
+                  reasoning: 'A refund is always worth a look.',
+                  worthFlagging: true,
+                  draftAlert: 'A $50 refund just went out.',
+                  confidence: 0.9,
+                },
+              },
+            ],
+          } as never
+        },
+      },
+    }
+
+    const summary = await runTransactionReviewOnce(engine, llmClient, businessId, agentId, ownerEmail)
+    expect(summary).toEqual({ reviewed: 1, flagged: 1 })
+
+    const pending = await engine.listPendingApprovals()
+    expect(pending).toHaveLength(1)
+    expect(pending[0]?.request.payload).toEqual({
+      to: ownerEmail,
+      subject: 'Nexa AI: refund worth a look',
+      body: 'A $50 refund just went out.',
+    })
+
+    const [transaction] = await transactionStore.listByBusiness(businessId)
+    expect(transaction?.decisionId).toBeDefined()
+    expect(await transactionStore.listUnreviewed(businessId)).toHaveLength(0)
   })
 })

@@ -33,4 +33,17 @@ export class InMemoryTransactionStore implements TransactionStore {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .slice(0, limit)
   }
+
+  async listUnreviewed(businessId: string, limit = 100): Promise<TransactionRecord[]> {
+    return [...this.records.values()]
+      .filter((r) => r.businessId === businessId && r.decisionId === undefined)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(0, limit)
+  }
+
+  async linkDecision(transactionId: string, decisionId: string): Promise<void> {
+    const record = this.records.get(transactionId)
+    if (!record) throw new Error(`no transaction record for id ${transactionId}`)
+    record.decisionId = decisionId
+  }
 }

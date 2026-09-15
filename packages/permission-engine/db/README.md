@@ -20,6 +20,17 @@ npm run db:run-waitlist-triage # step 5/6: drafts + sends replies for un-triaged
 npm run db:set-agent-autonomy  # -- <business-slug> <agent-key> <level> [min-confidence], step 11:
                                 # promotes one agent to auto-execute above a confidence threshold;
                                 # a level >= 2 without a threshold is refused, not defaulted
+npm run db:run-transaction-review # step 14: reviews un-reviewed transactions, drafts an owner
+                                   # alert for anything worth flagging; needs ANTHROPIC_API_KEY,
+                                   # RESEND_API_KEY, and an owner account (db:create-owner) to
+                                   # send to — register the agent first (see below)
+```
+
+Registering the transaction-review agent (step 14, optional — only
+useful once Stripe or the crypto wallet is configured):
+
+```
+npm run db:register-agent -- nexa-labs transaction-review "Reviews new transactions and flags anything the owner should look at"
 ```
 
 Both read `.env` if present (Node's `--env-file-if-exists`), or fall back
@@ -35,11 +46,11 @@ to whatever's already exported — see `.env.example` at the repo root.
   reading `NexaLabsAdapter.listTransactions()` (Stripe charges/refunds/
   payouts, and/or a watched wallet's USDC transfers on Ethereum mainnet
   — a KVK-free alternative money-observability source, added the same
-  step; see the permission-engine readme). `decision_id` is nullable and
-  nothing sets it yet — no agent
-  reasons about a transaction and produces a decision that references one
-  yet, so the column exists ahead of that, same as the plan doc's schema
-  sketch, not ahead of a real writer.
+  step; see the permission-engine readme). `decision_id` sat nullable
+  and unwritten until step 14's transaction-review agent gave it a real
+  writer (`TransactionStore.linkDecision()`) — the column existed ahead
+  of that agent, same as the plan doc's schema sketch, not ahead of a
+  real writer for long.
 - `decisions` got its first real writes in step 5 (`0009` added
   `event_id`, linking a decision to the event it's about and letting the
   triage agent skip events it's already handled). It still doesn't carry

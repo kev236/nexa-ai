@@ -4,6 +4,7 @@ import { createNexaLabsAdapter } from '@nexa-ai/permission-engine'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 import { triggerWaitlistTriage } from '@/lib/triage'
+import { triggerTransactionReview } from '@/lib/transactionReview'
 
 /**
  * Step 8: closes the loop that steps 4-6 left manual — polls nexalabs
@@ -21,6 +22,10 @@ import { triggerWaitlistTriage } from '@/lib/triage'
  * Step 12 added reapAbandonedRequests() here too — this daily run is
  * the only place a crashed request ever gets discovered and marked, so
  * it belongs alongside the other "things that happen once a day".
+ *
+ * Step 14 added the transaction-review agent, run over anything
+ * ingestTransactions() just inserted — same "cron is the only trigger,
+ * no webhook path for this yet" shape as transactions themselves.
  *
  * readme.md's "Fail closed" invariant: a real failure (missing
  * business/agent row, a broken adapter, a database error) returns 500
@@ -55,6 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     const triage = await triggerWaitlistTriage(engine, business)
+    const transactionReview = await triggerTransactionReview(engine, business)
 
     // Step 12: a stale, orphaned 'requested' row is exactly what a killed
     // process leaves behind — see engine.ts's reapAbandonedRequests(). A
@@ -62,7 +68,7 @@ export async function GET(request: NextRequest) {
     // requestAction() itself could detect its own crash.
     const abandoned = await engine.reapAbandonedRequests()
 
-    return NextResponse.json({ events, transactions, triage, abandoned })
+    return NextResponse.json({ events, transactions, triage, transactionReview, abandoned })
   } catch (err) {
     console.error('cron poll failed:', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })

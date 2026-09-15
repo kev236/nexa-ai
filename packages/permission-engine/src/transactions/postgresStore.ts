@@ -70,6 +70,18 @@ export class PostgresTransactionStore implements TransactionStore {
     )
     return result.rows.map(toRecord)
   }
+
+  async listUnreviewed(businessId: string, limit = 100): Promise<TransactionRecord[]> {
+    const result = await this.pool.query<Row>(
+      `SELECT * FROM transactions WHERE business_id = $1 AND decision_id IS NULL ORDER BY created_at ASC LIMIT $2`,
+      [businessId, limit]
+    )
+    return result.rows.map(toRecord)
+  }
+
+  async linkDecision(transactionId: string, decisionId: string): Promise<void> {
+    await this.pool.query(`UPDATE transactions SET decision_id = $2 WHERE id = $1`, [transactionId, decisionId])
+  }
 }
 
 export function createPostgresTransactionStore(): TransactionStore {

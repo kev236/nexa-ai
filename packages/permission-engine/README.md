@@ -331,3 +331,50 @@ about code *outside* this package, not within it.
   tested infrastructure ready for the first action type that does,
   matching the same "build the mechanism generically, not against one
   hardcoded case" shape as step 11.
+- Step 14 — a second agent: `src/agents/transactionReviewAgent.ts`'s
+  `reviewTransaction(client, transaction)`, same shape as step 5's
+  `triageEvent()` (forced tool call via `completeWithTool`, a versioned
+  prompt file — `prompts/transaction-review.md`, not a string literal)
+  but reviewing money movement instead of drafting customer replies: it
+  reads one `transactions` row (Stripe or the crypto wallet, step 7) and
+  decides whether it's routine or worth a proactive alert to the owner.
+  It never contacts a customer and never moves money — same
+  default-autonomy-level-1 shape as every other agent here, an alert is
+  drafted and held for the owner to approve, not sent. New
+  `TransactionStore.listUnreviewed(businessId, limit?)`
+  (`transactions.decision_id IS NULL`) and `.linkDecision(transactionId,
+  decisionId)` needed no migration — `decision_id` has existed on
+  `transactions` since step 7's migration
+  (`0010`), unused until this agent had reasoning to link. Unlike
+  event triage (where `decisions.event_id` points forward to what's
+  being decided about), a transaction is reviewed after the fact, so
+  the pointer runs the other way: `transactions.decision_id` is set
+  once a decision exists, dropping that row out of `listUnreviewed()`.
+  `src/agents/runTransactionReview.ts`'s `runTransactionReviewOnce()` is
+  the run loop (same `maxActions`/`timeoutMs` bounds as
+  `runWaitlistTriageOnce()`, readme.md's "Agents" section) — every
+  unreviewed transaction gets a `decisions` row recorded regardless of
+  the outcome (`actionType: 'send_email'` when flagged, `'none'` when
+  judged routine), but only a flagged one becomes a `requestAction()`
+  call; a routine transaction has nothing for a human to approve about
+  "this was fine," so no audit-log noise is created for it.
+  `db/runTransactionReview.mjs` (CLI, `npm run
+  db:run-transaction-review`) and
+  `packages/dashboard/src/lib/transactionReview.ts` (called from the
+  cron route, same shape as `triggerWaitlistTriage()`) both send the
+  drafted alert to the business's first registered owner
+  (`OwnerStore.listAll()`/`SELECT ... ORDER BY created_at ASC LIMIT 1`
+  respectively) — this system has exactly one owner today, so "first"
+  is unambiguous; a future multi-owner business would need this
+  reconsidered. Unlike the waitlist-triage agent, this one registering
+  is optional per business — `triggerTransactionReview()` reports
+  `{ skipped: '...' }` rather than throwing when no `transaction-review`
+  agent is registered, since reviewing transactions only makes sense
+  once Stripe or the crypto wallet is actually configured. Verified
+  against real Postgres and the real Claude API (`db:run-transaction-review`
+  against the dev database's real, already-ingested Stripe/crypto
+  transactions) — both judged routine and correctly produced zero
+  pending approvals, with sensible per-transaction reasoning recorded in
+  `decisions`; the "worth flagging" path is covered by a fake-client
+  Postgres integration test instead, since forcing that outcome from the
+  real model isn't reliable to script.
