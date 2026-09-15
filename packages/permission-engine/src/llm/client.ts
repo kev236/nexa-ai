@@ -27,17 +27,24 @@ export type ToolSchema = {
 /**
  * Forces Claude to respond via a single named tool call, so the result is
  * always structured data, never prose to parse. Throws if the model
- * doesn't return the expected tool_use block (e.g. it refused).
+ * doesn't return the expected tool_use block (e.g. it refused) or if
+ * generation was cut off by maxTokens — a truncated tool call can still
+ * come back as valid-looking JSON missing whatever fields hadn't been
+ * generated yet when the limit hit, which a caller must not silently
+ * treat as "the model chose to omit this." Discovered for real: the
+ * Creative Agent's richer multi-concept output actually hit the default
+ * 4096 and came back missing top-level fields with no other symptom.
  */
 export async function completeWithTool<T>(
   client: MessagesClient,
   system: string,
   userContent: string,
-  tool: ToolSchema
+  tool: ToolSchema,
+  maxTokens = 4096
 ): Promise<T> {
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     system,
     tools: [{ name: tool.name, description: tool.description, input_schema: tool.inputSchema }],
     tool_choice: { type: 'tool', name: tool.name },
@@ -53,6 +60,11 @@ export async function completeWithTool<T>(
   )
   if (!toolUse) {
     throw new Error(`Expected a "${tool.name}" tool call, got stop_reason "${response.stop_reason}"`)
+  }
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(
+      `"${tool.name}" tool call was truncated at maxTokens (${maxTokens}) — the response is likely missing fields. Raise maxTokens or ask for less output per call.`
+    )
   }
   return toolUse.input as T
 }

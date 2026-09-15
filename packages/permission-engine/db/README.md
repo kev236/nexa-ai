@@ -24,6 +24,14 @@ npm run db:run-transaction-review # step 14: reviews un-reviewed transactions, d
                                    # alert for anything worth flagging; needs ANTHROPIC_API_KEY,
                                    # RESEND_API_KEY, and an owner account (db:create-owner) to
                                    # send to — register the agent first (see below)
+npm run db:register-business   # -- <slug> <name>, step 16: the generic way to add a second
+                                # (third, ...) business row, upserts by slug
+npm run db:import-campaign     # -- <business-slug> <path-to-file>, step 16: normalizes one raw
+                                # campaign (.txt) or one-campaign-per-line (.csv) via the Campaign
+                                # Agent; needs ANTHROPIC_API_KEY
+npm run db:generate-concepts   # -- <business-slug> <campaign-id> [agent-key], step 16: generates
+                                # 6 scored content concepts for one campaign via the Creative
+                                # Agent; needs ANTHROPIC_API_KEY
 ```
 
 Registering the transaction-review agent (step 14, optional — only
@@ -101,3 +109,22 @@ way `db:create-owner`/`db:register-agent` exist for admin actions — it's
 plain owner-authored data behind the dashboard's session login). No
 `business_id` column, deliberately — see the permission-engine README's
 step 15 section.
+
+## Migration 0013 (step 16)
+
+Adds `campaigns` (imported/normalized Promote.fun campaign data) and
+`content_concepts` (one row per Creative Agent run over a campaign,
+holding the whole scored batch as one jsonb array — see the
+permission-engine README's step 16 section for why that's one array
+rather than five separate tables). Both are scoped to a real
+`business_id` — set up a second business first:
+
+```
+npm run db:register-business -- promote-fun "Promote.fun"
+npm run db:register-agent -- promote-fun creative-agent "Generates and scores content concepts for imported campaigns"
+npm run db:import-campaign -- promote-fun path/to/brief.txt
+npm run db:generate-concepts -- promote-fun <campaign-id>
+```
+
+Campaigns can also be imported directly from the dashboard
+(`/campaigns/new`) — both paths call the same `importCampaignOnce()`.

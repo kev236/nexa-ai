@@ -12,6 +12,10 @@ import { PostgresAgentStore } from '../src/agents/postgresStore.js'
 import { PostgresOpportunityStore } from '../src/opportunities/postgresStore.js'
 import { SCORE_DIMENSIONS } from '../src/opportunities/scoring.js'
 import type { OpportunityScores } from '../src/opportunities/scoring.js'
+import { PostgresCampaignStore } from '../src/campaigns/postgresStore.js'
+import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStore.js'
+import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
+import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
 import { createPermissionEngine } from '../src/engine.js'
 import { hashPassword } from '../src/password.js'
 import { createSendEmailExecutor, type ResendClient } from '../src/executors/sendEmail.js'
@@ -40,7 +44,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -614,5 +618,104 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const list = await store.list()
     expect(list.some((o) => o.id === id)).toBe(true)
+  })
+
+  it('imports a campaign and generates scored concepts against real Postgres (step 16)', async () => {
+    const campaignStore = new PostgresCampaignStore(pool)
+    const contentConceptStore = new PostgresContentConceptStore(pool)
+    const engine = createPermissionEngine({ campaignStore, contentConceptStore })
+
+    const campaignClient: MessagesClient = {
+      messages: {
+        async create() {
+          return {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5',
+            stop_reason: 'tool_use',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'record_campaign_normalization',
+                input: {
+                  product: 'Nexa SiteAudit',
+                  targetAudience: 'Freelance web developers',
+                  benefits: ['Sub-second diagnostics'],
+                  forbiddenClaims: ['No guaranteed ranking improvements'],
+                  reasoning: 'Clear brief with an explicit compliance rule.',
+                  confidence: 0.85,
+                },
+              },
+            ],
+          } as never
+        },
+      },
+    }
+
+    const imported = await importCampaignOnce(engine, campaignClient, businessId, 'Promote our SiteAudit tool.', 'ext-real-1')
+    expect(imported.inserted).toBe(true)
+    expect(imported.normalization.product).toBe('Nexa SiteAudit')
+
+    const stored = await campaignStore.get(imported.campaignId)
+    expect(stored?.forbiddenClaims).toEqual(['No guaranteed ranking improvements'])
+
+    const creativeClient: MessagesClient = {
+      messages: {
+        async create() {
+          return {
+            id: 'msg_2',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5',
+            stop_reason: 'tool_use',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_2',
+                name: 'record_content_concepts',
+                input: {
+                  concepts: [
+                    {
+                      angle: 'curiosity',
+                      hook: 'Is your site actually fast?',
+                      scriptOutline: 'Open on a slow-loading page, cut to the diagnostic running.',
+                      cta: 'Run a free audit',
+                      caption: 'Find out in 10 seconds.',
+                      visualConcept: 'Screen recording of the tool running',
+                      hashtags: ['webdev', 'coreWebVitals'],
+                      scores: { hook: 85, retention: 78, shareability: 60, clarity: 90, conversion: 70, offerFit: 88 },
+                    },
+                  ],
+                  reasoning: 'Leans on the sub-second diagnostic benefit explicitly stated in the campaign.',
+                  confidence: 0.8,
+                },
+              },
+            ],
+          } as never
+        },
+      },
+    }
+
+    const { runId, conceptCount } = await generateConceptsOnce(engine, creativeClient, businessId, imported.campaignId, agentId)
+    expect(conceptCount).toBe(1)
+
+    const run = await contentConceptStore.get(runId)
+    expect(run?.status).toBe('draft')
+    expect(run?.concepts[0]?.hook).toBe('Is your site actually fast?')
+    // hook*0.25 + retention*0.25 + conversion*0.20 + shareability*0.15 + clarity*0.10 + offerFit*0.05
+    // = 85*.25 + 78*.25 + 70*.20 + 60*.15 + 90*.10 + 88*.05 = 21.25+19.5+14+9+9+4.4 = 77.15 -> 77
+    expect(run?.concepts[0]?.score.total).toBe(77)
+
+    const campaignList = await campaignStore.listByBusiness(businessId)
+    expect(campaignList.some((c) => c.id === imported.campaignId)).toBe(true)
+
+    const conceptRuns = await contentConceptStore.listByCampaign(imported.campaignId)
+    expect(conceptRuns).toHaveLength(1)
   })
 })

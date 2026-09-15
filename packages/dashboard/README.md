@@ -58,9 +58,9 @@ Sanity is a browser), so this session gate would otherwise redirect
 every such request to `/login` before the route's own auth ran; caught
 by actually running the routes locally, not by inspection.
 
-## Pages (step 8, +1 in step 15)
+## Pages (step 8, +1 in step 15, +1 in step 16)
 
-Four, behind the shared `Nav` (`src/components/Nav.tsx`):
+Five, behind the shared `Nav` (`src/components/Nav.tsx`):
 
 - **Approvals** (`/`) — unchanged from step 3: the pending-approval
   queue, approve/deny.
@@ -89,12 +89,27 @@ Four, behind the shared `Nav` (`src/components/Nav.tsx`):
   build. The dimension list is fetched server-side (the page component)
   and passed down as a prop instead — caught by actually running
   `next build`, not by inspection.
+- **Campaigns** (`/campaigns`, `/campaigns/new`, `/campaigns/[id]`, step
+  16) — Promote.fun campaign import and creative-concept review. The
+  list and new-campaign pages are what you'd expect; the detail page
+  shows a campaign's normalized data (audience, benefits, allowed/
+  forbidden claims, CTA), a "Generate concepts" button
+  (`generateConcepts()` in `app/campaigns/actions.ts`, calling
+  `generateConceptsOnce()`), and every past concept-generation run with
+  its concepts sorted highest score first and a ★ on whichever the
+  Creative Agent's deterministic scoring recommended. "Mark reviewed" is
+  the only status a run has — there's no approve/reject yet because
+  nothing downstream executes on a concept (no video, no publishing), so
+  there's nothing yet for an approval to gate.
 
-`src/lib/business.ts` is the one place that resolves "the" business by
-slug — the dashboard is honestly single-tenant today (no business
-picker anywhere in it, the same gap `listPendingApprovals()` already
-had by returning every business's approvals unscoped). Every page goes
-through this one function rather than repeating the slug.
+`src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
+resolves a business by slug — still honestly single-tenant *per page
+area* rather than truly multi-business (no switcher UI), but step 16 is
+the first real second business, so `getBusiness()` now takes an
+optional slug (default `nexa-labs`, unchanged for every existing call
+site) and a new `getPromoteFunBusiness()` resolves the second one. Every
+page still goes through one of these two functions rather than
+repeating a slug.
 
 ## Scheduled polling (step 8)
 

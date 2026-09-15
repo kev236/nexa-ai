@@ -406,3 +406,61 @@ about code *outside* this package, not within it.
   Postgres and a real browser: created an opportunity (all 12 dimensions
   at 80 → 80/100), edited it (one dimension 80→20 → recomputed to
   75/100, matching (11×80+20)/12 exactly), archived it, and reopened it.
+- Step 16 — the front half of a second business's content pipeline: the
+  owner shared a much larger "autonomous content engine" doc for
+  Promote.fun campaigns (video generation, multi-platform publishing,
+  Redis/BullMQ workers, Docker) — scoped down to what's actually
+  buildable this way: Campaign import + Claude-generated, scored
+  creative concepts, no video, no publishing, no new infrastructure.
+  Promote.fun is registered as a real second `businesses` row
+  (`db/registerBusiness.mjs` — the generic operator tool `db/seed.mjs`
+  never grew into, since seed.mjs stays specifically about the dev
+  bootstrap), proving invariant #4's "write it as though there are
+  forty businesses" for the first time with an actual second one.
+  `src/agents/campaignAgent.ts`'s `normalizeCampaign()` turns raw
+  campaign text (pasted brief, CSV row, manual entry — never scraped;
+  Promote.fun has no official API) into `CampaignStore`'s structured
+  shape (migration `0013`), with "never invent campaign information" as
+  the prompt's central rule — an unstated field comes back empty, not
+  guessed. `src/agents/creativeAgent.ts`'s `generateContentConcepts()`
+  reads one campaign and generates concepts (six per run — the vision
+  doc's own "20 hooks + 10 concepts + 5 scripts + 5 CTAs + 5 captions"
+  as separate arrays don't say which hook goes with which script, so
+  this combines each into one scored unit instead: hook, script outline,
+  CTA, caption, visual note, hashtags, and the doc's own six-dimension
+  scoring rubric). The weighted total score
+  (`src/contentConcepts/types.ts`'s `computeConceptScore()`, the doc's
+  exact hook×0.25 + retention×0.25 + conversion×0.20 + shareability×0.15
+  + clarity×0.10 + offerFit×0.05 formula) and which concepts get marked
+  `recommended` are both computed deterministically after the model
+  responds, never trusted as arithmetic the model did itself — "use
+  deterministic code for calculations, use AI only where reasoning is
+  valuable," the doc's own section 24. Neither agent is routed through
+  `requestAction()`/approvals — drafting campaign data or creative
+  concepts has no side effect yet for a human to approve, same reasoning
+  as step 15's opportunities; that changes the moment a later phase adds
+  an executor that actually publishes something.
+
+  A real bug only surfaced by testing against the real API, not the fake
+  clients unit tests use: the Creative Agent's six-concept, many-field
+  response tripped the default 4096-token cap on `completeWithTool()`
+  and came back with `concepts` (or `reasoning`/`confidence`) silently
+  missing — the truncated tool call still parsed as valid-looking JSON,
+  it just didn't have everything. `completeWithTool()` now takes an
+  optional `maxTokens` (the Creative Agent passes 8192) and explicitly
+  throws on `stop_reason === 'max_tokens'` rather than letting a caller
+  read past a hole in the response; `creativeAgent.ts` also validates
+  the result's shape before using it at all — "validate all AI output
+  against schemas before processing it," per the doc's own section 9,
+  a real requirement this had skipped until real testing found the gap
+  it was written to prevent.
+
+  Verified live end to end against real Postgres and the real Claude
+  API: imported a real Nexa SiteAudit campaign brief (correctly
+  extracted product/audience/benefits/forbidden-claims, including a
+  compliance-critical "don't promise ranking improvements" rule),
+  generated six real scored concepts (each respecting the campaign's
+  allowed/forbidden claims, with zero fabricated statistics or
+  testimonials — the model's own reasoning explicitly flagged what it
+  deliberately avoided claiming), and confirmed the weighted score and
+  `recommended` flag both matched the deterministic formula by hand.

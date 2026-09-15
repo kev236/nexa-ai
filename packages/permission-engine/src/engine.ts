@@ -17,6 +17,10 @@ import type { AgentStore } from './agents/store.js'
 import { InMemoryAgentStore } from './agents/memoryStore.js'
 import type { OpportunityStore } from './opportunities/store.js'
 import { InMemoryOpportunityStore } from './opportunities/memoryStore.js'
+import type { CampaignStore } from './campaigns/store.js'
+import { InMemoryCampaignStore } from './campaigns/memoryStore.js'
+import type { ContentConceptStore } from './contentConcepts/store.js'
+import { InMemoryContentConceptStore } from './contentConcepts/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -35,6 +39,10 @@ export type PermissionEngineDeps = {
   agentStore?: AgentStore
   /** Step 15: no agent touches this — pure owner-authored notes, same trust level as OwnerStore. */
   opportunityStore?: OpportunityStore
+  /** Step 16: imported/normalized campaign data — see CampaignStore's own doc comment for why this skips requestAction(). */
+  campaignStore?: CampaignStore
+  /** Step 16: scored creative concepts generated per campaign. */
+  contentConceptStore?: ContentConceptStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -78,6 +86,8 @@ export type PermissionEngine = {
   businessStore: BusinessStore
   agentStore: AgentStore
   opportunityStore: OpportunityStore
+  campaignStore: CampaignStore
+  contentConceptStore: ContentConceptStore
 }
 
 /**
@@ -96,6 +106,8 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const businessStore = deps.businessStore ?? new InMemoryBusinessStore()
   const agentStore = deps.agentStore ?? new InMemoryAgentStore()
   const opportunityStore = deps.opportunityStore ?? new InMemoryOpportunityStore()
+  const campaignStore = deps.campaignStore ?? new InMemoryCampaignStore()
+  const contentConceptStore = deps.contentConceptStore ?? new InMemoryContentConceptStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -367,6 +379,8 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     businessStore,
     agentStore,
     opportunityStore,
+    campaignStore,
+    contentConceptStore,
   }
 }
 
