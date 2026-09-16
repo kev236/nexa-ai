@@ -168,6 +168,32 @@ h1 {
   margin-top: 0.2rem;
 }
 
+.system-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--approve);
+  margin-bottom: 0.6rem;
+}
+
+.system-status-pill--warn {
+  color: var(--warn);
+}
+
+.status-dot--warn {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--warn) 60%, transparent);
+  flex-shrink: 0;
+}
+
 /* Panels — every bordered surface in the app shares this angular-cut,
    corner-bracketed HUD silhouette. Glow effects on these use
    filter:drop-shadow rather than box-shadow: clip-path clips box-shadow
@@ -904,6 +930,53 @@ form.login-form button:hover {
 .command-btn:hover {
   border-color: var(--accent-strong);
   color: var(--accent);
+}
+
+/* "My businesses" — one real card per real business, each linking to
+   that business's own page. Not a portfolio summary invented for this
+   row; see loadBusinessCard() in page.tsx. */
+
+.business-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.business-card {
+  display: block;
+  padding: 1.1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, filter 0.15s ease;
+}
+
+.business-card:hover {
+  border-color: var(--accent-strong);
+  filter: drop-shadow(0 0 18px -4px var(--accent-glow));
+}
+
+.business-card-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.65rem;
+}
+
+.business-card-metric-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.business-card-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 0.2rem;
 }
 
 @media (max-width: 1080px) {

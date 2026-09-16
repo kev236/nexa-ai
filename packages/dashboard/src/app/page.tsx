@@ -3,14 +3,15 @@ import type { ReactNode } from 'react'
 import { Users, Activity, Gauge, LayoutGrid, Target, Wallet, Megaphone, TrendingUp, Film, Sparkles, BrainCircuit } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
-import { getBusiness, getPromoteFunBusiness } from '@/lib/business'
-import { formatAmount } from '@/lib/format'
+import { getBusiness, getPromoteFunBusiness, getSproutlightBusiness, getTrendRushBusiness } from '@/lib/business'
+import { formatAmount, displayNameFromEmail } from '@/lib/format'
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { resolveApproval } from '@/app/actions'
 import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
+import { PLATFORMS, type BusinessRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,29 @@ async function loadCampaignCount(engine: ReturnType<typeof getEngine>): Promise<
   }
 }
 
+type BusinessCard = { name: string; href: string; label: string; value: string }
+
+/**
+ * The "My Businesses" row's real, per-business snapshot — each card is
+ * one real metric from that business's own store, not a portfolio
+ * summary invented for this row. A business that isn't registered yet
+ * (same optional-business pattern as loadCampaignCount above) just
+ * doesn't get a card, rather than showing a fake placeholder one.
+ */
+async function loadBusinessCard(
+  loader: () => Promise<BusinessRecord>,
+  href: string,
+  computeMetric: (businessId: string) => Promise<{ label: string; value: string }>
+): Promise<BusinessCard | undefined> {
+  try {
+    const business = await loader()
+    const metric = await computeMetric(business.id)
+    return { name: business.name, href, ...metric }
+  } catch {
+    return undefined
+  }
+}
+
 function HudPanel({
   icon: Icon,
   title,
@@ -83,17 +107,18 @@ function HudPanel({
 }
 
 export default async function ApprovalsPage() {
-  await verifySession()
+  const { ownerId } = await verifySession()
   const engine = getEngine()
   const business = await getBusiness()
 
-  const [pending, agents, feed, latestTx, opportunities, campaignCount] = await Promise.all([
+  const [pending, agents, feed, latestTx, opportunities, campaignCount, owner] = await Promise.all([
     engine.listPendingApprovals(),
     engine.agentStore.listByBusiness(business.id),
     engine.auditStore.listByBusiness(business.id, 12),
     engine.transactionStore.listByBusiness(business.id, 1),
     engine.opportunityStore.list(),
     loadCampaignCount(engine),
+    engine.ownerStore.get(ownerId),
   ])
 
   const activeAgents = agents.filter((a) => a.active).length
@@ -107,6 +132,32 @@ export default async function ApprovalsPage() {
   // when the agent that drafted it supplied one), never a fabricated
   // number the way a generic sci-fi HUD mockup would.
   const focusApproval = pending.length > 0 ? pending[pending.length - 1] : undefined
+  const ownerName = owner ? displayNameFromEmail(owner.email) : undefined
+  const allOperational = agents.length > 0 && activeAgents === agents.length
+
+  const businessCards = (
+    await Promise.all([
+      Promise.resolve<BusinessCard>({
+        name: business.name,
+        href: '/',
+        label: 'Pending',
+        value: `${pending.length}`,
+      }),
+      loadBusinessCard(getPromoteFunBusiness, '/campaigns', async () => ({
+        label: 'Campaigns',
+        value: campaignCount !== undefined ? `${campaignCount} active` : '—',
+      })),
+      loadBusinessCard(getSproutlightBusiness, '/story-concepts', async (id) => {
+        const concepts = await engine.storyConceptStore.listByBusiness(id)
+        return { label: 'Concepts', value: `${concepts.length} drafted` }
+      }),
+      loadBusinessCard(getTrendRushBusiness, '/growth', async (id) => {
+        const accounts = await engine.socialAccountStore.listByBusiness(id)
+        const eligible = PLATFORMS.every((p) => (accounts.find((a) => a.platform === p)?.followerCount ?? 0) >= 200)
+        return { label: 'Promote.fun', value: eligible ? 'Eligible' : 'Growing' }
+      }),
+    ])
+  ).filter((card): card is BusinessCard => card !== undefined)
 
   return (
     <>
@@ -115,10 +166,22 @@ export default async function ApprovalsPage() {
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <h1>Dashboard</h1>
+            <span className={allOperational ? 'system-status-pill' : 'system-status-pill system-status-pill--warn'}>
+              {allOperational ? (
+                <span className="pulse-dot" aria-hidden />
+              ) : (
+                <span className="status-dot--warn" aria-hidden />
+              )}
+              {agents.length === 0
+                ? 'No agents registered'
+                : allOperational
+                  ? 'All systems operational'
+                  : `${agents.length - activeAgents} agent${agents.length - activeAgents === 1 ? '' : 's'} offline`}
+            </span>
+            <h1>{ownerName ? `Welcome back, ${ownerName}.` : 'Dashboard'}</h1>
             <p className="subtitle">
               {pending.length === 0
-                ? 'Nothing waiting on you.'
+                ? "Nothing waiting on you across your businesses."
                 : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
             </p>
           </div>
@@ -330,6 +393,21 @@ export default async function ApprovalsPage() {
         </span>
         <span>{MODEL_LABEL}</span>
       </div>
+
+      {businessCards.length > 0 && (
+        <>
+          <h2 className="section-title">My businesses</h2>
+          <div className="business-row deck-enter" style={{ animationDelay: '0.6s' }}>
+            {businessCards.map((card) => (
+              <Link key={card.name} href={card.href} className="hud-panel business-card">
+                <div className="business-card-name">{card.name}</div>
+                <div className="business-card-metric-label">{card.label}</div>
+                <div className="business-card-metric-value">{card.value}</div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       <h2 className="section-title">Pending approvals</h2>
       {pending.length === 0 ? (

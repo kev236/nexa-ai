@@ -443,6 +443,46 @@ reran the full lint/typecheck/test suite green after the route
 deletion (a stale `.next` build cache initially referenced the deleted
 route's generated types — cleared, not silenced).
 
+## A personalized greeting, real system status, and a businesses row (step 24)
+
+A different kind of reference this time — not a sci-fi HUD screenshot
+but a polished, fictional "empire dashboard" mockup complete with a
+€12,438 revenue figure, a 12-agent roster including a Trading Agent and
+a Content Agent, a voice assistant ("Ask me anything…" / "Listening…"),
+and an "Upcoming" calendar panel. None of that exists in Nexa AI, and
+building fake versions of it would have been exactly the kind of thing
+step 21's own README section already argued against. What the
+reference actually got right — a personal greeting, an at-a-glance
+system-health readout, and a cross-business portfolio view — are
+genuinely good ideas that translate to real data. This step adopts
+those three, nothing else.
+
+- **A real greeting** — `Welcome back, {name}.` replaces the plain
+  "Dashboard" h1. The name comes from `displayNameFromEmail()`
+  (`lib/format.ts`), which title-cases the real signed-in owner's email
+  local-part (`kevin@nexalabs.tech` → "Kevin") — never a placeholder or
+  an invented name, and it changes the moment a different owner logs
+  in. No time-of-day variant ("Good afternoon") — the greeting renders
+  server-side, and the server's clock isn't necessarily the viewer's,
+  so a "good morning" shown at someone's actual evening would be a
+  small but real dishonesty; `LiveClock` already covers real-time
+  accurately because it's a client component reading the viewer's own
+  clock.
+- **A real system-status pill** (`.system-status-pill`, top of the
+  page-header) — "All systems operational" when every registered agent
+  is active, "N agents offline" otherwise, computed from the same
+  `agents`/`activeAgents` this page already fetched. Never a static
+  "operational" label; an inactive agent visibly changes it.
+- **"My businesses"** — one real card per registered business
+  (`loadBusinessCard()` in `page.tsx`), each showing one real metric
+  from that business's own store and linking to its page: Nexa Labs'
+  pending-approval count, Promote.fun's active-campaign count,
+  Sproutlight's drafted-concept count, TrendRush's real Promote.fun
+  eligibility (reusing the same `PLATFORMS.every(...)` check the Growth
+  page's badge uses). A business that isn't registered yet — same
+  optional-business guard as `loadCampaignCount()` — just doesn't get a
+  card, never a fake placeholder one.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was
