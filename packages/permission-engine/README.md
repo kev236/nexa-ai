@@ -609,3 +609,48 @@ about code *outside* this package, not within it.
   agent existed, permanently falling back to `pending_approval` no
   matter what. Fixed alongside this change, caught by running the full
   suite against real Postgres rather than by inspection.
+
+- Step 19 — Sproutlight, a third business: AI-generated nursery rhymes
+  and short stories for young children, the owner's rebuild of an
+  earlier abandoned business (streamer-clip reposting — dropped for
+  being both saturated and copyright-exposed) into an original,
+  higher-audience, copyright-clean niche. Scoped the same way step 16's
+  Promote.fun work was scoped down from its own much larger doc: a
+  Concept Agent only, no video/audio generation and no publishing —
+  prove real output quality before committing to expensive, harder-to-
+  undo generation infrastructure.
+  `src/agents/storyConceptAgent.ts`'s `generateStoryConcept(client,
+  theme, format)` turns one owner-submitted theme into a single,
+  complete concept: title, age range, a full script (song lyrics or
+  short-story narration), broken into scenes with a literal
+  `visualDescription` per scene for a future visual-generation pass,
+  plus an `educationalTakeaway` and a `safetyNotes` field. The prompt
+  (`prompts/story-concept.md`) carries genuinely strict, explicit
+  child-safety rules — nothing scary or unresolved, original characters
+  and lyrics only (never another work's actual words, even a public-
+  domain-feeling lullaby's), age-appropriate vocabulary, no product
+  placement. `safetyNotes` exists because there's no reliable
+  deterministic check for "is this too scary for a toddler" the way
+  `computeTotalScore()` is deterministic for opportunities — the
+  model's own explicit safety reasoning is what the human reviewer
+  actually has to go on, so it's a required field, not an afterthought.
+  `StoryConceptStore` (`src/storyConcepts/`, migration `0016`) doesn't
+  go through `requestAction()`, same reasoning as step 16's
+  CampaignStore/ContentConceptStore: no side effect exists yet for a
+  human to approve. Dashboard gained a "Sproutlight" tab
+  (`/story-concepts`) with a generate form and the full concept list,
+  scenes expandable per card; CLI is `npm run db:generate-story-concept
+  -- <business-slug> <song|story> <theme>`.
+
+  Verified: schema validation via unit tests with a fake client matching
+  the real tool schema (including a truncated-response case per every
+  other agent's identical test), a real Postgres integration test, and
+  the actual dashboard page rendered live in a browser against a real
+  seeded row. Could not verify live model output quality this session —
+  the sandbox's `ANTHROPIC_API_KEY` returned `401 authentication_error`
+  when actually called (it worked earlier the same session for the
+  Opportunity Discovery Agent, so it was likely rotated in between) —
+  confirmed the failure surfaces cleanly through the dashboard's error
+  state rather than crashing, but the owner still needs to run a real
+  generation once against a valid key to judge actual concept quality
+  before trusting this for real themes.

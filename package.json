@@ -23,6 +23,7 @@
     "db:import-campaign": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/importCampaign.mjs",
     "db:generate-concepts": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/generateConcepts.mjs",
     "db:discover-opportunities": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/runOpportunityDiscovery.mjs",
+    "db:generate-story-concept": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/generateStoryConcept.mjs",
     "build:permission-engine": "npm run build --workspace=packages/permission-engine",
     "dashboard:dev": "npm run dev --workspace=packages/dashboard",
     "dashboard:build": "npm run build --workspace=packages/dashboard"

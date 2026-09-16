@@ -34,6 +34,9 @@ npm run db:discover-opportunities # -- <business-slug> [agent-key], step 17: pro
                                    # scored opportunities via the Opportunity Discovery Agent;
                                    # needs ANTHROPIC_API_KEY — unlike generate-concepts, the agent
                                    # must already be registered (see below), not optional
+npm run db:generate-story-concept # -- <business-slug> <song|story> <theme>, step 19: generates one
+                                   # nursery-rhyme/short-story concept for Sproutlight; needs
+                                   # ANTHROPIC_API_KEY
 ```
 
 Registering the transaction-review agent (step 14, optional — only
@@ -158,3 +161,21 @@ agents(id)`) — set when the Opportunity Discovery Agent proposed a row
 in directly. See the permission-engine README's step 17 section for why
 a proposal goes through `requestAction()` at all despite spending no
 money and needing no approval.
+
+## Migration 0016 (step 19)
+
+Adds `story_concepts` — Sproutlight's generated nursery-rhyme/short-story
+concepts (title, age range, full script, a scene breakdown, an
+educational takeaway, and the model's own safety notes), scoped to a
+real `business_id` same as campaigns/content_concepts. Set up the
+business and agent first:
+
+```
+npm run db:register-business -- sproutlight "Sproutlight"
+npm run db:register-agent -- sproutlight story-concept-agent "Drafts nursery-rhyme and short-story concepts"
+npm run db:generate-story-concept -- sproutlight song "sharing with a friend"
+```
+
+Concepts can also be generated directly from the dashboard's
+"Sproutlight" tab (`/story-concepts`) — both paths call the same
+`generateStoryConceptOnce()`.

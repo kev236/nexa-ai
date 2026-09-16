@@ -21,6 +21,8 @@ import type { CampaignStore } from './campaigns/store.js'
 import { InMemoryCampaignStore } from './campaigns/memoryStore.js'
 import type { ContentConceptStore } from './contentConcepts/store.js'
 import { InMemoryContentConceptStore } from './contentConcepts/memoryStore.js'
+import type { StoryConceptStore } from './storyConcepts/store.js'
+import { InMemoryStoryConceptStore } from './storyConcepts/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -42,6 +44,8 @@ export type PermissionEngineDeps = {
   campaignStore?: CampaignStore
   /** Step 16: scored creative concepts generated per campaign. */
   contentConceptStore?: ContentConceptStore
+  /** Step 19: Sproutlight's generated nursery-rhyme/story concepts. */
+  storyConceptStore?: StoryConceptStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -87,6 +91,7 @@ export type PermissionEngine = {
   opportunityStore: OpportunityStore
   campaignStore: CampaignStore
   contentConceptStore: ContentConceptStore
+  storyConceptStore: StoryConceptStore
 }
 
 /**
@@ -107,6 +112,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const opportunityStore = deps.opportunityStore ?? new InMemoryOpportunityStore()
   const campaignStore = deps.campaignStore ?? new InMemoryCampaignStore()
   const contentConceptStore = deps.contentConceptStore ?? new InMemoryContentConceptStore()
+  const storyConceptStore = deps.storyConceptStore ?? new InMemoryStoryConceptStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -347,6 +353,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     opportunityStore,
     campaignStore,
     contentConceptStore,
+    storyConceptStore,
   }
 }
 

@@ -28,3 +28,9 @@ export async function getBusiness(slug: string = DEFAULT_BUSINESS_SLUG) {
 export async function getPromoteFunBusiness() {
   return getBusiness('promote-fun')
 }
+
+// Step 19: Sproutlight — a third business (db:register-business
+// sproutlight "..."), same reasoning as getPromoteFunBusiness().
+export async function getSproutlightBusiness() {
+  return getBusiness('sproutlight')
+}

@@ -58,9 +58,9 @@ Sanity is a browser), so this session gate would otherwise redirect
 every such request to `/login` before the route's own auth ran; caught
 by actually running the routes locally, not by inspection.
 
-## Pages (step 8, +1 in step 15, +1 in step 16)
+## Pages (step 8, +1 in step 15, +1 in step 16, +1 in step 19)
 
-Five, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
+Six, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
 bento-grid overview at the top of Approvals:
 
 - **Approvals** (`/`) — the pending-approval queue, approve/deny. Since
@@ -109,15 +109,24 @@ bento-grid overview at the top of Approvals:
   the only status a run has — there's no approve/reject yet because
   nothing downstream executes on a concept (no video, no publishing), so
   there's nothing yet for an approval to gate.
+- **Sproutlight** (`/story-concepts`, step 19) — Sproutlight's
+  nursery-rhyme/short-story concepts, a third business
+  (`getSproutlightBusiness()`). A form (`StoryConceptForm.tsx`, `'use
+  client'`, same `useActionState` shape as `CampaignForm.tsx`) submits a
+  theme and a format (song/story); the full concept list below shows
+  script, scenes (collapsed behind a `<details>` — a concept's scenes
+  are supporting detail, not the headline), educational takeaway, and
+  the model's own safety notes, most recent first. No approve/reject
+  here either, same reasoning as Campaigns' concepts.
 
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
-area* rather than truly multi-business (no switcher UI), but step 16 is
-the first real second business, so `getBusiness()` now takes an
-optional slug (default `nexa-labs`, unchanged for every existing call
-site) and a new `getPromoteFunBusiness()` resolves the second one. Every
-page still goes through one of these two functions rather than
-repeating a slug.
+area* rather than truly multi-business (no switcher UI), but step 16 was
+the first real second business, so `getBusiness()` takes an optional
+slug (default `nexa-labs`, unchanged for every existing call site);
+`getPromoteFunBusiness()` and step 19's `getSproutlightBusiness()`
+resolve the other two the same way. Every page still goes through one
+of these three functions rather than repeating a slug.
 
 ## Scheduled polling (step 8)
 

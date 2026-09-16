@@ -14,6 +14,8 @@ import { SCORE_DIMENSIONS } from '../src/opportunities/scoring.js'
 import type { OpportunityScores } from '../src/opportunities/scoring.js'
 import { PostgresCampaignStore } from '../src/campaigns/postgresStore.js'
 import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStore.js'
+import { PostgresStoryConceptStore } from '../src/storyConcepts/postgresStore.js'
+import { generateStoryConceptOnce } from '../src/agents/runStoryConceptGeneration.js'
 import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
 import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
 import { runOpportunityDiscoveryOnce } from '../src/agents/runOpportunityDiscovery.js'
@@ -46,7 +48,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -806,5 +808,68 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const conceptRuns = await contentConceptStore.listByCampaign(imported.campaignId)
     expect(conceptRuns).toHaveLength(1)
+  })
+
+  it('generates and stores a Sproutlight story concept against real Postgres (step 19)', async () => {
+    const storyConceptStore = new PostgresStoryConceptStore(pool)
+
+    const client: MessagesClient = {
+      messages: {
+        async create() {
+          return {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5',
+            stop_reason: 'tool_use',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'record_story_concept',
+                input: {
+                  format: 'song',
+                  title: 'The Sharing Meadow',
+                  ageRange: '2-4 years',
+                  script: 'Two bunnies found one carrot\nThey shared it, half and half',
+                  scenes: [
+                    {
+                      sceneNumber: 1,
+                      visualDescription: 'Two cartoon bunnies in a sunny meadow looking at one carrot',
+                      narrationOrLyricLine: 'Two bunnies found one carrot',
+                      durationSeconds: 4,
+                    },
+                    {
+                      sceneNumber: 2,
+                      visualDescription: 'The two bunnies each holding half a carrot, smiling',
+                      narrationOrLyricLine: 'They shared it, half and half',
+                      durationSeconds: 4,
+                    },
+                  ],
+                  educationalTakeaway: 'Sharing with a friend',
+                  safetyNotes: 'No conflict left unresolved; original characters; gentle resolution.',
+                  reasoning: 'Sharing is a concrete, age-appropriate theme with a simple visual story.',
+                  confidence: 0.75,
+                },
+              },
+            ],
+          } as never
+        },
+      },
+    }
+
+    const { id, title } = await generateStoryConceptOnce(storyConceptStore, client, businessId, 'sharing with friends', 'song')
+    expect(title).toBe('The Sharing Meadow')
+
+    const record = await storyConceptStore.get(id)
+    expect(record?.businessId).toBe(businessId)
+    expect(record?.theme).toBe('sharing with friends')
+    expect(record?.scenes).toHaveLength(2)
+    expect(record?.educationalTakeaway).toBe('Sharing with a friend')
+
+    const list = await storyConceptStore.listByBusiness(businessId)
+    expect(list.some((c) => c.id === id)).toBe(true)
   })
 })

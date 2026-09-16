@@ -4,7 +4,7 @@ import { logout } from '@/app/actions'
 export function Nav({
   active,
 }: {
-  active: 'approvals' | 'activity' | 'money' | 'opportunities' | 'campaigns'
+  active: 'approvals' | 'activity' | 'money' | 'opportunities' | 'campaigns' | 'story-concepts'
 }) {
   return (
     <nav className="nav">
@@ -23,6 +23,12 @@ export function Nav({
         </Link>
         <Link href="/campaigns" className={active === 'campaigns' ? 'nav-link active' : 'nav-link'}>
           Campaigns
+        </Link>
+        <Link
+          href="/story-concepts"
+          className={active === 'story-concepts' ? 'nav-link active' : 'nav-link'}
+        >
+          Sproutlight
         </Link>
       </div>
       <form action={logout}>

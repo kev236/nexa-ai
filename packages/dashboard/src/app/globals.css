@@ -104,6 +104,11 @@ h1 {
   gap: 0.5rem;
 }
 
+.concept-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
 .meta {
   color: var(--muted);
   font-size: 0.8rem;
@@ -464,7 +469,8 @@ form.opportunity-form label {
 }
 
 form.opportunity-form input,
-form.opportunity-form textarea {
+form.opportunity-form textarea,
+form.opportunity-form select {
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 400;
