@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Users, Activity, Gauge, LayoutGrid, Target, Wallet, Megaphone, TrendingUp, Sparkles, BrainCircuit } from 'lucide-react'
+import { Users, Activity, Gauge, LayoutGrid, Target, Wallet, Megaphone, TrendingUp, Film, Sparkles, BrainCircuit } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness, getPromoteFunBusiness } from '@/lib/business'
@@ -281,6 +281,10 @@ export default async function ApprovalsPage() {
               <Link href="/growth" className="command-btn">
                 <TrendingUp size={16} aria-hidden />
                 <span>Growth</span>
+              </Link>
+              <Link href="/clips" className="command-btn">
+                <Film size={16} aria-hidden />
+                <span>Clips</span>
               </Link>
               <Link href="/story-concepts" className="command-btn">
                 <Sparkles size={16} aria-hidden />

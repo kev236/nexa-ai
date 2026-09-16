@@ -699,3 +699,51 @@ about code *outside* this package, not within it.
   flip once all three platforms cleared 200 against a real seeded
   business, then reset the demo numbers back to 0 (real starting point,
   not left as test data).
+
+- Step 23 — TrendRush's Clip Discovery Agent, chosen over two other
+  candidate directions (a real content pipeline for Sproutlight's
+  visuals, or a general hardening pass) when the owner picked it
+  directly: TrendRush sits at 0 real followers with no content
+  pipeline, so a tool that helps decide *which* clips are worth the
+  time to repost serves the one goal Growth (step 20) already tracks —
+  200 followers per platform to unlock Promote.fun campaigns.
+  `src/agents/clipDiscoveryAgent.ts`'s `evaluateClip(client,
+  sourceDescription, sourceUrl?)` reads one owner-submitted clip — a
+  description and optionally a URL, never the video itself — and
+  returns a scored evaluation: a `viralityScore` (0-100), a
+  `copyrightRisk` (`'low' | 'medium' | 'high'`) with explicit
+  `copyrightNotes`, one caption+hashtags per platform, a
+  `recommendation` (`REPOST` / `RESEARCH FURTHER` / `SKIP`), and a
+  `confidence`. The prompt (`prompts/clip-discovery.md`) treats
+  copyright risk as the load-bearing field, not a formality: it
+  explicitly instructs defaulting to `'high'` for a bare verbatim
+  repost with no commentary or transformation, since this exact
+  exposure is the real reason noted in this file's own step 19 history
+  as part of why the original clip-reposting business was shelved
+  before the owner brought it back as TrendRush (step 20). Reusing that
+  same mistake without a check built in would have been worse than not
+  building the feature at all.
+  `ClipStore` (`src/clips/`, migration `0018`) doesn't go through
+  `requestAction()`, same reasoning as
+  Campaigns/ContentConcepts/StoryConcepts: no repost executor exists
+  yet for a human to approve, just a written evaluation to review
+  before spending time producing and posting anything. Dashboard
+  gained a "Clips" tab (`/clips`) with a submission form and the full
+  evaluation list, copyright risk shown as a color-coded badge (green/
+  yellow/red, reusing the existing status-badge classes) and captions
+  expandable per platform; CLI is `npm run db:discover-clip --
+  <business-slug> <source-description> [source-url]`.
+
+  Verified: schema-validation unit tests with a fake client (including
+  an invalid-platform case and a truncated-response case, matching
+  every other agent's identical coverage), a real Postgres integration
+  test, and the actual `/clips` page rendered live in a browser against
+  a real seeded row (color-coded risk badge, all three platform
+  captions, expandable reasoning). Could not verify live model output
+  quality this session — the sandbox's `ANTHROPIC_API_KEY` returned
+  `401 authentication_error` (the same credential gap noted in step
+  19's entry above) — confirmed the failure surfaces cleanly as a
+  thrown error and through the dashboard form's existing error state
+  rather than crashing, but the owner still needs to run a real
+  evaluation once against a valid key to judge actual scoring quality
+  before trusting this for a real repost decision.

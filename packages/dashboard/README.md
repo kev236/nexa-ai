@@ -58,10 +58,11 @@ Sanity is a browser), so this session gate would otherwise redirect
 every such request to `/login` before the route's own auth ran; caught
 by actually running the routes locally, not by inspection.
 
-## Pages (step 8, +1 in step 15, +1 in step 16, +1 in step 19, +1 in step 20)
+## Pages (step 8, +1 in step 15, +1 in step 16, +1 in step 19, +1 in step 20, +1 in step 23)
 
-Seven, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
-bento-grid overview at the top of Approvals:
+Eight, behind the shared `Nav` (`src/components/Nav.tsx`), plus a HUD
+overview at the top of Approvals (see "The demo page merged into
+Approvals" below for what that overview actually is now):
 
 - **Approvals** (`/`) — the pending-approval queue, approve/deny. Since
   the bento-grid overview, also opens with an at-a-glance summary
@@ -125,6 +126,17 @@ bento-grid overview at the top of Approvals:
   a rule the database knows about. Sproutlight's cards show plain
   counts with no threshold framing, since it isn't seeking Promote.fun
   campaigns.
+- **Clips** (`/clips`, step 23) — TrendRush's Clip Discovery Agent. A
+  form (`ClipForm.tsx`, `'use client'`, same `useActionState` shape as
+  `StoryConceptForm.tsx`) submits a clip description and an optional
+  source URL; the evaluation list below shows each clip's virality
+  score, a color-coded copyright-risk badge (reusing the existing
+  green/yellow/red status-badge classes — `low`→`status-active`,
+  `medium`→`status-abandoned`, `high`→`status-denied`), the
+  recommendation, and per-platform captions expandable behind a
+  `<details>`. No approve/reject here either — same reasoning as
+  Campaigns/Sproutlight's concepts: no repost executor exists yet for
+  anything to approve.
 - **Sproutlight** (`/story-concepts`, step 19) — Sproutlight's
   nursery-rhyme/short-story concepts, a third business
   (`getSproutlightBusiness()`). A form (`StoryConceptForm.tsx`, `'use

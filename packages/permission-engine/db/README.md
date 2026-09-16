@@ -40,6 +40,9 @@ npm run db:generate-story-concept # -- <business-slug> <song|story> <theme>, ste
 npm run db:set-followers       # -- <business-slug> <youtube|instagram|tiktok> <count> [handle],
                                 # step 20: upserts a real follower count; same write the dashboard's
                                 # Growth page form makes
+npm run db:discover-clip       # -- <business-slug> <source-description> [source-url], step 23:
+                                # evaluates one clip via the Clip Discovery Agent; needs
+                                # ANTHROPIC_API_KEY — agent must already be registered (see below)
 ```
 
 Registering the transaction-review agent (step 14, optional — only
@@ -205,3 +208,26 @@ on each platform (that threshold is a UI-level constant in the
 dashboard, not enforced by this table) alongside Sproutlight's own
 account growth, tracked the same way but without the eligibility
 framing — Sproutlight isn't seeking Promote.fun campaigns.
+
+## Migration 0018 (step 23)
+
+Adds `clips` — TrendRush's Clip Discovery Agent evaluations. The owner
+pastes in one clip they're considering reposting (a description and
+optionally a URL); the agent scores virality, checks copyright risk,
+and drafts a caption for each platform. Plain owner-triggered drafting
+data, same reasoning as opportunities/campaigns/story_concepts: no
+repost executor exists, so nothing here goes through
+`audit_log`/approvals. Set up the business and agent first:
+
+```
+npm run db:register-business -- trendrush "TrendRush"
+npm run db:register-agent -- trendrush clip-discovery-agent "Evaluates clips TrendRush is considering reposting"
+npm run db:discover-clip -- trendrush "a streamer clutches a 1v5" https://twitch.tv/example/clip
+```
+
+Clips can also be evaluated directly from the dashboard's "Clips" tab
+(`/clips`) — both paths call the same `discoverClipOnce()`. The
+`copyright_risk` check exists because this exact exposure — reposting
+someone else's footage with no license or transformation — is the real
+reason an earlier version of this business was shelved; see the
+permission-engine README's step 23 section.

@@ -25,6 +25,8 @@ import type { StoryConceptStore } from './storyConcepts/store.js'
 import { InMemoryStoryConceptStore } from './storyConcepts/memoryStore.js'
 import type { SocialAccountStore } from './socialAccounts/store.js'
 import { InMemorySocialAccountStore } from './socialAccounts/memoryStore.js'
+import type { ClipStore } from './clips/store.js'
+import { InMemoryClipStore } from './clips/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -50,6 +52,8 @@ export type PermissionEngineDeps = {
   storyConceptStore?: StoryConceptStore
   /** Step 20: real per-platform follower counts, owner-entered — same trust level as OpportunityStore. */
   socialAccountStore?: SocialAccountStore
+  /** Step 23: TrendRush's clip evaluations — same trust level as StoryConceptStore. */
+  clipStore?: ClipStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -97,6 +101,7 @@ export type PermissionEngine = {
   contentConceptStore: ContentConceptStore
   storyConceptStore: StoryConceptStore
   socialAccountStore: SocialAccountStore
+  clipStore: ClipStore
 }
 
 /**
@@ -119,6 +124,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const contentConceptStore = deps.contentConceptStore ?? new InMemoryContentConceptStore()
   const storyConceptStore = deps.storyConceptStore ?? new InMemoryStoryConceptStore()
   const socialAccountStore = deps.socialAccountStore ?? new InMemorySocialAccountStore()
+  const clipStore = deps.clipStore ?? new InMemoryClipStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -361,6 +367,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     contentConceptStore,
     storyConceptStore,
     socialAccountStore,
+    clipStore,
   }
 }
 

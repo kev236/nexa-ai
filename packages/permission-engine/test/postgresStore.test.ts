@@ -16,6 +16,7 @@ import { PostgresCampaignStore } from '../src/campaigns/postgresStore.js'
 import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStore.js'
 import { PostgresStoryConceptStore } from '../src/storyConcepts/postgresStore.js'
 import { PostgresSocialAccountStore } from '../src/socialAccounts/postgresStore.js'
+import { PostgresClipStore } from '../src/clips/postgresStore.js'
 import { generateStoryConceptOnce } from '../src/agents/runStoryConceptGeneration.js'
 import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
 import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
@@ -49,7 +50,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts, social_accounts RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts, social_accounts, clips RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -895,5 +896,34 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const updated = list.find((a) => a.platform === 'tiktok')
     expect(updated?.followerCount).toBe(210)
     expect(updated?.handle).toBe('trendrush.clips')
+  })
+
+  it('records a clip evaluation against real Postgres (step 23)', async () => {
+    const store = new PostgresClipStore(pool)
+
+    const id = await store.create(businessId, {
+      sourceUrl: 'https://twitch.tv/clip/abc',
+      sourceDescription: 'A streamer clutches a 1v5 in the final round',
+      title: 'Clutch 1v5 comeback',
+      viralityScore: 72,
+      copyrightRisk: 'high',
+      copyrightNotes: 'Verbatim footage from another streamer, no transformation added.',
+      recommendation: 'RESEARCH FURTHER',
+      captions: [
+        { platform: 'youtube', caption: 'He should NOT have won this...', hashtags: ['gaming', 'clutch'] },
+        { platform: 'instagram', caption: 'No way this was real', hashtags: ['gaming'] },
+        { platform: 'tiktok', caption: 'wait for it', hashtags: ['fyp', 'gaming'] },
+      ],
+      reasoning: 'Strong moment but sourced from a livestream with no visible license.',
+      confidence: 0.6,
+    })
+
+    const record = await store.get(id)
+    expect(record?.copyrightRisk).toBe('high')
+    expect(record?.captions).toHaveLength(3)
+    expect(record?.captions.find((c) => c.platform === 'tiktok')?.hashtags).toEqual(['fyp', 'gaming'])
+
+    const list = await store.listByBusiness(businessId)
+    expect(list.some((c) => c.id === id)).toBe(true)
   })
 })

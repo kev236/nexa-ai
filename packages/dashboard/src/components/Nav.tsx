@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BrainCircuit, LayoutDashboard, Activity, Wallet, Target, Megaphone, TrendingUp, Sparkles, LogOut } from 'lucide-react'
+import { BrainCircuit, LayoutDashboard, Activity, Wallet, Target, Megaphone, TrendingUp, Film, Sparkles, LogOut } from 'lucide-react'
 import { logout } from '@/app/actions'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
@@ -11,6 +11,7 @@ const LINKS = [
   { key: 'opportunities', href: '/opportunities', label: 'Opportunities', icon: Target },
   { key: 'campaigns', href: '/campaigns', label: 'Campaigns', icon: Megaphone },
   { key: 'growth', href: '/growth', label: 'Growth', icon: TrendingUp },
+  { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
   { key: 'story-concepts', href: '/story-concepts', label: 'Sproutlight', icon: Sparkles },
 ] as const
 
