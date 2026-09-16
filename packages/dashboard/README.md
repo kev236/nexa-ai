@@ -119,6 +119,28 @@ bento-grid overview at the top of Approvals:
   the model's own safety notes, most recent first. No approve/reject
   here either, same reasoning as Campaigns' concepts.
 
+## Visual design (dark/purple command-center redesign)
+
+A visual-only restyle — no new pages, routes, or data. `globals.css`
+switched from a light-default/`prefers-color-scheme`-dark theme to a
+single dark, purple-accented palette (`--bg`, `--bg-elevated`,
+`--accent`/`--accent-strong` etc. in `:root`), matching a Jarvis-style
+"command-center" reference the owner shared. `Nav.tsx` changed from a
+horizontal top bar to a fixed left sidebar (icons from `lucide-react`,
+the same icon package `nexalabs.tech`'s own Navbar already uses) — done
+purely in CSS (`.nav { position: fixed; ... }` plus
+`main:has(> .nav) { margin-left: var(--sidebar-w) }`) rather than by
+touching every page's JSX, since every page already renders `<Nav
+active="..." />` as the first child inside `<main>`; the `:has()`
+selector is what lets `main` size itself correctly on `/login`, which
+renders no `Nav` at all. Below a 900px viewport the sidebar reverts to a
+horizontal icon-only bar (`nav-link span { display: none }`) rather than
+adding a collapse/hamburger toggle — no new interactive behavior, just a
+responsive layout, same spirit as the bento grid's existing 640px
+breakpoint. `layout.tsx` added a Google Fonts link (Sora for display
+text, JetBrains Mono for `.mono`/`.action-type`/data-heavy text) — the
+first webfonts this package has loaded.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was
