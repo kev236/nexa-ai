@@ -212,6 +212,62 @@ still no voice UI, fake search, or fake system monitor.
   brackets (`::before`/`::after`, absolutely positioned) for the
   "targeting HUD" look from the reference screenshot.
 
+### Third pass — full sci-fi HUD overhaul
+
+The owner asked to ditch the design so far entirely for something
+"fully futuristic/sci-fi." This pass changed the shared visual
+language, not the data or the layout skeleton underneath it — every
+page still renders the same components with the same props, just
+against a much more aggressively styled CSS layer.
+
+- **Angular "beveled panel" shape everywhere** — `--panel-clip`/
+  `--panel-clip-sm` (`:root` in `globals.css`) are `clip-path:
+  polygon(...)` shapes that slice the top-left and bottom-right corners
+  off every bordered surface (`.card`, `.agent-card`, `.event-list`,
+  `.chart-card`, `.growth-card`, `.bento-tile`, `.bar-chart`,
+  `form.login-form`, buttons, badges, inputs), replacing `border-radius`
+  everywhere it used to appear. HUD corner brackets (`::before`/`::after`)
+  moved to the two corners clip-path *doesn't* cut (top-right/
+  bottom-left) and now appear on every panel class above, not just the
+  Approvals hero tile and Money's chart card.
+- **`box-shadow` glow → `filter: drop-shadow` on every clipped element**
+  — a real CSS gotcha, not a style preference: `clip-path` hard-clips
+  `box-shadow` at the polygon edge, so a glow that used to bleed outward
+  smoothly would instead cut off in a straight line at each panel's
+  slanted corner. `filter: drop-shadow()` is computed from the
+  already-clipped shape's alpha channel instead, so it glows around the
+  angular silhouette correctly. Every hover/ambient glow that used to be
+  `box-shadow` (cards, the bento hero tile, buttons, status badges,
+  focus rings) was converted; `.pulse-dot`'s ring animation and
+  `.sparkline-dot` were left alone since neither sits on a clipped
+  element.
+- **Command-panel typography** — nav links, buttons, `.button-link`,
+  and the brand wordmark switched to uppercase + wide letter-spacing in
+  `--font-display`, reading as HUD controls rather than a normal web
+  app's buttons. `.status-badge` changed from a rounded pill to a
+  single-notch angular tag (`polygon(6px 0, 100% 0, 100% 100%, 0 100%,
+  0 6px)`).
+- **A denser HUD background** — `body::after` gained a faint 64px grid
+  (two `repeating-linear-gradient` layers) layered under the existing
+  scanlines, all still under ~6% opacity and `z-index: -1` so it reads
+  as atmosphere, not noise.
+- **A decorative rotating ring** on the Approvals hero tile
+  (`.hero-ring`, a real DOM element in `page.tsx` since `.bento-tile`
+  already uses both its `::before`/`::after` slots for corner brackets)
+  — two concentric dashed/solid circles behind the Pending number,
+  rotating via a `prefers-reduced-motion`-guarded CSS animation. Purely
+  ambient: it isn't tied to any real ratio, unlike the gauges below,
+  since Pending has no natural "out of what" denominator to plot
+  honestly.
+- **Growth's linear progress bars became circular radial gauges** — an
+  inline SVG per platform card (`growth/page.tsx`), `stroke-dasharray`/
+  `stroke-dashoffset` computed server-side from the same real
+  `followerCount`/threshold math the old `<div style={{ width }}>` bar
+  used, just drawn as a ring with the count centered inside instead of
+  a bar underneath. Sproutlight's threshold-less cards still render a
+  plain number, same reasoning as before — no gauge without a real
+  denominator to honestly fill it against.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was

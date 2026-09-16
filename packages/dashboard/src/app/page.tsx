@@ -64,6 +64,7 @@ export default async function ApprovalsPage() {
 
       <div className="bento-grid">
         <div className="bento-tile bento-tile--hero">
+          <div className="hero-ring" aria-hidden />
           <div className="bento-tile-label">Pending</div>
           <div className="bento-tile-value">
             <AnimatedNumber value={pending.length} />

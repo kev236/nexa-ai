@@ -54,7 +54,7 @@ export async function Nav({ active }: { active: (typeof LINKS)[number]['key'] })
         <div className="nav-status">
           <span className="pulse-dot" aria-hidden />
           <span className="nav-status-text">
-            {status.active}/{status.total} agents online
+            [ {status.active}/{status.total} agents online ]
           </span>
         </div>
       )}

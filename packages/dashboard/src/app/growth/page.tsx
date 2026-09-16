@@ -20,6 +20,17 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 // data without this framing — it isn't seeking Promote.fun campaigns.
 const CAMPAIGN_ELIGIBILITY_THRESHOLD = 200
 
+// A ring, not a bar — the gauge geometry is fixed to the SVG viewBox
+// below (viewBox="0 0 100 100", r=42), so this radius/circumference
+// must move together with that markup if either changes.
+const GAUGE_RADIUS = 42
+const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS
+
+function gaugeDashoffset(pct: number): number {
+  const clamped = Math.min(100, Math.max(0, pct))
+  return GAUGE_CIRCUMFERENCE * (1 - clamped / 100)
+}
+
 async function loadSection(loader: () => Promise<BusinessRecord>) {
   try {
     const business = await loader()
@@ -126,18 +137,27 @@ function GrowthSection({
                 {account?.handle && <span className="meta mono">@{account.handle}</span>}
               </div>
 
-              <div className="growth-count">
-                {count.toLocaleString()}
-                {eligibilityThreshold !== undefined && <span className="meta"> / {eligibilityThreshold}</span>}
-              </div>
-
-              {pct !== undefined && (
-                <div className="growth-progress-track">
-                  <div
-                    className={met ? 'growth-progress-fill growth-progress-fill--met' : 'growth-progress-fill'}
-                    style={{ width: `${pct}%` }}
-                  />
+              {pct !== undefined ? (
+                <div className="growth-gauge">
+                  <svg viewBox="0 0 100 100" className="growth-gauge-svg" role="img" aria-label={`${count} of ${eligibilityThreshold} followers`}>
+                    <circle cx="50" cy="50" r={GAUGE_RADIUS} className="growth-gauge-track" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={GAUGE_RADIUS}
+                      className={met ? 'growth-gauge-fill growth-gauge-fill--met' : 'growth-gauge-fill'}
+                      strokeDasharray={GAUGE_CIRCUMFERENCE}
+                      strokeDashoffset={gaugeDashoffset(pct)}
+                      transform="rotate(-90 50 50)"
+                    />
+                  </svg>
+                  <div className="growth-gauge-label">
+                    <span className="growth-count">{count.toLocaleString()}</span>
+                    <span className="meta">/ {eligibilityThreshold}</span>
+                  </div>
                 </div>
+              ) : (
+                <div className="growth-count">{count.toLocaleString()}</div>
               )}
 
               <form action={updateFollowerCount.bind(null, business.id)} className="growth-form">

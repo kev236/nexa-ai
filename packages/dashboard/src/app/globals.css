@@ -1,6 +1,8 @@
 :root {
   color-scheme: dark;
   --sidebar-w: 232px;
+  --panel-cut: 16px;
+  --panel-cut-sm: 8px;
 
   --bg: #0a0714;
   --bg-elevated: #150f26;
@@ -25,6 +27,26 @@
   --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* The shared angular "beveled panel" silhouette every HUD surface in
+     this file cuts to — top-left and bottom-right corners sliced off,
+     leaving top-right/bottom-left square for corner-bracket accents. */
+  --panel-clip: polygon(
+    var(--panel-cut) 0,
+    100% 0,
+    100% calc(100% - var(--panel-cut)),
+    calc(100% - var(--panel-cut)) 100%,
+    0 100%,
+    0 var(--panel-cut)
+  );
+  --panel-clip-sm: polygon(
+    var(--panel-cut-sm) 0,
+    100% 0,
+    100% calc(100% - var(--panel-cut-sm)),
+    calc(100% - var(--panel-cut-sm)) 100%,
+    0 100%,
+    0 var(--panel-cut-sm)
+  );
 }
 
 * {
@@ -57,19 +79,20 @@ body::before {
   animation: ambient-drift 28s ease-in-out infinite alternate;
 }
 
+/* Scanlines + a faint 64px HUD grid — the "targeting display" texture
+   behind every page. Both layers stay under 6% opacity so they read as
+   atmosphere, never fight with real content for attention. */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.35;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--fg) 3%, transparent) 0px,
-    transparent 1px,
-    transparent 3px
-  );
+  opacity: 0.4;
+  background-image:
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--fg) 3%, transparent) 0px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(to right, color-mix(in srgb, var(--accent) 5%, transparent) 0px, transparent 1px, transparent 64px),
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--accent) 5%, transparent) 0px, transparent 1px, transparent 64px);
 }
 
 @keyframes ambient-drift {
@@ -107,19 +130,102 @@ h1 {
   margin-bottom: 0.25rem;
 }
 
+.page-header {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+}
+
+.page-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.35em;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
 .subtitle {
   color: var(--muted);
   font-size: 0.9rem;
   margin-bottom: 2rem;
 }
 
-.card {
+/* Panels — every bordered surface in the app shares this angular-cut,
+   corner-bracketed HUD silhouette. Glow effects on these use
+   filter:drop-shadow rather than box-shadow: clip-path clips box-shadow
+   at the polygon edge (hard cutoff), but drop-shadow is computed from
+   the already-clipped shape's alpha, so it glows around the cut corners
+   correctly instead of stopping in a straight line. */
+.card,
+.agent-card,
+.event-list,
+.chart-card,
+.growth-card,
+.bento-tile,
+.bar-chart,
+form.login-form,
+form.opportunity-form .score-grid {
+  position: relative;
+  clip-path: var(--panel-clip);
+}
+
+.card,
+.agent-card,
+.event-list,
+.chart-card,
+.growth-card,
+.bar-chart,
+form.login-form,
+form.opportunity-form .score-grid {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 10px;
+}
+
+.card::before,
+.agent-card::before,
+.event-list::before,
+.chart-card::before,
+.growth-card::before,
+.bento-tile::before,
+.bar-chart::before,
+form.login-form::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+}
+
+.card::after,
+.agent-card::after,
+.event-list::after,
+.chart-card::after,
+.growth-card::after,
+.bento-tile::after,
+.bar-chart::after,
+form.login-form::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+}
+
+.card {
   padding: 1.25rem;
   margin-bottom: 1rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, filter 0.15s ease;
 }
 
 .card-link {
@@ -130,7 +236,7 @@ h1 {
 
 .card-link:hover .card {
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px -8px var(--accent-glow);
+  filter: drop-shadow(0 0 18px -4px var(--accent-glow));
 }
 
 .concept-run {
@@ -197,15 +303,18 @@ h1 {
 }
 
 button {
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.55rem 1.1rem;
+  clip-path: var(--panel-clip-sm);
   border: 1px solid var(--border);
   background: var(--bg-inset);
   color: inherit;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, filter 0.15s ease;
 }
 
 button:hover {
@@ -219,7 +328,7 @@ button.approve {
 }
 
 button.approve:hover {
-  box-shadow: 0 0 16px -6px color-mix(in srgb, var(--approve) 60%, transparent);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--approve) 55%, transparent));
 }
 
 button.deny {
@@ -229,7 +338,7 @@ button.deny {
 }
 
 button.deny:hover {
-  box-shadow: 0 0 16px -6px color-mix(in srgb, var(--danger) 60%, transparent);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--danger) 55%, transparent));
 }
 
 .empty {
@@ -252,6 +361,7 @@ button.deny:hover {
   padding: 1.75rem 1.1rem 1.5rem;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
+  box-shadow: 8px 0 28px -18px var(--accent-glow);
   box-sizing: border-box;
   overflow-y: auto;
 }
@@ -272,8 +382,9 @@ button.deny:hover {
 .nav-brand-text {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
+  font-size: 1rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .nav-links {
@@ -284,16 +395,18 @@ button.deny:hover {
 }
 
 .nav-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.65rem;
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 0.6rem 0.7rem;
-  border-radius: 8px;
-  border-left: 2px solid transparent;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.7rem 0.6rem 0.95rem;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -310,8 +423,19 @@ button.deny:hover {
 .nav-link.active {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-left-color: var(--accent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0.15rem;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translateY(-50%) rotate(45deg);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .nav-link.active .nav-link-icon {
@@ -329,10 +453,10 @@ button.deny:hover {
 
 .nav-status-text {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 
 .nav-signout-form {
@@ -381,22 +505,22 @@ button.deny:hover {
   align-items: center;
   gap: 0.55rem;
   width: 100%;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--muted);
   background: transparent;
   border: none;
+  clip-path: none;
   padding: 0.5rem 0.7rem;
 }
 
 .nav-signout:hover {
   color: var(--danger);
-  box-shadow: none;
+  filter: none;
   border-color: transparent;
-}
-
-.page-header {
-  margin-bottom: 1.5rem;
 }
 
 section {
@@ -419,11 +543,8 @@ section {
 }
 
 .agent-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 1rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .agent-card:hover {
@@ -450,24 +571,24 @@ section {
 .status-badge {
   display: inline-block;
   font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem 0.2rem 0.6rem;
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 
 .status-requested {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
-  box-shadow: 0 0 10px -4px var(--accent-glow);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 .status-executed,
 .status-active {
   background: var(--approve-bg);
   color: var(--approve);
-  box-shadow: 0 0 10px -4px color-mix(in srgb, var(--approve) 50%, transparent);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--approve) 40%, transparent));
 }
 
 .status-denied,
@@ -479,15 +600,6 @@ section {
 .status-abandoned {
   background: var(--warn-bg);
   color: var(--warn);
-}
-
-.event-list {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
 }
 
 .event-item {
@@ -512,11 +624,8 @@ form.login-form {
   gap: 0.75rem;
   max-width: 320px;
   margin: 4rem auto;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 14px;
   padding: 2rem;
-  box-shadow: 0 0 60px -20px var(--accent-glow);
+  filter: drop-shadow(0 0 40px -12px var(--accent-glow));
 }
 
 form.login-form h1 {
@@ -524,8 +633,8 @@ form.login-form h1 {
 }
 
 form.login-form input {
+  clip-path: var(--panel-clip-sm);
   padding: 0.6rem 0.75rem;
-  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg-inset);
   color: var(--fg);
@@ -535,7 +644,7 @@ form.login-form input {
 form.login-form input:focus {
   outline: none;
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 form.login-form button {
@@ -546,7 +655,7 @@ form.login-form button {
 }
 
 form.login-form button:hover {
-  box-shadow: 0 0 20px -6px var(--accent-glow);
+  filter: drop-shadow(0 0 16px -2px var(--accent-glow));
 }
 
 .error {
@@ -570,59 +679,60 @@ form.login-form button:hover {
 
 .bento-tile-link:hover .bento-tile {
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px -8px var(--accent-glow);
+  filter: drop-shadow(0 0 18px -4px var(--accent-glow));
 }
 
 .bento-tile {
   height: 100%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   padding: 1.1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   min-width: 0;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, filter 0.15s ease;
 }
 
 .bento-tile--hero {
-  position: relative;
   grid-column: span 2;
   grid-row: span 2;
   background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  box-shadow: 0 0 40px -18px var(--accent-glow);
+  filter: drop-shadow(0 0 26px -10px var(--accent-glow));
 }
 
-.bento-tile--hero::before,
-.bento-tile--hero::after,
-.chart-card::before,
-.chart-card::after {
+.hero-ring {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 150px;
+  height: 150px;
+  transform: translate(-50%, -50%);
+  border: 1px dashed color-mix(in srgb, var(--accent) 32%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: hero-ring-spin 22s linear infinite;
+}
+
+.hero-ring::before {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
-  pointer-events: none;
-  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  inset: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  border-radius: 50%;
 }
 
-.bento-tile--hero::before,
-.chart-card::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid;
-  border-left: 2px solid;
-  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+@keyframes hero-ring-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
-.bento-tile--hero::after,
-.chart-card::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid;
-  border-right: 2px solid;
-  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+@media (prefers-reduced-motion: reduce) {
+  .hero-ring {
+    animation: none;
+  }
 }
 
 .bento-tile--wide {
@@ -645,6 +755,7 @@ form.login-form button:hover {
 }
 
 .bento-tile-value {
+  position: relative;
   font-family: var(--font-display);
   font-size: 1.7rem;
   font-weight: 700;
@@ -657,6 +768,7 @@ form.login-form button:hover {
 }
 
 .bento-tile--hero .bento-tile-value {
+  position: relative;
   font-size: 3.25rem;
   margin: 0.35rem 0;
   color: var(--accent);
@@ -682,6 +794,7 @@ form.login-form button:hover {
     gap: 0.5rem;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    box-shadow: none;
     padding: 0.85rem 1.1rem;
     overflow-x: auto;
     overflow-y: visible;
@@ -707,13 +820,15 @@ form.login-form button:hover {
 
   .nav-link {
     padding: 0.5rem;
-    border-left: none;
     border-bottom: 2px solid transparent;
   }
 
   .nav-link.active {
-    border-left-color: transparent;
     border-bottom-color: var(--accent);
+  }
+
+  .nav-link.active::before {
+    display: none;
   }
 
   .nav-signout-form {
@@ -756,10 +871,13 @@ form.login-form button:hover {
 
 .button-link {
   display: inline-block;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  clip-path: var(--panel-clip-sm);
   border: 1px solid var(--border);
   background: var(--bg-inset);
   color: inherit;
@@ -802,7 +920,7 @@ form.opportunity-form select {
   font-size: 0.95rem;
   font-weight: 400;
   padding: 0.55rem 0.7rem;
-  border-radius: 6px;
+  clip-path: var(--panel-clip-sm);
   border: 1px solid var(--border);
   background: var(--bg-inset);
   color: var(--fg);
@@ -814,16 +932,13 @@ form.opportunity-form textarea:focus,
 form.opportunity-form select:focus {
   outline: none;
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 40%, transparent));
 }
 
 form.opportunity-form .score-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.75rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 1rem;
 }
 
@@ -844,7 +959,7 @@ form.opportunity-form button {
 }
 
 form.opportunity-form button:hover {
-  box-shadow: 0 0 20px -6px var(--accent-glow);
+  filter: drop-shadow(0 0 16px -2px var(--accent-glow));
 }
 
 .growth-grid {
@@ -855,9 +970,6 @@ form.opportunity-form button:hover {
 }
 
 .growth-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 1.1rem;
 }
 
@@ -871,7 +983,9 @@ form.opportunity-form button:hover {
 .growth-platform {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .growth-count {
@@ -882,25 +996,55 @@ form.opportunity-form button:hover {
   margin-bottom: 0.6rem;
 }
 
-.growth-progress-track {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-inset);
-  overflow: hidden;
-  margin-bottom: 1rem;
+.growth-gauge {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  margin: 0.25rem auto 0.85rem;
 }
 
-.growth-progress-fill {
+.growth-gauge-svg {
+  width: 100%;
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-  box-shadow: 0 0 10px -2px var(--accent-glow);
-  transition: width 0.4s ease;
 }
 
-.growth-progress-fill--met {
-  background: linear-gradient(90deg, var(--approve), #10b981);
-  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--approve) 60%, transparent);
+.growth-gauge-track {
+  fill: none;
+  stroke: var(--bg-inset);
+  stroke-width: 6;
+}
+
+.growth-gauge-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.growth-gauge-fill--met {
+  stroke: var(--approve);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--approve) 55%, transparent));
+}
+
+.growth-gauge-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.growth-gauge-label .growth-count {
+  margin-bottom: 0;
+  font-size: 1.35rem;
+}
+
+.growth-gauge-label .meta {
+  font-size: 0.65rem;
 }
 
 .growth-form {
@@ -912,7 +1056,7 @@ form.opportunity-form button:hover {
   font-family: inherit;
   font-size: 0.85rem;
   padding: 0.4rem 0.55rem;
-  border-radius: 6px;
+  clip-path: var(--panel-clip-sm);
   border: 1px solid var(--border);
   background: var(--bg-inset);
   color: var(--fg);
@@ -930,19 +1074,15 @@ form.opportunity-form button:hover {
 .growth-form input:focus {
   outline: none;
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 40%, transparent));
 }
 
 .growth-form button {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   padding: 0.4rem 0.75rem;
 }
 
 .chart-card {
-  position: relative;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 1.25rem 1.25rem 0.75rem;
   margin-bottom: 1.5rem;
 }
@@ -984,9 +1124,6 @@ form.opportunity-form button:hover {
   align-items: flex-end;
   gap: 0.6rem;
   height: 116px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 1rem 1rem 0.75rem;
   margin-bottom: 1.75rem;
 }
@@ -1012,7 +1149,7 @@ form.opportunity-form button:hover {
   width: 100%;
   max-width: 26px;
   min-height: 3px;
-  border-radius: 3px 3px 1px 1px;
+  clip-path: polygon(4px 0, 100% 0, 100% 100%, 0 100%, 0 4px);
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
   box-shadow: 0 0 12px -3px var(--accent-glow);
   transition: height 0.5s ease;
