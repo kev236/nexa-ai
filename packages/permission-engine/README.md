@@ -545,6 +545,27 @@ about code *outside* this package, not within it.
   call — confirmed fixed live for both this agent and the Creative
   Agent's "Generate concepts" button.
 
+  A second, separate bug in the same area surfaced once the first was
+  fixed and actually deployed: production still threw, now `ENOENT: no
+  such file or directory, open '/var/task/packages/permission-engine/
+  prompts/opportunity-discovery.md'`. The URL bug was a code bug; this
+  one is a deployment/bundling one — Next.js's build-time file tracer
+  (what decides which files a Vercel serverless function actually ships
+  with) only sees files reached through a static `import`/`require`; a
+  `readFileSync()` at a dynamically-computed path is invisible to it, so
+  the entire `prompts/` directory was silently left out of every
+  deployment, for all five agents, this whole time. `next dev`/`next
+  build` running locally never surfaces this, since local runs just read
+  the real filesystem — only Vercel's actual traced-and-copied runtime
+  is missing the file. Fixed in `packages/dashboard/next.config.ts` via
+  `outputFileTracingIncludes` (`{ '/**':
+  ['../permission-engine/prompts/**'] }`) — Next's own documented escape
+  hatch for exactly this "the tracer can't see this file but it's needed
+  at runtime" case, rather than restructuring how five files load their
+  prompts. Confirmed fixed by inspecting the actual build output: every
+  page's `.next/server/app/**/page.js.nft.json` trace manifest lists all
+  five `prompts/*.md` files after this change, none before it.
+
 - Step 18 — approval policy simplified: the owner asked to remove
   approval for everything except spending money. `shouldAutoApprove()`
   (`engine.ts`) is now three lines — an active agent, and no
