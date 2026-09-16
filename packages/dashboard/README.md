@@ -310,7 +310,13 @@ the sidebar's 900px breakpoint) of:
 one shared header (icon + title + optional badge) every side panel
 renders through, rather than repeating that markup four times.
 
-## Demo page (step 21)
+## Demo page (step 21, merged into Approvals by step 22 — see that section)
+
+**Superseded by step 22**: the owner asked to merge this into the real
+operating deck rather than maintain two dashboards; the `/demo` route
+no longer exists. Left here as the historical record of what step 21
+actually shipped, per this file's own append-only convention — read
+step 22 for the current state.
 
 A standalone, full-bleed "command center" view (`/demo`) built for
 recording a clip, after the owner pointed out that the flashy
@@ -359,6 +365,71 @@ sits behind `verifySession()` like every other page.
   delay). Unlike `BootIntro`, this isn't `sessionStorage`-gated: for a
   page built to be reloaded and re-recorded, replaying identically
   every time is the point, not a bug to gate away.
+
+## The demo page merged into Approvals, with its own core (step 22)
+
+Two asks in quick succession: merge `/demo` into the real operating
+deck instead of maintaining two dashboards, then — once that landed —
+"make it *like* a Jarvis deck, not fully Jarvis deck… make a unique
+deck for Nexa AI." The merge is structural (one page, one dataset,
+`/demo/page.tsx` deleted); the second ask changed what the core itself
+looks like, not just where it lives.
+
+**The merge.** Approvals' `hud-grid` gained the demo's richer pieces
+directly rather than importing them from a second page:
+
+- The reactor's core (see below) replaces the old single-ring
+  `.hero-ring`/`.reactor-core` — those classes are gone from
+  `globals.css`, not just unused.
+- **Top opportunity** became its own panel with the radial gauge
+  (previously a linear meter buried in System Metrics), sitting in the
+  left column under Agent Roster — freeing System Metrics down to
+  agents-online + money + campaigns.
+- **Recent signals** (6 rows, left column) became a wide **Live
+  activity feed** panel (12 rows, scrollable) below the 3-column grid —
+  the demo page's proportions, not the original HUD grid's.
+- **`LiveClock`** moved into `.page-header-row`, next to the h1/subtitle,
+  instead of a page's own top bar (Approvals already has `<Nav>` for
+  that role).
+- **`.deck-statusbar`** (real pending/agents/model) sits right above
+  "Pending approvals."
+- Every panel gained a `.deck-enter` staggered fade-in — reusing the
+  demo's entrance choreography rather than the plain page it replaced.
+- All the reusable CSS carried over renamed from `demo-*` to `deck-*`
+  (`.demo-core` → `.deck-core`, `.demo-feed-panel` → `.deck-feed-panel`,
+  etc.); the page-layout-only classes that only made sense for a
+  sidebar-less full-bleed page (`.demo-page`, `.demo-topbar`,
+  `.demo-brand*`, `.demo-tagline`, `.demo-grid`, and the
+  `main:has(> .demo-page)` override) were deleted outright rather than
+  left as dead CSS.
+
+**The core, redesigned to be Nexa's own.** The three plain concentric
+circles read as a generic sci-fi HUD reference's "arc reactor" — not
+wrong, but not *ours*. The rebuilt `.deck-core`:
+
+- **A hexagonal outer ring** (`clip-path: polygon(...)`, same angular
+  technique every panel in this app already uses for its beveled
+  corners) in place of a third circle — reads as circuit/network
+  rather than a power core.
+- **The real `BrainCircuit` icon at dead center** — Nexa AI's own mark,
+  not a plain "Nexa" wordmark — with the real pending count and
+  "pending" label stacked under it.
+- **One real node per registered agent**, placed at a true angle around
+  the mid ring's circumference (`coreNodePosition()` in `page.tsx` —
+  server-side trigonometry, not CSS or client JS), lit and pulsing
+  (`.deck-core-node--active`, reusing the existing `pulse-ring`
+  keyframe `.pulse-dot` already uses elsewhere) only for agents that
+  are actually active, dim otherwise. This is the piece that makes the
+  core specifically *Nexa's* rather than a reskinned template: it's a
+  literal, truthful small multiple of the real fleet, not decoration —
+  three agents currently means three dots, and that number changes the
+  moment `db:register-agent` or a deactivation does.
+
+Verified live in the browser at desktop and mobile widths (the
+hexagon/node core holds up at both), confirmed `/demo` now 404s, and
+reran the full lint/typecheck/test suite green after the route
+deletion (a stale `.next` build cache initially referenced the deleted
+route's generated types — cleared, not silenced).
 
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page

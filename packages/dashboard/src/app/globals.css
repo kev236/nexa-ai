@@ -116,15 +116,6 @@ main {
   padding: 2.5rem 1.5rem 4rem;
 }
 
-/* The demo page renders no <Nav>, so it needs its own full-bleed
-   escape from main's default centered width — same :has() trick as
-   the sidebar's override above. */
-main:has(> .demo-page) {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-}
-
 main:has(> .nav) {
   margin: 0 0 0 var(--sidebar-w);
   max-width: 1180px;
@@ -160,6 +151,21 @@ h1 {
   color: var(--muted);
   font-size: 0.9rem;
   margin-bottom: 2rem;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header-clock {
+  font-size: 0.95rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  margin-top: 0.2rem;
 }
 
 /* Panels — every bordered surface in the app shares this angular-cut,
@@ -792,75 +798,6 @@ form.login-form button:hover {
   filter: drop-shadow(0 0 26px -10px var(--accent-glow));
 }
 
-.reactor {
-  position: relative;
-  width: 170px;
-  height: 170px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 150px;
-  height: 150px;
-  transform: translate(-50%, -50%);
-  border: 1px dashed color-mix(in srgb, var(--accent) 32%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: hero-ring-spin 22s linear infinite;
-}
-
-.hero-ring::before {
-  content: '';
-  position: absolute;
-  inset: 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
-  border-radius: 50%;
-}
-
-@keyframes hero-ring-spin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-ring {
-    animation: none;
-  }
-}
-
-.reactor-core {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.reactor-value {
-  font-family: var(--font-display);
-  font-size: 3.25rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--accent);
-  text-shadow: 0 0 30px var(--accent-glow);
-}
-
-.reactor-label {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin-top: 0.25rem;
-}
-
 .reactor-readout {
   display: flex;
   flex-wrap: wrap;
@@ -1418,74 +1355,16 @@ form.opportunity-form button:hover {
   }
 }
 
-/* Demo page — a separate full-bleed command-center view, purpose-built
-   for recording a clip. Reuses .hud-panel/.signal-feed/.growth-gauge
-   from the real dashboard so its visual language matches; only the
-   layout and the entrance choreography are unique to it. */
+/* The operating deck's core — Nexa AI's own centerpiece, not a copy of
+   the "arc reactor" trope a generic sci-fi HUD reference leans on: a
+   hexagonal outer ring (circuit/network, not power-core) around a
+   circular mid ring carrying one real node per registered agent — lit
+   and pulsing only for agents that are actually active — with the real
+   pending count anchored under the brand mark at the center. Reuses
+   .hud-panel/.signal-feed/.growth-gauge for everything around it, so
+   only the core/feed/status-bar pieces below are unique. */
 
-.demo-page {
-  min-height: 100vh;
-  padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.demo-topbar {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.demo-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-shrink: 0;
-}
-
-.demo-brand-icon {
-  color: var(--accent);
-  filter: drop-shadow(0 0 6px var(--accent-glow));
-  flex-shrink: 0;
-}
-
-.demo-brand-text {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.demo-tagline {
-  flex: 1;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-  text-align: center;
-}
-
-.demo-topbar-clock {
-  font-size: 0.95rem;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-  min-width: 5.5ch;
-  text-align: right;
-}
-
-.demo-grid {
-  display: grid;
-  grid-template-columns: 1fr minmax(260px, 1.1fr) 1fr;
-  gap: 1rem;
-  align-items: stretch;
-}
-
-.demo-core-wrap {
+.deck-core-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1494,16 +1373,16 @@ form.opportunity-form button:hover {
   padding: 1.5rem 0;
 }
 
-.demo-core {
+.deck-core {
   position: relative;
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.demo-core-ring {
+.deck-core-ring {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1512,61 +1391,82 @@ form.opportunity-form button:hover {
   transform: translate(-50%, -50%);
 }
 
-.demo-core-ring--outer {
-  width: 240px;
-  height: 240px;
+.deck-core-ring--outer {
+  width: 200px;
+  height: 200px;
   border: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
-  animation: demo-ring-spin 30s linear infinite;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  animation: deck-ring-spin 34s linear infinite;
 }
 
-.demo-core-ring--mid {
-  width: 190px;
-  height: 190px;
+.deck-core-ring--mid {
+  width: 160px;
+  height: 160px;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
   border-right-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  animation: demo-ring-spin 14s linear infinite reverse;
+  animation: deck-ring-spin 14s linear infinite reverse;
 }
 
-.demo-core-ring--inner {
-  width: 140px;
-  height: 140px;
-  border: 1px dashed color-mix(in srgb, var(--accent-strong) 35%, transparent);
-  animation: demo-ring-spin 20s linear infinite;
-}
-
-@keyframes demo-ring-spin {
+@keyframes deck-ring-spin {
   to {
     transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .demo-core-ring {
+  .deck-core-ring {
     animation: none;
   }
 }
 
-.demo-core-center {
+/* One real node per registered agent, placed at a real angle around
+   the mid ring's radius (computed server-side in page.tsx, not CSS —
+   see the agents.map() there) — lit and pulsing only when that exact
+   agent is active, dim otherwise. Not decoration: it's a literal,
+   truthful map of the fleet. */
+.deck-core-node {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.deck-core-node--active {
+  background: var(--approve);
+  opacity: 1;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--approve) 70%, transparent);
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-core-node--active {
+    animation: none;
+  }
+}
+
+.deck-core-center {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 
-.demo-core-brand {
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
+.deck-core-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+  margin-bottom: 0.15rem;
 }
 
-.demo-core-pending {
+.deck-core-pending {
   font-family: var(--font-display);
-  font-size: 3.5rem;
+  font-size: 3.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
@@ -1574,7 +1474,7 @@ form.opportunity-form button:hover {
   line-height: 1.1;
 }
 
-.demo-core-label {
+.deck-core-label {
   font-family: var(--font-display);
   font-size: 0.72rem;
   font-weight: 700;
@@ -1583,31 +1483,13 @@ form.opportunity-form button:hover {
   color: var(--muted);
 }
 
-.demo-core-status {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.demo-core-status .mono {
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-
-.demo-meter {
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--border);
-}
-
-.demo-gauge {
+.deck-gauge {
   margin: 0.25rem auto 0.75rem;
-  width: 132px;
-  height: 132px;
+  width: 120px;
+  height: 120px;
 }
 
-.demo-opportunity-name {
+.deck-opportunity-name {
   text-align: center;
   font-size: 0.8rem;
   color: var(--muted);
@@ -1617,16 +1499,17 @@ form.opportunity-form button:hover {
   -webkit-box-orient: vertical;
 }
 
-.demo-feed-panel {
+.deck-feed-panel {
   padding: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
-.demo-feed {
-  max-height: 220px;
+.deck-feed {
+  max-height: 260px;
   overflow-y: auto;
 }
 
-.demo-statusbar {
+.deck-statusbar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1636,19 +1519,19 @@ form.opportunity-form button:hover {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  padding: 0 0 1.5rem;
+  margin-top: -0.75rem;
 }
 
-.demo-statusbar-sep {
+.deck-statusbar-sep {
   color: var(--border-strong);
 }
 
-.demo-enter {
-  animation: demo-enter 0.6s ease both;
+.deck-enter {
+  animation: deck-enter 0.6s ease both;
 }
 
-@keyframes demo-enter {
+@keyframes deck-enter {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -1660,30 +1543,13 @@ form.opportunity-form button:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .demo-enter {
+  .deck-enter {
     animation: none;
   }
 }
 
 @media (max-width: 1080px) {
-  .demo-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .demo-core-wrap {
+  .deck-core-wrap {
     order: -1;
-  }
-}
-
-@media (max-width: 640px) {
-  .demo-topbar {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .demo-tagline {
-    order: 3;
-    flex-basis: 100%;
-    text-align: left;
   }
 }
