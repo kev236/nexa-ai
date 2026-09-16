@@ -118,7 +118,7 @@ main {
 
 main:has(> .nav) {
   margin: 0 0 0 var(--sidebar-w);
-  max-width: 1180px;
+  max-width: none;
   padding: 2.5rem 3rem 4rem;
 }
 
@@ -328,6 +328,9 @@ form.login-form::after {
 
 .reasoning {
   margin: 0.5rem 0 0.75rem;
+  /* Panels and grids use the full width main now stretches to, but a
+     paragraph shouldn't — capped for reading comfort, not layout. */
+  max-width: 78ch;
 }
 
 .payload {
