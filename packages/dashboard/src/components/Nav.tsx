@@ -19,7 +19,7 @@ const LINKS = [
  * business (same nexa-labs default getBusiness() falls back to), not a
  * per-page number. Kept best-effort: a business/table that isn't set up
  * yet shouldn't take the whole sidebar down, same reasoning as the
- * Approvals bento grid's loadCampaignCount().
+ * Approvals HUD grid's loadCampaignCount().
  */
 async function loadAgentStatus(): Promise<{ active: number; total: number } | undefined> {
   try {

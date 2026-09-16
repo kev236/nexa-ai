@@ -268,6 +268,48 @@ against a much more aggressively styled CSS layer.
   plain number, same reasoning as before — no gauge without a real
   denominator to honestly fill it against.
 
+### Fourth pass — Approvals dropped the bento grid for a HUD command center
+
+The owner shared a screenshot of a personal-assistant "command center"
+UI (multi-panel HUD around a central circular readout — agent status,
+a live signal feed, system meters, a grid of quick-action buttons) and
+asked for that instead of the bento grid. Every number in the result is
+still real; nothing here is a fabricated system-diagnostic readout the
+way the reference image's own "GPU VRAM"/"SHIELD INTEGRITY" bars were
+for its use case.
+
+`page.tsx`'s `<div className="bento-grid">` became `<div
+className="hud-grid">` — a 3-column CSS grid (`.hud-grid` in
+`globals.css`, collapsing to one column under 1080px same pattern as
+the sidebar's 900px breakpoint) of:
+
+- **Agent roster** and **Recent signals** panels (left column) — the
+  same `agents`/`feed` this page already fetched for the old Agents/
+  Latest-activity tiles, just rendered as list panels instead of single
+  stat tiles. `feed`'s query limit went from 1 row to 6 so there's
+  enough for an actual feed, not a single line.
+- **The reactor** (center column, `.reactor-panel`/`.reactor`) — the
+  real pending count, large, inside the same rotating dashed ring the
+  bento hero tile used (`.hero-ring`, unchanged, just re-parented).
+  Below it, a real "focus" readout: the most recently requested pending
+  approval's real `actionType`, and its real `confidence` (`ActionRequest.
+  confidence`, `src/types.ts`) *only* when the agent that drafted it
+  actually supplied one — most don't, and the readout simply omits the
+  confidence line rather than inventing a percentage the way a generic
+  HUD mockup would. Falls back to the latest audit entry when nothing's
+  pending.
+- **System metrics** and **Quick access** panels (right column) — the
+  same agents-active ratio and top-opportunity score as real horizontal
+  meters (a meter only appears where there's a real 0-100 or x-of-y
+  ratio to fill it honestly; latest money and campaign count stay plain
+  readouts, same reasoning as Growth's gauges only appearing where
+  there's a real denominator). Quick access is six real `<Link>`s to
+  the other pages, icon-styled like the reference's command grid.
+
+`HudPanel` (a small local, non-exported component in `page.tsx`) is the
+one shared header (icon + title + optional badge) every side panel
+renders through, rather than repeating that markup four times.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was

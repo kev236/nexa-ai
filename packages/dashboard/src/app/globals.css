@@ -164,7 +164,8 @@ h1 {
 .event-list,
 .chart-card,
 .growth-card,
-.bento-tile,
+.hud-panel,
+.reactor-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -177,6 +178,8 @@ form.opportunity-form .score-grid {
 .event-list,
 .chart-card,
 .growth-card,
+.hud-panel,
+.reactor-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -189,7 +192,8 @@ form.opportunity-form .score-grid {
 .event-list::before,
 .chart-card::before,
 .growth-card::before,
-.bento-tile::before,
+.hud-panel::before,
+.reactor-panel::before,
 .bar-chart::before,
 form.login-form::before {
   content: '';
@@ -208,7 +212,8 @@ form.login-form::before {
 .event-list::after,
 .chart-card::after,
 .growth-card::after,
-.bento-tile::after,
+.hud-panel::after,
+.reactor-panel::after,
 .bar-chart::after,
 form.login-form::after {
   content: '';
@@ -663,48 +668,133 @@ form.login-form button:hover {
   font-size: 0.85rem;
 }
 
-.bento-grid {
+/* Command-center HUD grid — Approvals' home layout: two narrow side
+   columns of panels flanking a wide center reactor column. */
+
+.hud-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: minmax(108px, auto);
+  grid-template-columns: 1fr minmax(320px, 1.3fr) 1fr;
   gap: 0.75rem;
+  align-items: start;
   margin-bottom: 2.5rem;
 }
 
-.bento-tile-link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.bento-tile-link:hover .bento-tile {
-  border-color: var(--accent-strong);
-  filter: drop-shadow(0 0 18px -4px var(--accent-glow));
-}
-
-.bento-tile {
-  height: 100%;
-  padding: 1.1rem;
+.hud-col {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 0.75rem;
   min-width: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  transition: border-color 0.15s ease, filter 0.15s ease;
 }
 
-.bento-tile--hero {
-  grid-column: span 2;
-  grid-row: span 2;
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+.hud-panel {
+  padding: 1.1rem;
+  min-width: 0;
+}
+
+.hud-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.hud-panel-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  flex-shrink: 0;
+}
+
+.hud-panel-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.hud-panel-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+.signal-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.signal-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.signal-feed-item .action-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-feed-item .agent-key {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dot--off {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.signal-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* The reactor — Approvals' central real-time focal point. */
+
+.reactor-panel {
+  padding: 1.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
   filter: drop-shadow(0 0 26px -10px var(--accent-glow));
+}
+
+.reactor {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .hero-ring {
   position: absolute;
-  top: 46%;
+  top: 50%;
   left: 50%;
   width: 150px;
   height: 150px;
@@ -735,52 +825,145 @@ form.login-form button:hover {
   }
 }
 
-.bento-tile--wide {
-  grid-column: span 4;
-}
-
-.bento-tile--wide .bento-tile {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.bento-tile-label {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-
-.bento-tile-value {
+.reactor-core {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.reactor-value {
   font-family: var(--font-display);
-  font-size: 1.7rem;
+  font-size: 3.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin: 0.5rem 0 0.15rem;
-  line-height: 1.15;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bento-tile--hero .bento-tile-value {
-  position: relative;
-  font-size: 3.25rem;
-  margin: 0.35rem 0;
+  line-height: 1;
   color: var(--accent);
   text-shadow: 0 0 30px var(--accent-glow);
 }
 
-.bento-tile-meta {
-  font-size: 0.8rem;
+.reactor-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.reactor-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.reactor-readout-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.reactor-readout-confidence {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+/* Right column — real stat meters and page shortcuts. */
+
+.meter {
+  margin-bottom: 0.85rem;
+}
+
+.meter:last-child {
+  margin-bottom: 0;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.meter-track {
+  height: 5px;
+  background: var(--bg-inset);
+  border-radius: 999px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 0 8px -2px var(--accent-glow);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.meter-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  padding-top: 0.6rem;
+  margin-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.meter-readout-label {
+  color: var(--muted);
+}
+
+.meter-readout-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.command-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.75rem 0.4rem;
+  clip-path: var(--panel-clip-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.command-btn:hover {
+  border-color: var(--accent-strong);
+  color: var(--accent);
+}
+
+@media (max-width: 1080px) {
+  .hud-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -844,14 +1027,6 @@ form.login-form button:hover {
     margin-left: 0;
     max-width: 900px;
     padding: 1.75rem 1.25rem 3rem;
-  }
-
-  .bento-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .bento-tile--wide {
-    grid-column: span 2;
   }
 }
 
