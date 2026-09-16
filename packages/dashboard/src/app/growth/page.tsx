@@ -1,6 +1,7 @@
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getTrendRushBusiness, getSproutlightBusiness } from '@/lib/business'
+import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { Nav } from '@/components/Nav'
 import { updateFollowerCount } from './actions'
 import { PLATFORMS, type BusinessRecord, type Platform, type SocialAccountRecord } from '@nexa-ai/permission-engine'
@@ -21,15 +22,10 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 const CAMPAIGN_ELIGIBILITY_THRESHOLD = 200
 
 // A ring, not a bar — the gauge geometry is fixed to the SVG viewBox
-// below (viewBox="0 0 100 100", r=42), so this radius/circumference
-// must move together with that markup if either changes.
+// below (viewBox="0 0 100 100", r=42), so this radius must move
+// together with that markup if either changes.
 const GAUGE_RADIUS = 42
-const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS
-
-function gaugeDashoffset(pct: number): number {
-  const clamped = Math.min(100, Math.max(0, pct))
-  return GAUGE_CIRCUMFERENCE * (1 - clamped / 100)
-}
+const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 
 async function loadSection(loader: () => Promise<BusinessRecord>) {
   try {
@@ -147,7 +143,7 @@ function GrowthSection({
                       r={GAUGE_RADIUS}
                       className={met ? 'growth-gauge-fill growth-gauge-fill--met' : 'growth-gauge-fill'}
                       strokeDasharray={GAUGE_CIRCUMFERENCE}
-                      strokeDashoffset={gaugeDashoffset(pct)}
+                      strokeDashoffset={gaugeDashoffset(pct, GAUGE_CIRCUMFERENCE)}
                       transform="rotate(-90 50 50)"
                     />
                   </svg>

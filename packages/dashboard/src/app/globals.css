@@ -116,6 +116,15 @@ main {
   padding: 2.5rem 1.5rem 4rem;
 }
 
+/* The demo page renders no <Nav>, so it needs its own full-bleed
+   escape from main's default centered width — same :has() trick as
+   the sidebar's override above. */
+main:has(> .demo-page) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 main:has(> .nav) {
   margin: 0 0 0 var(--sidebar-w);
   max-width: 1180px;
@@ -1406,5 +1415,275 @@ form.opportunity-form button:hover {
   .boot-intro {
     animation: boot-fade-out 0.3s ease forwards;
     animation-delay: 0.6s;
+  }
+}
+
+/* Demo page — a separate full-bleed command-center view, purpose-built
+   for recording a clip. Reuses .hud-panel/.signal-feed/.growth-gauge
+   from the real dashboard so its visual language matches; only the
+   layout and the entrance choreography are unique to it. */
+
+.demo-page {
+  min-height: 100vh;
+  padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.demo-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.demo-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.demo-brand-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+  flex-shrink: 0;
+}
+
+.demo-brand-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.demo-tagline {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-align: center;
+}
+
+.demo-topbar-clock {
+  font-size: 0.95rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  min-width: 5.5ch;
+  text-align: right;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 1.1fr) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.demo-core-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 1.5rem 0;
+}
+
+.demo-core {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.demo-core-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.demo-core-ring--outer {
+  width: 240px;
+  height: 240px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: demo-ring-spin 30s linear infinite;
+}
+
+.demo-core-ring--mid {
+  width: 190px;
+  height: 190px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  border-right-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: demo-ring-spin 14s linear infinite reverse;
+}
+
+.demo-core-ring--inner {
+  width: 140px;
+  height: 140px;
+  border: 1px dashed color-mix(in srgb, var(--accent-strong) 35%, transparent);
+  animation: demo-ring-spin 20s linear infinite;
+}
+
+@keyframes demo-ring-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-core-ring {
+    animation: none;
+  }
+}
+
+.demo-core-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.demo-core-brand {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.demo-core-pending {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 34px var(--accent-glow);
+  line-height: 1.1;
+}
+
+.demo-core-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.demo-core-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.demo-core-status .mono {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.demo-meter {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.demo-gauge {
+  margin: 0.25rem auto 0.75rem;
+  width: 132px;
+  height: 132px;
+}
+
+.demo-opportunity-name {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.demo-feed-panel {
+  padding: 1.25rem;
+}
+
+.demo-feed {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.demo-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.demo-statusbar-sep {
+  color: var(--border-strong);
+}
+
+.demo-enter {
+  animation: demo-enter 0.6s ease both;
+}
+
+@keyframes demo-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-enter {
+    animation: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-core-wrap {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .demo-topbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .demo-tagline {
+    order: 3;
+    flex-basis: 100%;
+    text-align: left;
   }
 }

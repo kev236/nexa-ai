@@ -310,6 +310,56 @@ the sidebar's 900px breakpoint) of:
 one shared header (icon + title + optional badge) every side panel
 renders through, rather than repeating that markup four times.
 
+## Demo page (step 21)
+
+A standalone, full-bleed "command center" view (`/demo`) built for
+recording a clip, after the owner pointed out that the flashy
+fully-automated "Jarvis" AI demos circulating on social media are
+almost always a thin, often-fake front end over no real backend —
+where Nexa AI is the opposite (a real permission engine, a real audit
+trail, real businesses). The ask was for something with that visual
+impact, without pretending to be something it isn't: everything on
+this page is a real value the request actually fetched, same standard
+as everywhere else in this app. No voice UI, no chat box that doesn't
+do anything, no invented system diagnostics.
+
+Deliberately not linked from `Nav` or wrapped in the sidebar layout —
+it's a recording surface, not a daily operating page, and staying
+decoupled means neither page has to compromise for the other. It still
+sits behind `verifySession()` like every other page.
+
+- **No sidebar** — `main:has(> .demo-page)` (`globals.css`, same
+  `:has()` trick `main:has(> .nav)` already uses) resets `main`'s
+  default centered max-width to full-bleed when it detects the page
+  rendered no `<Nav>`.
+- **The core** — a bigger, three-ring version of the Approvals hero's
+  `.hero-ring` (three concentric rings spinning at different speeds/
+  directions), with the real pending count in the center and a real
+  `{business.name} · OPERATIONAL` status line below it.
+- **Real panels either side** — Agent roster (same data as the
+  Approvals HUD grid's panel) and a Top Opportunity radial gauge
+  (`gaugeCircumference()`/`gaugeDashoffset()`, factored out of
+  `growth/page.tsx` into `lib/radialGauge.ts` so both pages share the
+  exact same ring geometry instead of duplicating it) — plain accent
+  color, not the green "threshold met" variant Growth uses, since a
+  score has no pass/fail state to signal.
+- **A wide live activity feed** (12 real audit rows, scrollable) below
+  the three-column row, and a bottom status bar reading real pending
+  count, real agents-online ratio, and the real model every agent
+  calls (`MODEL_LABEL` mirrors `src/llm/client.ts`'s `MODEL` constant
+  in `@nexa-ai/permission-engine` — shown because it's true, not
+  because "Claude Opus 5" reads well).
+- **`LiveClock.tsx`** (`'use client'`) — a real ticking local clock in
+  the top bar, `setInterval`-driven. Renders `null` until mounted (no
+  reliable "now" during SSR/first paint), same no-hydration-mismatch
+  pattern as `BootIntro`/`AnimatedNumber`.
+- **Entrance choreography, not a replay-gated boot** — every panel
+  gets a `.demo-enter` fade-and-rise animation with a staggered
+  `animation-delay` (inline style, since each panel needs a different
+  delay). Unlike `BootIntro`, this isn't `sessionStorage`-gated: for a
+  page built to be reloaded and re-recorded, replaying identically
+  every time is the point, not a bug to gate away.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was
