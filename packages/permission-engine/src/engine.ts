@@ -23,6 +23,8 @@ import type { ContentConceptStore } from './contentConcepts/store.js'
 import { InMemoryContentConceptStore } from './contentConcepts/memoryStore.js'
 import type { StoryConceptStore } from './storyConcepts/store.js'
 import { InMemoryStoryConceptStore } from './storyConcepts/memoryStore.js'
+import type { SocialAccountStore } from './socialAccounts/store.js'
+import { InMemorySocialAccountStore } from './socialAccounts/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -46,6 +48,8 @@ export type PermissionEngineDeps = {
   contentConceptStore?: ContentConceptStore
   /** Step 19: Sproutlight's generated nursery-rhyme/story concepts. */
   storyConceptStore?: StoryConceptStore
+  /** Step 20: real per-platform follower counts, owner-entered — same trust level as OpportunityStore. */
+  socialAccountStore?: SocialAccountStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -92,6 +96,7 @@ export type PermissionEngine = {
   campaignStore: CampaignStore
   contentConceptStore: ContentConceptStore
   storyConceptStore: StoryConceptStore
+  socialAccountStore: SocialAccountStore
 }
 
 /**
@@ -113,6 +118,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const campaignStore = deps.campaignStore ?? new InMemoryCampaignStore()
   const contentConceptStore = deps.contentConceptStore ?? new InMemoryContentConceptStore()
   const storyConceptStore = deps.storyConceptStore ?? new InMemoryStoryConceptStore()
+  const socialAccountStore = deps.socialAccountStore ?? new InMemorySocialAccountStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -354,6 +360,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     campaignStore,
     contentConceptStore,
     storyConceptStore,
+    socialAccountStore,
   }
 }
 

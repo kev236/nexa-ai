@@ -31,6 +31,8 @@ export type { ContentConceptRunRecord, ContentConceptRunInput, ContentConceptSto
 export type { ContentConcept, ContentConceptScore, ContentAngle } from './contentConcepts/types.js'
 export { computeConceptScore } from './contentConcepts/types.js'
 export type { StoryConceptRecord, StoryConceptInput, StoryConceptStore, StoryScene } from './storyConcepts/store.js'
+export type { SocialAccountRecord, SocialAccountStore, Platform } from './socialAccounts/store.js'
+export { PLATFORMS } from './socialAccounts/store.js'
 export { SCORE_DIMENSIONS, computeTotalScore } from './opportunities/scoring.js'
 export type { TransactionRecord, TransactionInput, TransactionStore } from './transactions/store.js'
 export type { ActionDefinition, BusinessAdapter, ObservedEvent, ObservedTransaction } from './adapters/types.js'
@@ -46,6 +48,7 @@ export { createPostgresOpportunityStore } from './opportunities/postgresStore.js
 export { createPostgresCampaignStore } from './campaigns/postgresStore.js'
 export { createPostgresContentConceptStore } from './contentConcepts/postgresStore.js'
 export { createPostgresStoryConceptStore } from './storyConcepts/postgresStore.js'
+export { createPostgresSocialAccountStore } from './socialAccounts/postgresStore.js'
 export {
   NexaLabsAdapter,
   createNexaLabsAdapter,

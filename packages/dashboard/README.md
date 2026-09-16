@@ -58,9 +58,9 @@ Sanity is a browser), so this session gate would otherwise redirect
 every such request to `/login` before the route's own auth ran; caught
 by actually running the routes locally, not by inspection.
 
-## Pages (step 8, +1 in step 15, +1 in step 16, +1 in step 19)
+## Pages (step 8, +1 in step 15, +1 in step 16, +1 in step 19, +1 in step 20)
 
-Six, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
+Seven, behind the shared `Nav` (`src/components/Nav.tsx`), plus a
 bento-grid overview at the top of Approvals:
 
 - **Approvals** (`/`) — the pending-approval queue, approve/deny. Since
@@ -109,6 +109,22 @@ bento-grid overview at the top of Approvals:
   the only status a run has — there's no approve/reject yet because
   nothing downstream executes on a concept (no video, no publishing), so
   there's nothing yet for an approval to gate.
+- **Growth** (`/growth`, step 20) — real follower counts per platform,
+  one section per tracked business (TrendRush, Sproutlight — each
+  guarded the same try/catch-on-`getBusiness()` way Campaigns/
+  Sproutlight are, so a business that isn't registered yet just hides
+  its section instead of crashing the page). Each platform card shows
+  the current count, a handle if one's on file, and an inline form
+  (`updateFollowerCount()` in `app/growth/actions.ts`) that writes
+  straight through to `SocialAccountStore` — no client component, no
+  `useActionState`, just a plain bound Server Action the same shape as
+  `setOpportunityStatus`/`setCampaignStatus`. Only TrendRush's cards get
+  a progress bar and a "not eligible yet"/"promote.fun eligible" badge
+  — `CAMPAIGN_ELIGIBILITY_THRESHOLD = 200` lives in `page.tsx` itself,
+  a UI-level constant computed against whatever the store returns, not
+  a rule the database knows about. Sproutlight's cards show plain
+  counts with no threshold framing, since it isn't seeking Promote.fun
+  campaigns.
 - **Sproutlight** (`/story-concepts`, step 19) — Sproutlight's
   nursery-rhyme/short-story concepts, a third business
   (`getSproutlightBusiness()`). A form (`StoryConceptForm.tsx`, `'use

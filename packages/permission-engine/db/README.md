@@ -37,6 +37,9 @@ npm run db:discover-opportunities # -- <business-slug> [agent-key], step 17: pro
 npm run db:generate-story-concept # -- <business-slug> <song|story> <theme>, step 19: generates one
                                    # nursery-rhyme/short-story concept for Sproutlight; needs
                                    # ANTHROPIC_API_KEY
+npm run db:set-followers       # -- <business-slug> <youtube|instagram|tiktok> <count> [handle],
+                                # step 20: upserts a real follower count; same write the dashboard's
+                                # Growth page form makes
 ```
 
 Registering the transaction-review agent (step 14, optional — only
@@ -179,3 +182,26 @@ npm run db:generate-story-concept -- sproutlight song "sharing with a friend"
 Concepts can also be generated directly from the dashboard's
 "Sproutlight" tab (`/story-concepts`) — both paths call the same
 `generateStoryConceptOnce()`.
+
+## Migration 0017 (step 20)
+
+Adds `social_accounts` — real follower counts per platform
+(`youtube`/`instagram`/`tiktok`), one row per `(business_id, platform)`
+(upserted, never duplicated). Plain owner-entered data, same reasoning
+as opportunities/campaigns: it skips `audit_log`/approvals. Prompted by
+a real constraint: Promote.fun requires 200+ followers on all three
+platforms before an account can join or run a paid campaign, and
+TrendRush (the owner's clip-reposting account) doesn't have that yet.
+Set up the business first:
+
+```
+npm run db:register-business -- trendrush "TrendRush"
+npm run db:set-followers -- trendrush tiktok 40 trendrush.clips
+```
+
+Counts can also be updated directly from the dashboard's "Growth" tab
+(`/growth`), which shows TrendRush's progress toward the 200 threshold
+on each platform (that threshold is a UI-level constant in the
+dashboard, not enforced by this table) alongside Sproutlight's own
+account growth, tracked the same way but without the eligibility
+framing — Sproutlight isn't seeking Promote.fun campaigns.

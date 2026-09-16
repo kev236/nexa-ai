@@ -34,3 +34,11 @@ export async function getPromoteFunBusiness() {
 export async function getSproutlightBusiness() {
   return getBusiness('sproutlight')
 }
+
+// Step 20: TrendRush — a fourth business (db:register-business
+// trendrush "..."), same reasoning as getPromoteFunBusiness(). The one
+// Promote.fun cares about for the Growth page's eligibility badge — see
+// app/growth/page.tsx.
+export async function getTrendRushBusiness() {
+  return getBusiness('trendrush')
+}

@@ -15,6 +15,7 @@ import type { OpportunityScores } from '../src/opportunities/scoring.js'
 import { PostgresCampaignStore } from '../src/campaigns/postgresStore.js'
 import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStore.js'
 import { PostgresStoryConceptStore } from '../src/storyConcepts/postgresStore.js'
+import { PostgresSocialAccountStore } from '../src/socialAccounts/postgresStore.js'
 import { generateStoryConceptOnce } from '../src/agents/runStoryConceptGeneration.js'
 import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
 import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
@@ -48,7 +49,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts, social_accounts RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -871,5 +872,28 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const list = await storyConceptStore.listByBusiness(businessId)
     expect(list.some((c) => c.id === id)).toBe(true)
+  })
+
+  it('upserts follower counts per platform against real Postgres (step 20)', async () => {
+    const store = new PostgresSocialAccountStore(pool)
+
+    await store.setFollowerCount(businessId, 'tiktok', 40, 'trendrush.clips')
+    await store.setFollowerCount(businessId, 'youtube', 12)
+
+    let list = await store.listByBusiness(businessId)
+    expect(list).toHaveLength(2)
+    const tiktok = list.find((a) => a.platform === 'tiktok')
+    expect(tiktok?.followerCount).toBe(40)
+    expect(tiktok?.handle).toBe('trendrush.clips')
+
+    // Re-setting the same platform updates the existing row rather than
+    // inserting a second one, and an omitted handle keeps the one already
+    // on file (see the postgresStore's COALESCE).
+    await store.setFollowerCount(businessId, 'tiktok', 210)
+    list = await store.listByBusiness(businessId)
+    expect(list).toHaveLength(2)
+    const updated = list.find((a) => a.platform === 'tiktok')
+    expect(updated?.followerCount).toBe(210)
+    expect(updated?.handle).toBe('trendrush.clips')
   })
 })

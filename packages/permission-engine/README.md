@@ -614,7 +614,11 @@ about code *outside* this package, not within it.
   and short stories for young children, the owner's rebuild of an
   earlier abandoned business (streamer-clip reposting — dropped for
   being both saturated and copyright-exposed) into an original,
-  higher-audience, copyright-clean niche. Scoped the same way step 16's
+  higher-audience, copyright-clean niche. **Revised by step 20**: the
+  clip-reposting business wasn't fully dropped after all — the owner
+  kept it running as TrendRush, a fourth business, alongside
+  Sproutlight rather than instead of it; see that step for why. Scoped
+  the same way step 16's
   Promote.fun work was scoped down from its own much larger doc: a
   Concept Agent only, no video/audio generation and no publishing —
   prove real output quality before committing to expensive, harder-to-
@@ -654,3 +658,44 @@ about code *outside* this package, not within it.
   state rather than crashing, but the owner still needs to run a real
   generation once against a valid key to judge actual concept quality
   before trusting this for real themes.
+
+- Step 20 — Growth: real per-platform follower tracking, prompted by a
+  concrete external constraint the owner surfaced — Promote.fun
+  requires 200+ followers on YouTube, Instagram, *and* TikTok before an
+  account can join or run a paid campaign. TrendRush (step 19's
+  "dropped" clip-reposting business, actually kept running alongside
+  Sproutlight rather than replaced by it) is the account working toward
+  that; Sproutlight is growing its own new accounts too, just without
+  seeking Promote.fun campaigns.
+  `SocialAccountStore` (`src/socialAccounts/`, migration `0017`) is one
+  row per `(business_id, platform)`, upserted by `setFollowerCount()` —
+  same "plain owner-authored data" trust level as
+  `OpportunityStore`/`CampaignStore`, so no `requestAction()`/approval:
+  entering a follower count doesn't spend money, contact a customer, or
+  do anything irreversible. `PLATFORMS` (`'youtube' | 'instagram' |
+  'tiktok'`) is the one shared source of truth for the three platforms,
+  exported from this package so the dashboard never repeats or drifts
+  from that list.
+  The 200-follower Promote.fun threshold itself is *not* stored or
+  enforced here — it's a UI-level constant
+  (`CAMPAIGN_ELIGIBILITY_THRESHOLD` in the dashboard's
+  `app/growth/page.tsx`) computed against whatever `listByBusiness()`
+  returns, the same way the opportunity-scoring format's constants live
+  in `src/opportunities/scoring.ts` rather than the migration: this
+  table just stores real numbers, a page decides what they mean.
+  Dashboard gained a "Growth" tab (`/growth`) — one section per tracked
+  business, a progress bar per platform toward the threshold (only
+  rendered for TrendRush; Sproutlight's cards show plain counts), and
+  an inline form per platform that writes through the same
+  `setFollowerCount()`; CLI is `npm run db:set-followers --
+  <business-slug> <platform> <count> [handle]`.
+
+  Verified: memory-store unit tests, a real Postgres integration test
+  (create, then a second call to the same platform upserts rather than
+  duplicating, and an omitted handle keeps the one already on file), and
+  the actual Growth page exercised live in a browser — logged in,
+  updated a real follower count through the dashboard form, watched the
+  progress bar and the "not eligible yet" → "promote.fun eligible" badge
+  flip once all three platforms cleared 200 against a real seeded
+  business, then reset the demo numbers back to 0 (real starting point,
+  not left as test data).
