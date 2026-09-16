@@ -141,6 +141,61 @@ breakpoint. `layout.tsx` added a Google Fonts link (Sora for display
 text, JetBrains Mono for `.mono`/`.action-type`/data-heavy text) — the
 first webfonts this package has loaded.
 
+### Second pass — motion and real-data readouts
+
+The owner asked for "crazier" and more fun after seeing the first static
+restyle, but still real: every added element below reads a value the
+page (or `Nav`) already fetches — nothing invents a number, and there's
+still no voice UI, fake search, or fake system monitor.
+
+- **`BootIntro.tsx`** (`'use client'`, mounted on Approvals only) — a
+  ~1.5s "systems online" scan-line + typewriter flourish on first load
+  of the dashboard *this browser session*, gated by
+  `sessionStorage['nexa-boot-seen']` so it doesn't replay on every
+  return to `/`. Renders `null` on the server pass and the client's
+  first paint alike (state only flips inside a post-mount `useEffect`),
+  so there's no hydration mismatch and no flash for repeat visits.
+  Respects `prefers-reduced-motion` (skips straight to a fast fade
+  instead of the scan/type animation).
+- **`AnimatedNumber.tsx`** (`'use client'`) — counts a real server-fetched
+  integer up from 0 on mount (`requestAnimationFrame`, eased, ~700ms).
+  Initial React state is the real value (not 0), so SSR/first-paint HTML
+  is already correct before the animation takes over — same
+  no-hydration-mismatch pattern as `BootIntro`. Used for the bento
+  grid's Pending/Agents/Top-opportunity/Campaigns tiles; the Money tile
+  keeps its plain currency string since animating a formatted amount
+  frame-by-frame reads as a glitch, not a counter.
+- **Real-data charts, no charting library** — `lib/sparkline.ts`
+  (`sparklinePath()`) turns a numeric series already on the page into
+  SVG polyline/polygon coordinates; Money renders it as a "Transaction
+  trend" line+area chart over the same `transactions` slice the list
+  below it uses (own query already made, no new one). Activity buckets
+  its already-fetched 50-row audit feed into a 7-day request-volume bar
+  chart (`last7DayCounts()`) — capped by that same 50-row fetch, so a
+  very busy week would undercount its oldest days rather than lying
+  about zero activity; that's a documented approximation, not a bug.
+- **`.pulse-dot`** — a small glowing, gently pulsing status dot (pure
+  CSS `@keyframes`, disabled under `prefers-reduced-motion`) next to
+  every real "active" reading: each active agent's badge on Activity,
+  the Agents bento tile, and `Nav`'s own sidebar readout below.
+- **`Nav.tsx` now fetches its own data** — `loadAgentStatus()` calls
+  `getBusiness()` + `agentStore.listByBusiness()` (same nexa-labs
+  default every other unscoped page falls back to) to show "`x/y agents
+  online`" at the bottom of the sidebar on every page, not just
+  Approvals. Wrapped in a try/catch the same way the bento grid's
+  `loadCampaignCount()` is — a business that isn't set up yet hides the
+  readout instead of taking the sidebar down. This is the one place
+  visual work turned into a real (small, cheap) extra query per page
+  load, traded deliberately for the sidebar being alive on every page
+  rather than only the one that already happened to fetch agent counts.
+- **Ambient background + HUD corner brackets** — `body::before`/`::after`
+  add a slow-drifting radial glow (`prefers-reduced-motion`-guarded) and
+  a faint fixed scanline texture, both `z-index: -1` and
+  `pointer-events: none` so they never intercept clicks or affect
+  layout. `.bento-tile--hero` and `.chart-card` get small accent corner
+  brackets (`::before`/`::after`, absolutely positioned) for the
+  "targeting HUD" look from the reference screenshot.
+
 `src/lib/business.ts`'s `getBusiness(slug?)` is the one place that
 resolves a business by slug — still honestly single-tenant *per page
 area* rather than truly multi-business (no switcher UI), but step 16 was

@@ -25,6 +25,33 @@ function approvalLabel(record: AuditLogRecord, approvalsByAuditId: Map<string, A
   return approval.resolvedBy ? 'approved by owner' : 'auto-approved by policy'
 }
 
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/**
+ * Buckets the audit feed already fetched for this page into the last 7
+ * calendar days — real request volume, not a synthetic readout. The
+ * feed is capped at 50 rows (see the Promise.all below), so on a very
+ * busy week this undercounts older days in that window rather than
+ * lying about a day having zero activity; acceptable for an at-a-glance
+ * shape, not a rigorous report.
+ */
+function last7DayCounts(feed: AuditLogRecord[]) {
+  const days: { key: string; label: string; count: number }[] = []
+  const now = new Date()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    days.push({ key: d.toISOString().slice(0, 10), label: DAY_LABELS[d.getDay()], count: 0 })
+  }
+  const byKey = new Map(days.map((d) => [d.key, d]))
+  for (const record of feed) {
+    const key = new Date(record.requestedAt).toISOString().slice(0, 10)
+    const bucket = byKey.get(key)
+    if (bucket) bucket.count += 1
+  }
+  return days
+}
+
 export default async function ActivityPage() {
   await verifySession()
   const engine = getEngine()
@@ -38,6 +65,8 @@ export default async function ActivityPage() {
   ])
   const recentEvents = [...events].reverse()
   const approvalsByAuditId = new Map(approvals.map((a) => [a.auditId, a]))
+  const weekCounts = last7DayCounts(feed)
+  const weekMax = Math.max(1, ...weekCounts.map((d) => d.count))
 
   return (
     <>
@@ -45,6 +74,16 @@ export default async function ActivityPage() {
       <div className="page-header">
         <h1>Activity</h1>
         <p className="subtitle">What every agent has done, and what's come in.</p>
+      </div>
+
+      <div className="bar-chart" role="img" aria-label="Requests per day, last 7 days">
+        {weekCounts.map((day) => (
+          <div className="bar-chart-col" key={day.key}>
+            <span className="bar-chart-count">{day.count > 0 ? day.count : ''}</span>
+            <div className="bar-chart-bar" style={{ height: `${(day.count / weekMax) * 100}%` }} />
+            <span className="bar-chart-label">{day.label}</span>
+          </div>
+        ))}
       </div>
 
       <section>
@@ -60,6 +99,7 @@ export default async function ActivityPage() {
                   <div className="agent-card-header">
                     <span className="agent-key">{agent.key}</span>
                     <span className={agent.active ? 'status-badge status-active' : 'status-badge status-inactive'}>
+                      {agent.active && <span className="pulse-dot pulse-dot--inline" aria-hidden />}
                       {agent.active ? 'active' : 'inactive'}
                     </span>
                   </div>

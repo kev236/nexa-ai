@@ -5,6 +5,8 @@ import { getBusiness, getPromoteFunBusiness } from '@/lib/business'
 import { formatAmount } from '@/lib/format'
 import { resolveApproval } from '@/app/actions'
 import { Nav } from '@/components/Nav'
+import { BootIntro } from '@/components/BootIntro'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +51,7 @@ export default async function ApprovalsPage() {
 
   return (
     <>
+      <BootIntro />
       <Nav active="approvals" />
       <div className="page-header">
         <h1>Dashboard</h1>
@@ -62,7 +65,9 @@ export default async function ApprovalsPage() {
       <div className="bento-grid">
         <div className="bento-tile bento-tile--hero">
           <div className="bento-tile-label">Pending</div>
-          <div className="bento-tile-value">{pending.length}</div>
+          <div className="bento-tile-value">
+            <AnimatedNumber value={pending.length} />
+          </div>
           <div className="bento-tile-meta">
             {pending.length === 0 ? 'nothing waiting on you' : `waiting for a decision`}
           </div>
@@ -72,9 +77,12 @@ export default async function ApprovalsPage() {
           <div className="bento-tile">
             <div className="bento-tile-label">Agents</div>
             <div className="bento-tile-value">
-              {activeAgents}/{agents.length}
+              <AnimatedNumber value={activeAgents} suffix={`/${agents.length}`} />
             </div>
-            <div className="bento-tile-meta">active</div>
+            <div className="bento-tile-meta">
+              <span className="pulse-dot pulse-dot--inline" aria-hidden />
+              active
+            </div>
           </div>
         </Link>
 
@@ -103,7 +111,15 @@ export default async function ApprovalsPage() {
         <Link href="/opportunities" className="bento-tile-link">
           <div className="bento-tile">
             <div className="bento-tile-label">Top opportunity</div>
-            <div className="bento-tile-value">{topOpportunity ? `${topOpportunity.totalScore}/100` : '—'}</div>
+            <div className="bento-tile-value">
+              {topOpportunity ? (
+                <>
+                  <AnimatedNumber value={topOpportunity.totalScore} suffix="/100" />
+                </>
+              ) : (
+                '—'
+              )}
+            </div>
             <div className="bento-tile-meta">{topOpportunity ? topOpportunity.name : 'nothing scored yet'}</div>
           </div>
         </Link>
@@ -112,7 +128,9 @@ export default async function ApprovalsPage() {
           <div className="bento-tile">
             <div>
               <div className="bento-tile-label">Campaigns</div>
-              <div className="bento-tile-value">{campaignCount ?? '—'}</div>
+              <div className="bento-tile-value">
+                {campaignCount === undefined ? '—' : <AnimatedNumber value={campaignCount} />}
+              </div>
             </div>
             <div className="bento-tile-meta">{campaignCount === undefined ? 'not set up yet' : 'active'}</div>
           </div>

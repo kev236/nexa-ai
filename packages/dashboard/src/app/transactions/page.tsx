@@ -2,9 +2,13 @@ import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 import { formatAmount } from '@/lib/format'
+import { sparklinePath } from '@/lib/sparkline'
 import { Nav } from '@/components/Nav'
 
 export const dynamic = 'force-dynamic'
+
+const SPARK_WIDTH = 640
+const SPARK_HEIGHT = 72
 
 export default async function TransactionsPage() {
   await verifySession()
@@ -12,6 +16,14 @@ export default async function TransactionsPage() {
   const business = await getBusiness()
   const transactions = await engine.transactionStore.listByBusiness(business.id, 100)
   const recent = [...transactions].reverse()
+
+  // Real amounts, oldest-first, same slice already fetched above — a
+  // trend line for what's already on the page, not a new query.
+  const spark = sparklinePath(
+    recent.map((t) => t.amountCents / 100),
+    SPARK_WIDTH,
+    SPARK_HEIGHT,
+  )
 
   return (
     <>
@@ -23,6 +35,28 @@ export default async function TransactionsPage() {
           Stripe, and incoming/outgoing USDC transfers from a watched wallet.
         </p>
       </div>
+
+      {spark && (
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <span className="section-title" style={{ marginBottom: 0 }}>
+              Transaction trend
+            </span>
+            <span className="meta">last {recent.length} observed</span>
+          </div>
+          <svg
+            viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
+            className="sparkline"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Transaction amount trend"
+          >
+            <polygon points={spark.area} className="sparkline-area" />
+            <polyline points={spark.line} className="sparkline-line" />
+            <circle cx={spark.last[0]} cy={spark.last[1]} r="3.5" className="sparkline-dot" />
+          </svg>
+        </div>
+      )}
 
       {recent.length === 0 ? (
         <p className="empty">
