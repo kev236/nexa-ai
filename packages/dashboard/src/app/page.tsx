@@ -34,6 +34,7 @@ import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
+import { HoloGlobe } from '@/components/HoloGlobe'
 import { PLATFORMS, type BusinessRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -388,6 +389,7 @@ export default async function ApprovalsPage() {
           <div className="reactor-panel deck-enter" style={{ animationDelay: '0.3s' }}>
             <div className="deck-core-wrap">
               <div className="deck-core">
+                <HoloGlobe />
                 <div className="deck-core-ring deck-core-ring--outer" aria-hidden />
                 <div className="deck-core-ring deck-core-ring--mid" aria-hidden />
                 {agents.map((agent, index) => {
