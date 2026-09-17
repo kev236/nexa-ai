@@ -139,24 +139,67 @@ export function createShopifyAdapter(): ShopifyAdapter {
  */
 const SHOPIFY_API_VERSION = '2026-07'
 
+type CachedToken = { value: string; expiresAt: number }
+
+/**
+ * As of January 1, 2026, Shopify no longer issues a static, copy-once
+ * Admin API access token for a new custom app — that "admin-created
+ * custom app" flow is retired. A new app (built in the Dev Dashboard)
+ * gets a Client ID + Client Secret instead, exchanged programmatically
+ * for a token via the client credentials grant (real shape verified
+ * against shopify.dev via the Shopify MCP connector's search_docs_chunks
+ * tool, since shopify.dev itself is blocked in some sandboxes):
+ * POST https://{shop}.myshopify.com/admin/oauth/access_token
+ * body: client_id, client_secret, grant_type=client_credentials
+ * → { access_token, scope, expires_in: 86399 } (always 24h — no refresh
+ * token; get a new one by repeating the same request). This grant only
+ * works when the app and the store are in the same Shopify organization
+ * in the Dev Dashboard — a `shop_not_permitted` error means they aren't.
+ */
 export function createShopifyHttpClient(): ShopifyReadClient {
   const rawShopDomain = process.env.SHOPIFY_SHOP_DOMAIN
-  const rawAccessToken = process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN
-  if (!rawShopDomain || !rawAccessToken) {
+  const rawClientId = process.env.SHOPIFY_CLIENT_ID
+  const rawClientSecret = process.env.SHOPIFY_CLIENT_SECRET
+  if (!rawShopDomain || !rawClientId || !rawClientSecret) {
     throw new Error(
-      'SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_API_ACCESS_TOKEN must both be set to construct the ShopifyAdapter.'
+      'SHOPIFY_SHOP_DOMAIN, SHOPIFY_CLIENT_ID, and SHOPIFY_CLIENT_SECRET must all be set to construct the ShopifyAdapter.'
     )
   }
   // Re-bound as explicitly-typed consts — TS doesn't retain the guard's
   // narrowing on process.env values once they're captured by the nested
-  // graphql() closure below.
+  // closures below.
   const shopDomain: string = rawShopDomain
-  const accessToken: string = rawAccessToken
+  const clientId: string = rawClientId
+  const clientSecret: string = rawClientSecret
+
+  let cachedToken: CachedToken | undefined
+
+  async function getAccessToken(): Promise<string> {
+    if (cachedToken && cachedToken.expiresAt > Date.now()) {
+      return cachedToken.value
+    }
+    const response = await fetch(`https://${shopDomain}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
+    })
+    if (!response.ok) {
+      throw new Error(`Shopify token endpoint returned HTTP ${response.status}: ${await response.text()}`)
+    }
+    const body = (await response.json()) as { access_token?: string; expires_in?: number; error?: string; error_description?: string }
+    if (!body.access_token || !body.expires_in) {
+      throw new Error(`Shopify token endpoint error: ${body.error ?? 'unknown'} ${body.error_description ?? ''}`.trim())
+    }
+    // 60s safety margin against clock drift and requests already in flight.
+    cachedToken = { value: body.access_token, expiresAt: Date.now() + (body.expires_in - 60) * 1000 }
+    return cachedToken.value
+  }
 
   async function graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    const token = await getAccessToken()
     const response = await fetch(`https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token },
       body: JSON.stringify({ query, variables }),
     })
     if (!response.ok) {
