@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { readSession } from '@/lib/session'
+import { readSession, signSessionToken, sessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session'
 
 // Optimistic check only — see docs/plan-001-foundations.md and the
 // Next.js auth guide. The real check is verifySession() in src/lib/dal.ts,
@@ -25,7 +25,18 @@ export async function proxy(request: NextRequest) {
   if (session && isLoginPage) {
     return NextResponse.redirect(new URL('/', request.url))
   }
-  return NextResponse.next()
+
+  const response = NextResponse.next()
+  if (session) {
+    // Sliding-window refresh: every authenticated visit re-signs the
+    // cookie for another full SESSION_DURATION_MS (session.ts), so a
+    // device the owner keeps using never actually reaches that ceiling —
+    // this is what turns login into "remember this device" rather than a
+    // fixed-length session, without ever disabling auth itself.
+    const { token, expires } = await signSessionToken(session.ownerId)
+    response.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions(expires))
+  }
+  return response
 }
 
 export const config = {

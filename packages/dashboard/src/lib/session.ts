@@ -2,8 +2,17 @@ import 'server-only'
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 
-const COOKIE_NAME = 'session'
-const SESSION_DURATION_MS = 12 * 60 * 60 * 1000 // 12 hours — an owner approving spend, not a long-lived login
+export const SESSION_COOKIE_NAME = 'session'
+
+// ~400 days — the longest a browser will actually retain a cookie
+// (Chrome/Safari cap Expires that far out from when it's set). This
+// dashboard has exactly one real user, the owner, so "log in once per
+// device, then never again unless the device sits unused for over a
+// year" is the intended tradeoff — not the old 12-hour approval-session
+// window. proxy.ts re-signs this cookie for a fresh SESSION_DURATION_MS
+// on every authenticated request, so an owner who keeps using a device
+// never actually hits this ceiling; only genuine long-term inactivity does.
+const SESSION_DURATION_MS = 400 * 24 * 60 * 60 * 1000
 
 function encodedKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
@@ -39,25 +48,40 @@ async function decrypt(token: string | undefined): Promise<SessionPayload | null
   }
 }
 
-export async function createSession(ownerId: string): Promise<void> {
+/** Signs a fresh session token for `ownerId`, SESSION_DURATION_MS out from now. Shared by login (createSession) and proxy.ts's rolling refresh, so both stamp the same cookie shape. */
+export async function signSessionToken(ownerId: string): Promise<{ token: string; expires: Date }> {
   const expiresAt = Date.now() + SESSION_DURATION_MS
-  const token = await encrypt({ ownerId, expiresAt })
-  const cookieStore = await cookies()
-  cookieStore.set(COOKIE_NAME, token, {
+  return { token: await encrypt({ ownerId, expiresAt }), expires: new Date(expiresAt) }
+}
+
+export function sessionCookieOptions(expires: Date): {
+  httpOnly: boolean
+  secure: boolean
+  sameSite: 'lax'
+  path: string
+  expires: Date
+} {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    expires: new Date(expiresAt),
-  })
+    expires,
+  }
+}
+
+export async function createSession(ownerId: string): Promise<void> {
+  const { token, expires } = await signSessionToken(ownerId)
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE_NAME, token, sessionCookieOptions(expires))
 }
 
 export async function readSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies()
-  return decrypt(cookieStore.get(COOKIE_NAME)?.value)
+  return decrypt(cookieStore.get(SESSION_COOKIE_NAME)?.value)
 }
 
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies()
-  cookieStore.delete(COOKIE_NAME)
+  cookieStore.delete(SESSION_COOKIE_NAME)
 }
