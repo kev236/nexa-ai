@@ -26,6 +26,7 @@
     "db:generate-story-concept": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/generateStoryConcept.mjs",
     "db:set-followers": "node --env-file-if-exists=.env packages/permission-engine/db/setFollowers.mjs",
     "db:sync-youtube-followers": "node --env-file-if-exists=.env packages/permission-engine/db/syncYouTubeFollowers.mjs",
+    "db:backfill-dropshipping": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/backfillDropshipping.mjs",
     "db:discover-clip": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/discoverClip.mjs",
     "build:permission-engine": "npm run build --workspace=packages/permission-engine",
     "dashboard:dev": "npm run dev --workspace=packages/dashboard",

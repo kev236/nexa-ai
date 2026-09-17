@@ -60,6 +60,8 @@ export {
 } from './adapters/nexaLabsAdapter.js'
 export { createYouTubeHttpClient, fetchYouTubeSubscriberCount } from './adapters/youtubeAdapter.js'
 export type { YouTubeClient, YouTubeChannelStats } from './adapters/youtubeAdapter.js'
+export { ShopifyAdapter, createShopifyAdapter, createShopifyHttpClient } from './adapters/shopifyAdapter.js'
+export type { ShopifyReadClient, ShopifyOrderNode } from './adapters/shopifyAdapter.js'
 export { triageEvent } from './agents/waitlistTriageAgent.js'
 export type { TriageResult } from './agents/waitlistTriageAgent.js'
 export { runWaitlistTriageOnce } from './agents/runWaitlistTriage.js'
