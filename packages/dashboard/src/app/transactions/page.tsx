@@ -1,22 +1,87 @@
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
-import { getBusiness } from '@/lib/business'
+import { getBusiness, getDropshippingBusiness } from '@/lib/business'
 import { formatAmount } from '@/lib/format'
 import { sparklinePath } from '@/lib/sparkline'
 import { Nav } from '@/components/Nav'
+import type { BusinessRecord, TransactionRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
 
 const SPARK_WIDTH = 640
 const SPARK_HEIGHT = 72
 
+async function loadSection(loader: () => Promise<BusinessRecord>) {
+  try {
+    const business = await loader()
+    const engine = getEngine()
+    const transactions = await engine.transactionStore.listByBusiness(business.id, 100)
+    return { business, recent: [...transactions].reverse() }
+  } catch {
+    return undefined
+  }
+}
+
 export default async function TransactionsPage() {
   await verifySession()
-  const engine = getEngine()
-  const business = await getBusiness()
-  const transactions = await engine.transactionStore.listByBusiness(business.id, 100)
-  const recent = [...transactions].reverse()
 
+  const [nexaLabs, dropshipping] = await Promise.all([
+    loadSection(() => getBusiness()),
+    loadSection(getDropshippingBusiness),
+  ])
+
+  return (
+    <>
+      <Nav active="money" />
+      <div className="page-header">
+        <h1>Money</h1>
+        <p className="subtitle">
+          Observability only — nothing here creates a charge, refund, or payout. nexa-labs: Stripe
+          charges/refunds/payouts and incoming/outgoing USDC transfers from a watched wallet. Dropshipping:
+          Shopify orders.
+        </p>
+      </div>
+
+      {!nexaLabs && !dropshipping ? (
+        <p className="empty">
+          No transaction-tracked businesses set up yet — run db:seed and/or db:register-business dropshipping
+          first.
+        </p>
+      ) : (
+        <>
+          {nexaLabs && (
+            <TransactionsSection
+              title="nexa-labs"
+              business={nexaLabs.business}
+              recent={nexaLabs.recent}
+              emptyHint="set STRIPE_SECRET_KEY and/or ETHERSCAN_API_KEY + WALLET_ADDRESS, then run db:backfill-nexalabs or wait for the next poll"
+            />
+          )}
+          {dropshipping && (
+            <TransactionsSection
+              title="Dropshipping"
+              business={dropshipping.business}
+              recent={dropshipping.recent}
+              emptyHint="set SHOPIFY_SHOP_DOMAIN, SHOPIFY_CLIENT_ID, and SHOPIFY_CLIENT_SECRET, then run db:backfill-dropshipping — real once the store has orders"
+            />
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+function TransactionsSection({
+  title,
+  business,
+  recent,
+  emptyHint,
+}: {
+  title: string
+  business: BusinessRecord
+  recent: TransactionRecord[]
+  emptyHint: string
+}) {
   // Real amounts, oldest-first, same slice already fetched above — a
   // trend line for what's already on the page, not a new query.
   const spark = sparklinePath(
@@ -26,15 +91,8 @@ export default async function TransactionsPage() {
   )
 
   return (
-    <>
-      <Nav active="money" />
-      <div className="page-header">
-        <h1>Money</h1>
-        <p className="subtitle">
-          Observability only — nothing here creates a charge, refund, or payout. Charges/refunds/payouts from
-          Stripe, and incoming/outgoing USDC transfers from a watched wallet.
-        </p>
-      </div>
+    <section key={business.id} style={{ marginBottom: '2rem' }}>
+      <h2 className="section-title">{title}</h2>
 
       {spark && (
         <div className="chart-card">
@@ -59,10 +117,7 @@ export default async function TransactionsPage() {
       )}
 
       {recent.length === 0 ? (
-        <p className="empty">
-          No transactions observed yet — set STRIPE_SECRET_KEY and/or ETHERSCAN_API_KEY + WALLET_ADDRESS, then
-          run db:backfill-nexalabs or wait for the next poll.
-        </p>
+        <p className="empty">No transactions observed yet — {emptyHint}.</p>
       ) : (
         <div className="event-list">
           {recent.map((tx) => (
@@ -78,6 +133,6 @@ export default async function TransactionsPage() {
           ))}
         </div>
       )}
-    </>
+    </section>
   )
 }

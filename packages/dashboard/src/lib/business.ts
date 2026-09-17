@@ -42,3 +42,10 @@ export async function getSproutlightBusiness() {
 export async function getTrendRushBusiness() {
   return getBusiness('trendrush')
 }
+
+// Step 26: the dropshipping business (db:register-business dropshipping
+// "..."), same reasoning as getPromoteFunBusiness(). Real orders come in
+// via ShopifyAdapter.listTransactions() — see app/transactions/page.tsx.
+export async function getDropshippingBusiness() {
+  return getBusiness('dropshipping')
+}
