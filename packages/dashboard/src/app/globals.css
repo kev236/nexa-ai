@@ -53,6 +53,12 @@
   box-sizing: border-box;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -513,7 +519,7 @@ button.deny:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.6rem 0.7rem 0.6rem 0.95rem;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .nav-link-icon {
@@ -524,6 +530,13 @@ button.deny:hover {
 .nav-link:hover {
   background: color-mix(in srgb, var(--fg) 6%, transparent);
   color: var(--fg);
+  transform: translateX(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link:hover {
+    transform: none;
+  }
 }
 
 .nav-link.active {
@@ -640,6 +653,7 @@ section {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  scroll-margin-top: 2rem;
 }
 
 .agent-strip {
@@ -877,6 +891,49 @@ form.login-form button:hover {
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
   border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
   filter: drop-shadow(0 0 26px -10px var(--accent-glow));
+}
+
+/* A soft light band drifting behind the header/highlights (never on top
+   of them — z-index:-1 keeps it under this panel's own in-flow content,
+   inside the stacking context clip-path already establishes here). */
+.command-center-scan {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.command-center-scan::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 16%, transparent) 45%,
+    transparent 90%
+  );
+  animation: scan-sweep 7s ease-in-out infinite;
+}
+
+@keyframes scan-sweep {
+  0%,
+  100% {
+    left: -30%;
+  }
+  50% {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-center-scan {
+    display: none;
+  }
 }
 
 .command-center-header {
@@ -1648,7 +1705,10 @@ form.opportunity-form button:hover {
   width: 140px;
   height: 140px;
   transform: translate(-50%, -50%);
-  pointer-events: none;
+  /* auto, not none: HoloGlobe.tsx reads pointermove off this element
+     for its pointer-parallax tilt. Still aria-hidden — it's a visual
+     reaction, not a control, so nothing keyboard-only is lost. */
+  pointer-events: auto;
   z-index: 0;
 }
 
@@ -1776,6 +1836,24 @@ form.opportunity-form button:hover {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+/* Every kpi-tile is a real Link (see page.tsx) to that number's own
+   detail page — lift + glow on hover/focus is a real affordance, not
+   decoration, matching .business-card's own hover treatment below. */
+.kpi-tile:hover,
+.kpi-tile:focus-visible {
+  border-color: var(--accent-strong);
+  filter: drop-shadow(0 0 16px -4px var(--accent-glow));
+  transform: translateY(-2px);
+}
+
+.kpi-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .kpi-tile-icon {

@@ -55,29 +55,62 @@ export function HoloGlobe() {
     // Node points scattered evenly over the surface (Fibonacci sphere) —
     // reads as "data" on the globe without claiming to encode anything real.
     const NODE_COUNT = 140
+    const nodeVectors: THREE.Vector3[] = []
     const nodePositions = new Float32Array(NODE_COUNT * 3)
     const goldenAngle = Math.PI * (3 - Math.sqrt(5))
     for (let i = 0; i < NODE_COUNT; i++) {
       const y = 1 - (i / (NODE_COUNT - 1)) * 2
       const radiusAtY = Math.sqrt(1 - y * y)
       const theta = goldenAngle * i
-      nodePositions[i * 3] = Math.cos(theta) * radiusAtY
+      const x = Math.cos(theta) * radiusAtY
+      const z = Math.sin(theta) * radiusAtY
+      nodePositions[i * 3] = x
       nodePositions[i * 3 + 1] = y
-      nodePositions[i * 3 + 2] = Math.sin(theta) * radiusAtY
+      nodePositions[i * 3 + 2] = z
+      nodeVectors.push(new THREE.Vector3(x, y, z))
     }
     const nodeGeometry = new THREE.BufferGeometry()
     nodeGeometry.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3))
     const nodeMaterial = new THREE.PointsMaterial({
       color: accent,
-      size: 0.02,
+      size: 0.022,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
     globeGroup.add(new THREE.Points(nodeGeometry, nodeMaterial))
 
-    // Two tilted orbit rings, Saturn-style.
+    // Constellation lines — each node joined to its two nearest
+    // neighbors, so the surface reads as a connected data mesh rather
+    // than loose dust. Computed once at mount (140 points is cheap),
+    // never per-frame.
+    const linkPositions: number[] = []
+    for (let i = 0; i < nodeVectors.length; i++) {
+      const distances = nodeVectors
+        .map((v, j) => ({ j, d: i === j ? Infinity : v.distanceTo(nodeVectors[i]) }))
+        .sort((a, b) => a.d - b.d)
+      for (const { j, d } of distances.slice(0, 2)) {
+        if (d < 0.45) {
+          const a = nodeVectors[i]
+          const b = nodeVectors[j]
+          linkPositions.push(a.x, a.y, a.z, b.x, b.y, b.z)
+        }
+      }
+    }
+    const linkGeometry = new THREE.BufferGeometry()
+    linkGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linkPositions), 3))
+    const linkMaterial = new THREE.LineBasicMaterial({
+      color: accent,
+      transparent: true,
+      opacity: 0.16,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    globeGroup.add(new THREE.LineSegments(linkGeometry, linkMaterial))
+
+    // Two tilted orbit rings, Saturn-style, plus a brighter, fast partial
+    // arc that reads as a radar sweep circling the globe.
     const rings: THREE.Mesh[] = []
     ;[
       { radius: 1.55, tilt: 1.15, tube: 0.004, opacity: 0.35 },
@@ -92,6 +125,19 @@ export function HoloGlobe() {
       scene.add(ring)
     })
 
+    const sweepArc = new THREE.Mesh(
+      new THREE.TorusGeometry(1.25, 0.006, 8, 48, Math.PI * 0.6),
+      new THREE.MeshBasicMaterial({
+        color: accentStrong,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    )
+    sweepArc.rotation.x = 0.5
+    globeGroup.add(sweepArc)
+
     function resize() {
       if (!container) return
       const size = container.clientWidth
@@ -104,13 +150,29 @@ export function HoloGlobe() {
     const resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(container)
 
+    // Subtle pointer parallax — the globe leans toward the cursor rather
+    // than spinning on a fixed axis alone, so it reads as reactive
+    // instead of a looping animation. Purely additive to the base spin;
+    // idle (pointer never enters) it behaves exactly as before.
+    let pointerX = 0
+    let pointerY = 0
+    function onPointerMove(event: PointerEvent) {
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      pointerX = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      pointerY = ((event.clientY - rect.top) / rect.height) * 2 - 1
+    }
+    if (!reduceMotion) container.addEventListener('pointermove', onPointerMove)
+
     let frame: number | undefined
     function tick() {
       globeGroup.rotation.y += 0.0022
-      globeGroup.rotation.x = Math.sin(Date.now() / 8000) * 0.08
+      globeGroup.rotation.x += (Math.sin(Date.now() / 8000) * 0.08 + pointerY * 0.18 - globeGroup.rotation.x) * 0.04
+      globeGroup.rotation.z += (pointerX * -0.12 - globeGroup.rotation.z) * 0.04
       rings.forEach((ring, i) => {
         ring.rotation.z += i % 2 === 0 ? 0.0016 : -0.0011
       })
+      sweepArc.rotation.z += 0.01
       renderer.render(scene, camera)
       frame = requestAnimationFrame(tick)
     }
@@ -124,11 +186,16 @@ export function HoloGlobe() {
     return () => {
       if (frame !== undefined) cancelAnimationFrame(frame)
       resizeObserver.disconnect()
+      container.removeEventListener('pointermove', onPointerMove)
       wireGeometry.dispose()
       wireMaterial.dispose()
       glowMaterial.dispose()
       nodeGeometry.dispose()
       nodeMaterial.dispose()
+      linkGeometry.dispose()
+      linkMaterial.dispose()
+      sweepArc.geometry.dispose()
+      ;(sweepArc.material as THREE.Material).dispose()
       rings.forEach((ring) => {
         ring.geometry.dispose()
         ;(ring.material as THREE.Material).dispose()

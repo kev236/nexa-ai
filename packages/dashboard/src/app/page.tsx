@@ -312,7 +312,7 @@ export default async function ApprovalsPage() {
       </div>
 
       <div className="kpi-row deck-enter" style={{ animationDelay: '0.05s' }}>
-        <div className="kpi-tile">
+        <Link href="/transactions" className="kpi-tile">
           <Banknote size={16} className="kpi-tile-icon" aria-hidden />
           <div className="kpi-tile-body">
             <span className="kpi-tile-label">Revenue (EUR)</span>
@@ -326,8 +326,8 @@ export default async function ApprovalsPage() {
               </span>
             )}
           </div>
-        </div>
-        <div className="kpi-tile">
+        </Link>
+        <Link href="/activity" className="kpi-tile">
           <Users size={16} className="kpi-tile-icon" aria-hidden />
           <div className="kpi-tile-body">
             <span className="kpi-tile-label">Active agents</span>
@@ -336,8 +336,8 @@ export default async function ApprovalsPage() {
               <span className="kpi-tile-value-of">/{agents.length}</span>
             </span>
           </div>
-        </div>
-        <div className="kpi-tile">
+        </Link>
+        <Link href="#businesses" className="kpi-tile">
           <Building2 size={16} className="kpi-tile-icon" aria-hidden />
           <div className="kpi-tile-body">
             <span className="kpi-tile-label">Businesses</span>
@@ -345,8 +345,8 @@ export default async function ApprovalsPage() {
               <AnimatedNumber value={businessCards.length} />
             </span>
           </div>
-        </div>
-        <div className="kpi-tile">
+        </Link>
+        <Link href="/activity" className="kpi-tile">
           <Zap size={16} className="kpi-tile-icon" aria-hidden />
           <div className="kpi-tile-body">
             <span className="kpi-tile-label">Automations</span>
@@ -354,8 +354,8 @@ export default async function ApprovalsPage() {
               <AnimatedNumber value={operations.automationsCount} />
             </span>
           </div>
-        </div>
-        <div className="kpi-tile">
+        </Link>
+        <Link href="/activity" className="kpi-tile">
           <AlertTriangle size={16} className={operations.issuesCount > 0 ? 'kpi-tile-icon kpi-tile-icon--warn' : 'kpi-tile-icon'} aria-hidden />
           <div className="kpi-tile-body">
             <span className="kpi-tile-label">Attention needed</span>
@@ -363,7 +363,7 @@ export default async function ApprovalsPage() {
               <AnimatedNumber value={operations.issuesCount} />
             </span>
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="hud-grid">
@@ -438,6 +438,7 @@ export default async function ApprovalsPage() {
 
         <div className="hud-col">
           <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
+            <span className="command-center-scan" aria-hidden />
             <div className="command-center-header">
               <div className="command-center-core">
                 <HoloGlobe />
@@ -622,7 +623,9 @@ export default async function ApprovalsPage() {
 
       {businessCards.length > 0 && (
         <>
-          <h2 className="section-title">My businesses</h2>
+          <h2 className="section-title" id="businesses">
+            My businesses
+          </h2>
           <div className="business-row deck-enter" style={{ animationDelay: '0.6s' }}>
             {businessCards.map((card) => (
               <Link key={card.name} href={card.href} className="hud-panel business-card">
