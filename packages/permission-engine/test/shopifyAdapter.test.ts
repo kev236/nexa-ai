@@ -15,7 +15,6 @@ function fakeClient(orders: ShopifyOrderNode[], shopName = 'My Store'): ShopifyR
 const ORDER: ShopifyOrderNode = {
   id: 'gid://shopify/Order/1',
   name: '#1001',
-  email: 'buyer@example.com',
   createdAt: '2026-01-02T00:00:00Z',
   displayFinancialStatus: 'PAID',
   displayFulfillmentStatus: 'UNFULFILLED',

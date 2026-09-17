@@ -7,11 +7,19 @@ import type { ActionDefinition, BusinessAdapter, ObservedEvent, ObservedTransact
  * (graphql_schema('Order') / ('MoneyBag') / ('MoneyV2') via the Shopify
  * MCP connector) rather than guessed. shopify.dev itself isn't reachable
  * from every sandbox, so that live check stood in for it.
+ *
+ * Deliberately excludes `email` (and any other customer-identifying
+ * field) even though Order exposes it directly: Shopify classifies
+ * order-level email, name, address, and phone as "protected customer
+ * data," gated behind a separate approval step beyond read_orders/
+ * read_products — confirmed live via a real "Access denied for orders
+ * field" error the first version of this query hit. None of that data
+ * is actually used by toObservedTransaction() below, so leaving it out
+ * avoids that whole extra approval process rather than requesting it.
  */
 export type ShopifyOrderNode = {
   id: string
   name: string
-  email: string | null
   createdAt: string
   displayFinancialStatus: string
   displayFulfillmentStatus: string
@@ -105,7 +113,6 @@ const ORDERS_QUERY = `#graphql
       nodes {
         id
         name
-        email
         createdAt
         displayFinancialStatus
         displayFulfillmentStatus
