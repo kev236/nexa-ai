@@ -206,7 +206,7 @@ h1 {
 .chart-card,
 .growth-card,
 .hud-panel,
-.reactor-panel,
+.command-center-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -220,7 +220,7 @@ form.opportunity-form .score-grid {
 .chart-card,
 .growth-card,
 .hud-panel,
-.reactor-panel,
+.command-center-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -234,7 +234,7 @@ form.opportunity-form .score-grid {
 .chart-card::before,
 .growth-card::before,
 .hud-panel::before,
-.reactor-panel::before,
+.command-center-panel::before,
 .bar-chart::before,
 form.login-form::before {
   content: '';
@@ -254,7 +254,7 @@ form.login-form::before {
 .chart-card::after,
 .growth-card::after,
 .hud-panel::after,
-.reactor-panel::after,
+.command-center-panel::after,
 .bar-chart::after,
 form.login-form::after {
   content: '';
@@ -331,6 +331,47 @@ form.login-form::after {
   /* Panels and grids use the full width main now stretches to, but a
      paragraph shouldn't — capped for reading comfort, not layout. */
   max-width: 78ch;
+}
+
+/* A pending approval is always something needing Kevin's attention —
+   the left stripe says so at a glance, same red the rest of the app
+   reserves for "needs intervention" (see AlertTriangle's kpi-tile-icon
+   above). Real cost when the agent supplied one (ActionRequest.expectedCost);
+   the raw payload moves into a <details> instead of always-visible —
+   the reasoning above it is what a human actually needs to decide. */
+.approval-card {
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.approval-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--danger);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+.approval-cost {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.approval-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
 }
 
 .payload {
@@ -439,8 +480,24 @@ button.deny:hover {
 .nav-links {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 1.1rem;
   flex: 1;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nav-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  padding: 0 0.7rem 0.3rem 0.95rem;
 }
 
 .nav-link {
@@ -806,50 +863,183 @@ form.login-form button:hover {
   flex-shrink: 0;
 }
 
-.signal-tag {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  color: var(--muted);
-  flex-shrink: 0;
-}
+/* The Command Center — Approvals' central real-time focal point: a
+   compact real agent-status core (not a full-width hero anymore — see
+   session notes on why the globe moved from centerpiece to accent),
+   a real one-line policy summary, and real recent activity/opportunity/
+   approval highlights below it. */
 
-/* The reactor — Approvals' central real-time focal point. */
-
-.reactor-panel {
-  padding: 1.75rem 1.25rem;
+.command-center-panel {
+  padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1.1rem;
+  gap: 1rem;
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
   border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
   filter: drop-shadow(0 0 26px -10px var(--accent-glow));
 }
 
-.reactor-readout {
+.command-center-header {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.command-center-core {
+  position: relative;
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--border);
 }
 
-.reactor-readout-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+.command-center-core-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  border-right-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: deck-ring-spin 14s linear infinite reverse;
+  z-index: 1;
 }
 
-.reactor-readout-confidence {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+@media (prefers-reduced-motion: reduce) {
+  .command-center-core-ring {
+    animation: none;
+  }
+}
+
+.command-center-core-icon {
+  position: relative;
+  z-index: 1;
   color: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.command-center-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.command-center-status {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.command-center-summary {
+  font-size: 0.82rem;
+  color: var(--fg);
+  margin: 0;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.command-center-highlights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.highlight-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 0.3rem;
+}
+
+.highlight-dot--active {
+  background: var(--approve);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--approve) 60%, transparent);
+}
+
+.highlight-dot--accent {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.highlight-dot--warn {
+  background: var(--warn);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--warn) 60%, transparent);
+}
+
+.highlight-dot--danger {
+  background: var(--danger);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 60%, transparent);
+}
+
+/* The Live Activity Feed — same highlight-dot/highlight-body pieces as
+   the Command Center's own highlights, in a longer, denser list with a
+   real status badge and timestamp per row instead of just a title/desc. */
+.activity-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.activity-feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.25rem;
+}
+
+.activity-feed-item:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-feed-item .highlight-dot {
+  margin-top: 0.35rem;
+}
+
+.activity-feed-item .highlight-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.highlight-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.highlight-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.highlight-desc {
+  font-size: 0.76rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* Right column — real stat meters and page shortcuts. */
@@ -1017,6 +1207,15 @@ form.login-form button:hover {
     flex-direction: row;
     flex: none;
     gap: 0.15rem;
+  }
+
+  .nav-group {
+    flex-direction: row;
+    gap: 0.15rem;
+  }
+
+  .nav-group-label {
+    display: none;
   }
 
   .nav-link span {
@@ -1431,43 +1630,23 @@ form.opportunity-form button:hover {
   }
 }
 
-/* The operating deck's core — Nexa AI's own centerpiece, not a copy of
-   the "arc reactor" trope a generic sci-fi HUD reference leans on: a
-   hexagonal outer ring (circuit/network, not power-core) around a
-   circular mid ring carrying one real node per registered agent — lit
-   and pulsing only for agents that are actually active — with the real
-   pending count anchored under the brand mark at the center. Reuses
-   .hud-panel/.signal-feed/.growth-gauge for everything around it, so
-   only the core/feed/status-bar pieces below are unique. */
-
-.deck-core-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.25rem;
-  padding: 1.5rem 0;
-}
-
-.deck-core {
-  position: relative;
-  width: 200px;
-  height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* The Command Center's compact core (see .command-center-core in the
+   shared block above) — a ring carrying one real node per registered
+   agent, lit and pulsing only for agents that are actually active, with
+   the three.js globe behind it as an accent rather than a full-width
+   hero. Reuses .hud-panel/.signal-feed/.growth-gauge for everything
+   around it, so only the core/feed/status-bar pieces below are unique. */
 
 /* The three.js canvas (HoloGlobe.tsx) — sized and centered to bleed
-   past .deck-core's 200px box for a soft glow edge, positioned behind
-   the real agent-node ring and center readout (both stay in normal
-   flow / absolute-positioned above this in DOM order). */
+   past .command-center-core's 90px box for a soft glow edge, positioned
+   behind the real agent-node ring (both stay in normal flow /
+   absolute-positioned above this in DOM order). */
 .holo-globe {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 280px;
-  height: 280px;
+  width: 140px;
+  height: 140px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 0;
@@ -1479,42 +1658,9 @@ form.opportunity-form button:hover {
   height: 100%;
 }
 
-.deck-core-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  border-radius: 50%;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
-
-.deck-core-ring--outer {
-  width: 200px;
-  height: 200px;
-  border: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 0;
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  animation: deck-ring-spin 34s linear infinite;
-}
-
-.deck-core-ring--mid {
-  width: 160px;
-  height: 160px;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  border-right-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  animation: deck-ring-spin 14s linear infinite reverse;
-}
-
 @keyframes deck-ring-spin {
   to {
     transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-core-ring {
-    animation: none;
   }
 }
 
@@ -1547,62 +1693,14 @@ form.opportunity-form button:hover {
   }
 }
 
-.deck-core-center {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-.deck-core-icon {
-  color: var(--accent);
-  filter: drop-shadow(0 0 8px var(--accent-glow));
-  margin-bottom: 0.15rem;
-}
-
-.deck-core-pending {
-  font-family: var(--font-display);
-  font-size: 3.25rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-  text-shadow: 0 0 34px var(--accent-glow);
-  line-height: 1.1;
-}
-
-.deck-core-label {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-/* The reactor's own wordmark/tagline — sits between the core ring and
-   its readout, same slot a big hero visual's brand text would occupy. */
-.deck-wordmark {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  margin: 0.4rem 0 1rem;
-  text-align: center;
-}
-
+/* The Command Center's brand mark — see .command-center-heading in the
+   header row it now sits in. */
 .deck-wordmark-text {
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--fg);
-}
-
-.deck-wordmark-tagline {
-  font-size: 0.72rem;
-  color: var(--muted);
-  letter-spacing: 0.02em;
 }
 
 /* Header-row clock + real owner identity, right-aligned opposite the
@@ -1659,9 +1757,14 @@ form.opportunity-form button:hover {
    portfolio metric invented to fill a fourth slot). */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+}
+
+.kpi-tile-icon--warn {
+  color: var(--warn);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--warn) 55%, transparent));
 }
 
 .kpi-tile {
@@ -1754,7 +1857,7 @@ form.opportunity-form button:hover {
   margin-bottom: 1.5rem;
 }
 
-.deck-feed {
+.activity-feed {
   max-height: 260px;
   overflow-y: auto;
 }
@@ -1799,7 +1902,7 @@ form.opportunity-form button:hover {
 }
 
 @media (max-width: 1080px) {
-  .deck-core-wrap {
+  .command-center-panel {
     order: -1;
   }
 }

@@ -14,7 +14,8 @@ import {
   BrainCircuit,
   Banknote,
   Building2,
-  ListChecks,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
@@ -25,7 +26,7 @@ import {
   getTrendRushBusiness,
   getDropshippingBusiness,
 } from '@/lib/business'
-import { formatAmount, displayNameFromEmail } from '@/lib/format'
+import { formatAmount, displayNameFromEmail, relativeTime, humanizeActionType } from '@/lib/format'
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { summarizeRevenue } from '@/lib/revenue'
 import { sparklinePath } from '@/lib/sparkline'
@@ -35,7 +36,7 @@ import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
 import { HoloGlobe } from '@/components/HoloGlobe'
-import { PLATFORMS, type BusinessRecord } from '@nexa-ai/permission-engine'
+import { PLATFORMS, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,12 +48,13 @@ const MODEL_LABEL = 'Claude Opus 5'
 const GAUGE_RADIUS = 42
 const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 
-// The core's mid ring is 160px across (see .deck-core-ring--mid) —
-// this radius places each agent node exactly on that circumference,
-// centered on the 200px .deck-core box (.deck-core-node's own
-// negative margin centers the dot on its own point).
-const CORE_NODE_RADIUS = 80
-const CORE_CENTER = 100
+// The Command Center's core ring is 68px across (see
+// .command-center-core-ring) — this radius places each agent node
+// exactly on that circumference, centered on the 90px
+// .command-center-core box (.deck-core-node's own negative margin
+// centers the dot on its own point).
+const CORE_NODE_RADIUS = 34
+const CORE_CENTER = 45
 
 function coreNodePosition(index: number, total: number): { left: number; top: number } {
   const angle = (2 * Math.PI * index) / total - Math.PI / 2
@@ -130,6 +132,38 @@ async function loadRevenueOverview(engine: ReturnType<typeof getEngine>) {
   return summarizeRevenue(transactions)
 }
 
+/**
+ * Real counts behind the "Automations" and "Attention needed" tiles —
+ * see AGENTS.md/session notes on why these replace a fabricated
+ * "Profit" tile (no cost data exists anywhere in this system to compute
+ * one honestly). Automations = audit rows this business's agents have
+ * actually executed, ever (a big listByBusiness batch, not just the
+ * 12-row activity feed). Attention = things stuck, not things merely
+ * pending your normal review — a crashed/killed run (listStaleRequested)
+ * or a transaction nobody's looked at yet (listUnreviewed), across every
+ * business with money-tracking configured.
+ */
+async function loadOperationsSummary(engine: ReturnType<typeof getEngine>, business: BusinessRecord) {
+  const [bigBatch, stale, unreviewedNexaLabs] = await Promise.all([
+    engine.auditStore.listByBusiness(business.id, 500),
+    engine.auditStore.listStaleRequested(30 * 60 * 1000, 50),
+    engine.transactionStore.listUnreviewed(business.id, 50),
+  ])
+
+  let unreviewedDropshippingCount = 0
+  try {
+    const dropshipping = await getDropshippingBusiness()
+    unreviewedDropshippingCount = (await engine.transactionStore.listUnreviewed(dropshipping.id, 50)).length
+  } catch {
+    // dropshipping not registered yet — nothing unreviewed to add.
+  }
+
+  return {
+    automationsCount: bigBatch.filter((r) => r.status === 'executed').length,
+    issuesCount: stale.length + unreviewedNexaLabs.length + unreviewedDropshippingCount,
+  }
+}
+
 function HudPanel({
   icon: Icon,
   title,
@@ -162,30 +196,38 @@ export default async function ApprovalsPage() {
   const engine = getEngine()
   const business = await getBusiness()
 
-  const [pending, agents, feed, latestTx, opportunities, campaignCount, owner, revenue] = await Promise.all([
-    engine.listPendingApprovals(),
-    engine.agentStore.listByBusiness(business.id),
-    engine.auditStore.listByBusiness(business.id, 12),
-    engine.transactionStore.listByBusiness(business.id, 1),
-    engine.opportunityStore.list(),
-    loadCampaignCount(engine),
-    engine.ownerStore.get(ownerId),
-    loadRevenueOverview(engine),
-  ])
+  const [pending, agents, feed, latestTx, opportunities, campaignCount, owner, revenue, operations] =
+    await Promise.all([
+      engine.listPendingApprovals(),
+      engine.agentStore.listByBusiness(business.id),
+      engine.auditStore.listByBusiness(business.id, 12),
+      engine.transactionStore.listByBusiness(business.id, 1),
+      engine.opportunityStore.list(),
+      loadCampaignCount(engine),
+      engine.ownerStore.get(ownerId),
+      loadRevenueOverview(engine),
+      loadOperationsSummary(engine, business),
+    ])
 
   const activeAgents = agents.filter((a) => a.active).length
-  const latestActivity = feed[0]
   const latestTransaction = latestTx[0]
   const topOpportunity = opportunities
     .filter((o) => o.status === 'open')
     .sort((a, b) => b.totalScore - a.totalScore)[0]
-  // Most recently requested pending approval, if any — the reactor's
-  // "focus" readout shows real decision data (a real confidence score,
-  // when the agent that drafted it supplied one), never a fabricated
-  // number the way a generic sci-fi HUD mockup would.
+  // Most recently requested pending approval, if any — the Command
+  // Center's "needs your approval" highlight shows real decision data
+  // (the agent's own real reasoning), never a fabricated number the way
+  // a generic sci-fi HUD mockup would.
   const focusApproval = pending.length > 0 ? pending[pending.length - 1] : undefined
   const ownerName = owner ? displayNameFromEmail(owner.email) : undefined
   const allOperational = agents.length > 0 && activeAgents === agents.length
+
+  const agentRoleById = new Map(agents.map((a) => [a.id, a.role]))
+  // Command Center's real highlights — the two most recent things an
+  // agent actually did, in the same recency order the audit log itself
+  // already returns (see feed above), no invented "23% traffic increase"
+  // style content the way a generic mockup would show.
+  const executedHighlights = feed.filter((r): r is AuditLogRecord & { status: 'executed' } => r.status === 'executed').slice(0, 2)
 
   const businessCards = (
     await Promise.all([
@@ -305,11 +347,20 @@ export default async function ApprovalsPage() {
           </div>
         </div>
         <div className="kpi-tile">
-          <ListChecks size={16} className="kpi-tile-icon" aria-hidden />
+          <Zap size={16} className="kpi-tile-icon" aria-hidden />
           <div className="kpi-tile-body">
-            <span className="kpi-tile-label">Pending approvals</span>
+            <span className="kpi-tile-label">Automations</span>
             <span className="kpi-tile-value">
-              <AnimatedNumber value={pending.length} />
+              <AnimatedNumber value={operations.automationsCount} />
+            </span>
+          </div>
+        </div>
+        <div className="kpi-tile">
+          <AlertTriangle size={16} className={operations.issuesCount > 0 ? 'kpi-tile-icon kpi-tile-icon--warn' : 'kpi-tile-icon'} aria-hidden />
+          <div className="kpi-tile-body">
+            <span className="kpi-tile-label">Attention needed</span>
+            <span className="kpi-tile-value">
+              <AnimatedNumber value={operations.issuesCount} />
             </span>
           </div>
         </div>
@@ -386,12 +437,11 @@ export default async function ApprovalsPage() {
         </div>
 
         <div className="hud-col">
-          <div className="reactor-panel deck-enter" style={{ animationDelay: '0.3s' }}>
-            <div className="deck-core-wrap">
-              <div className="deck-core">
+          <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
+            <div className="command-center-header">
+              <div className="command-center-core">
                 <HoloGlobe />
-                <div className="deck-core-ring deck-core-ring--outer" aria-hidden />
-                <div className="deck-core-ring deck-core-ring--mid" aria-hidden />
+                <div className="command-center-core-ring" aria-hidden />
                 {agents.map((agent, index) => {
                   const { left, top } = coreNodePosition(index, agents.length)
                   return (
@@ -403,40 +453,59 @@ export default async function ApprovalsPage() {
                     />
                   )
                 })}
-                <div className="deck-core-center">
-                  <BrainCircuit size={26} className="deck-core-icon" aria-hidden />
-                  <span className="deck-core-pending">
-                    <AnimatedNumber value={pending.length} />
-                  </span>
-                  <span className="deck-core-label">pending</span>
-                </div>
+                <BrainCircuit size={18} className="command-center-core-icon" aria-hidden />
+              </div>
+              <div className="command-center-heading">
+                <span className="deck-wordmark-text">NEXA AI</span>
+                <span className="command-center-status">
+                  Auto-executes everything except real spending — that always waits for you.
+                </span>
               </div>
             </div>
 
-            <div className="deck-wordmark">
-              <span className="deck-wordmark-text">NEXA AI</span>
-              <span className="deck-wordmark-tagline">Your businesses, watched — automated where it's safe.</span>
-            </div>
+            <p className="command-center-summary">
+              Monitoring {businessCards.length} business{businessCards.length === 1 ? '' : 'es'} ·{' '}
+              {activeAgents} agent{activeAgents === 1 ? '' : 's'} active ·{' '}
+              {pending.length} approval{pending.length === 1 ? '' : 's'} required
+            </p>
 
-            {focusApproval ? (
-              <div className="reactor-readout">
-                <span className="reactor-readout-label">focus</span>
-                <span className="action-type">{focusApproval.request.actionType}</span>
-                {typeof focusApproval.request.confidence === 'number' && (
-                  <span className="reactor-readout-confidence">
-                    confidence {Math.round(focusApproval.request.confidence * 100)}%
-                  </span>
-                )}
-              </div>
-            ) : latestActivity ? (
-              <div className="reactor-readout">
-                <span className="reactor-readout-label">last</span>
-                <span className="action-type">{latestActivity.actionType}</span>
-                <span className={`status-badge status-${latestActivity.status}`}>{latestActivity.status}</span>
-              </div>
-            ) : (
-              <p className="empty">Nothing observed yet.</p>
-            )}
+            <ul className="command-center-highlights">
+              {executedHighlights.map((record) => (
+                <li className="highlight-item" key={record.id}>
+                  <span className="highlight-dot highlight-dot--active" aria-hidden />
+                  <div className="highlight-body">
+                    <span className="highlight-title">
+                      {agentRoleById.get(record.agentId) ?? humanizeActionType(record.actionType)}
+                    </span>
+                    <span className="highlight-desc">{record.reasoning}</span>
+                  </div>
+                  <span className="meta">{relativeTime(record.resolvedAt ?? record.requestedAt)}</span>
+                </li>
+              ))}
+              {topOpportunity && (
+                <li className="highlight-item">
+                  <span className="highlight-dot highlight-dot--accent" aria-hidden />
+                  <div className="highlight-body">
+                    <span className="highlight-title">Opportunity found — {topOpportunity.name}</span>
+                    <span className="highlight-desc">{topOpportunity.recommendation}</span>
+                  </div>
+                  <span className="meta">{relativeTime(topOpportunity.createdAt)}</span>
+                </li>
+              )}
+              {focusApproval && (
+                <li className="highlight-item">
+                  <span className="highlight-dot highlight-dot--warn" aria-hidden />
+                  <div className="highlight-body">
+                    <span className="highlight-title">Needs your approval</span>
+                    <span className="highlight-desc">{humanizeActionType(focusApproval.request.actionType)} — {focusApproval.request.reasoning}</span>
+                  </div>
+                  <span className="meta">{relativeTime(focusApproval.createdAt)}</span>
+                </li>
+              )}
+              {executedHighlights.length === 0 && !topOpportunity && !focusApproval && (
+                <li className="empty">Nothing automated yet.</li>
+              )}
+            </ul>
           </div>
         </div>
 
@@ -508,14 +577,29 @@ export default async function ApprovalsPage() {
         {feed.length === 0 ? (
           <p className="empty">Nothing observed yet.</p>
         ) : (
-          <ul className="signal-feed deck-feed">
+          <ul className="activity-feed">
             {feed.map((record) => (
-              <li className="signal-feed-item" key={record.id}>
-                <span className="signal-tag">{record.status}</span>
-                <span className="action-type">{record.actionType}</span>
-                <span className="meta">
-                  {new Date(record.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              <li className="activity-feed-item" key={record.id}>
+                <span
+                  className={
+                    record.status === 'executed'
+                      ? 'highlight-dot highlight-dot--active'
+                      : record.status === 'denied'
+                        ? 'highlight-dot highlight-dot--danger'
+                        : record.status === 'abandoned'
+                          ? 'highlight-dot highlight-dot--warn'
+                          : 'highlight-dot highlight-dot--accent'
+                  }
+                  aria-hidden
+                />
+                <div className="highlight-body">
+                  <span className="highlight-title">
+                    {agentRoleById.get(record.agentId) ?? humanizeActionType(record.actionType)}
+                  </span>
+                  <span className="highlight-desc">{record.reasoning}</span>
+                </div>
+                <span className={`status-badge status-${record.status}`}>{record.status}</span>
+                <span className="meta">{relativeTime(record.requestedAt)}</span>
               </li>
             ))}
           </ul>
@@ -558,17 +642,27 @@ export default async function ApprovalsPage() {
         pending.map((approval) => {
           const approve = resolveApproval.bind(null, approval.id, 'approved')
           const deny = resolveApproval.bind(null, approval.id, 'denied')
+          const cost = approval.request.expectedCost
           return (
-            <div className="card" key={approval.id}>
+            <div className="card approval-card" key={approval.id}>
               <div className="card-header">
-                <span className="action-type">{approval.request.actionType}</span>
+                <span className="action-type">{humanizeActionType(approval.request.actionType)}</span>
                 <span className="meta">
-                  agent {approval.request.agentId} · business {approval.request.businessId} ·{' '}
+                  {agentRoleById.get(approval.request.agentId) ?? 'an agent'} ·{' '}
                   {new Date(approval.createdAt).toLocaleString()}
                 </span>
               </div>
               <p className="reasoning">{approval.request.reasoning}</p>
-              <pre className="payload">{JSON.stringify(approval.request.payload, null, 2)}</pre>
+              {cost && (
+                <div className="approval-cost">
+                  <Banknote size={15} aria-hidden />
+                  <span>Estimated cost: {formatAmount(cost.amountCents, cost.currency)}</span>
+                </div>
+              )}
+              <details className="approval-details">
+                <summary>Full request details</summary>
+                <pre className="payload">{JSON.stringify(approval.request.payload, null, 2)}</pre>
+              </details>
               <div className="actions">
                 <form action={approve}>
                   <button type="submit" className="approve">

@@ -4,16 +4,37 @@ import { logout } from '@/app/actions'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 
-const LINKS = [
-  { key: 'approvals', href: '/', label: 'Approvals', icon: LayoutDashboard },
-  { key: 'activity', href: '/activity', label: 'Activity', icon: Activity },
-  { key: 'money', href: '/transactions', label: 'Money', icon: Wallet },
-  { key: 'opportunities', href: '/opportunities', label: 'Opportunities', icon: Target },
-  { key: 'campaigns', href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-  { key: 'growth', href: '/growth', label: 'Growth', icon: TrendingUp },
-  { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
-  { key: 'story-concepts', href: '/story-concepts', label: 'Sproutlight', icon: Sparkles },
+// Grouped by what each page is *for*, not alphabetically — matches how
+// the owner actually uses the app: decide (Command), watch for signal
+// (Intelligence), run the businesses (Operations). Every href here is a
+// real page; nothing named after a feature that doesn't exist yet.
+const NAV_GROUPS = [
+  {
+    label: 'Command',
+    links: [
+      { key: 'approvals', href: '/', label: 'Command Center', icon: LayoutDashboard },
+      { key: 'activity', href: '/activity', label: 'Activity', icon: Activity },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    links: [
+      { key: 'opportunities', href: '/opportunities', label: 'Opportunities', icon: Target },
+      { key: 'growth', href: '/growth', label: 'Growth', icon: TrendingUp },
+      { key: 'story-concepts', href: '/story-concepts', label: 'Sproutlight', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Operations',
+    links: [
+      { key: 'money', href: '/transactions', label: 'Money', icon: Wallet },
+      { key: 'campaigns', href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+      { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
+    ],
+  },
 ] as const
+
+type NavKey = (typeof NAV_GROUPS)[number]['links'][number]['key']
 
 /**
  * The sidebar's own live readout — real agent counts for the primary
@@ -32,7 +53,7 @@ async function loadAgentStatus(): Promise<{ active: number; total: number } | un
   }
 }
 
-export async function Nav({ active }: { active: (typeof LINKS)[number]['key'] }) {
+export async function Nav({ active }: { active: NavKey }) {
   const status = await loadAgentStatus()
 
   return (
@@ -43,11 +64,16 @@ export async function Nav({ active }: { active: (typeof LINKS)[number]['key'] })
       </div>
 
       <div className="nav-links">
-        {LINKS.map(({ key, href, label, icon: Icon }) => (
-          <Link key={key} href={href} className={active === key ? 'nav-link active' : 'nav-link'}>
-            <Icon size={17} className="nav-link-icon" aria-hidden />
-            <span>{label}</span>
-          </Link>
+        {NAV_GROUPS.map((group) => (
+          <div className="nav-group" key={group.label}>
+            <span className="nav-group-label">{group.label}</span>
+            {group.links.map(({ key, href, label, icon: Icon }) => (
+              <Link key={key} href={href} className={active === key ? 'nav-link active' : 'nav-link'}>
+                <Icon size={17} className="nav-link-icon" aria-hidden />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </div>
         ))}
       </div>
 

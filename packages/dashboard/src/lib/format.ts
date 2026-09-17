@@ -10,6 +10,35 @@ export function displayNameFromEmail(email: string): string {
   return firstPart.charAt(0).toUpperCase() + firstPart.slice(1)
 }
 
+/**
+ * A real elapsed-time readout from a real ISO timestamp — "14s ago",
+ * "8m ago", "3h ago" — falling back to a real localized date once it's
+ * further out than a day, rather than an ever-growing "412h ago".
+ */
+export function relativeTime(iso: string, now: Date = new Date()): string {
+  const thenMs = new Date(iso).getTime()
+  const diffSec = Math.max(0, Math.round((now.getTime() - thenMs) / 1000))
+
+  if (diffSec < 5) return 'just now'
+  if (diffSec < 60) return `${diffSec}s ago`
+  const diffMin = Math.round(diffSec / 60)
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHr = Math.round(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h ago`
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+/** actionType -> a human sentence, for the few real actionTypes this system's agents actually use (send_email, propose_opportunity). Anything unmapped is humanized ("some_action" -> "Some action") rather than guessed at. */
+export function humanizeActionType(actionType: string): string {
+  const known: Record<string, string> = {
+    send_email: 'Sent an email',
+    propose_opportunity: 'Proposed a business opportunity',
+  }
+  if (known[actionType]) return known[actionType]
+  const words = actionType.replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export function formatAmount(amountCents: number, currency: string): string {
   const amount = amountCents / 100
   try {
