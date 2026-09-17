@@ -18,7 +18,6 @@ import {
   AlertTriangle,
   Bot,
   Bell,
-  ChevronDown,
 } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
@@ -33,7 +32,7 @@ import { formatAmount, displayNameFromEmail, relativeTime, humanizeActionType } 
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { summarizeRevenue } from '@/lib/revenue'
 import { sparklinePath } from '@/lib/sparkline'
-import { resolveApproval, logout } from '@/app/actions'
+import { resolveApproval } from '@/app/actions'
 import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
@@ -51,13 +50,13 @@ const MODEL_LABEL = 'Claude Opus 5'
 const GAUGE_RADIUS = 42
 const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 
-// The Command Center's core ring is 120px across (see
+// The Command Center's core ring is 320px across (see
 // .command-center-core-ring) — this radius places each agent node
-// exactly on that circumference, centered on the 160px
+// exactly on that circumference, centered on the 480px
 // .command-center-core box (.deck-core-node's own negative margin
 // centers the dot on its own point).
-const CORE_NODE_RADIUS = 60
-const CORE_CENTER = 80
+const CORE_NODE_RADIUS = 160
+const CORE_CENTER = 240
 
 function coreNodePosition(index: number, total: number): { left: number; top: number } {
   const angle = (2 * Math.PI * index) / total - Math.PI / 2
@@ -311,23 +310,15 @@ export default async function ApprovalsPage() {
               {pending.length > 0 && <span className="notification-bell-badge">{pending.length}</span>}
             </Link>
             {ownerName && (
-              <details className="owner-menu">
-                <summary className="owner-chip">
-                  <span className="owner-chip-avatar" aria-hidden>
-                    {ownerName.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="owner-chip-text">
-                    <span className="owner-chip-name">{ownerName}</span>
-                    <span className="owner-chip-role">Owner</span>
-                  </span>
-                  <ChevronDown size={14} className="owner-chip-chevron" aria-hidden />
-                </summary>
-                <form action={logout} className="owner-menu-panel">
-                  <button type="submit" className="owner-menu-signout">
-                    Sign out
-                  </button>
-                </form>
-              </details>
+              <div className="owner-chip">
+                <span className="owner-chip-avatar" aria-hidden>
+                  {ownerName.charAt(0).toUpperCase()}
+                </span>
+                <span className="owner-chip-text">
+                  <span className="owner-chip-name">{ownerName}</span>
+                  <span className="owner-chip-role">Owner</span>
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -439,30 +430,27 @@ export default async function ApprovalsPage() {
         <div className="hud-col">
           <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
             <span className="command-center-scan" aria-hidden />
-            <div className="command-center-header">
-              <div className="command-center-core">
-                <span className="command-center-pedestal" aria-hidden />
-                <HoloGlobe />
-                <div className="command-center-core-ring" aria-hidden />
-                {agents.map((agent, index) => {
-                  const { left, top } = coreNodePosition(index, agents.length)
-                  return (
-                    <span
-                      key={agent.id}
-                      className={agent.active ? 'deck-core-node deck-core-node--active' : 'deck-core-node'}
-                      style={{ left: `${left}px`, top: `${top}px` }}
-                      aria-hidden
-                    />
-                  )
-                })}
-                <BrainCircuit size={18} className="command-center-core-icon" aria-hidden />
-              </div>
-              <div className="command-center-heading">
-                <span className="deck-wordmark-text">NEXA AI</span>
-                <span className="command-center-status">
-                  Auto-executes everything except real spending — that always waits for you.
-                </span>
-              </div>
+            <div className="command-center-core" aria-hidden>
+              <HoloGlobe />
+              <div className="command-center-core-ring" aria-hidden />
+              {agents.map((agent, index) => {
+                const { left, top } = coreNodePosition(index, agents.length)
+                return (
+                  <span
+                    key={agent.id}
+                    className={agent.active ? 'deck-core-node deck-core-node--active' : 'deck-core-node'}
+                    style={{ left: `${left}px`, top: `${top}px` }}
+                    aria-hidden
+                  />
+                )
+              })}
+              <BrainCircuit size={18} className="command-center-core-icon" aria-hidden />
+            </div>
+            <div className="command-center-heading">
+              <span className="deck-wordmark-text">NEXA AI</span>
+              <span className="command-center-status">
+                Auto-executes everything except real spending — that always waits for you.
+              </span>
             </div>
 
             <p className="command-center-summary">

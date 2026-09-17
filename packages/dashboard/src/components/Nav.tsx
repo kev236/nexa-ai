@@ -1,6 +1,5 @@
 import Link from 'next/link'
-import { BrainCircuit, LayoutDashboard, Activity, Wallet, Target, Megaphone, TrendingUp, Film, Sparkles, LogOut } from 'lucide-react'
-import { logout } from '@/app/actions'
+import { BrainCircuit, LayoutDashboard, Activity, Wallet, Target, Megaphone, TrendingUp, Film, Sparkles } from 'lucide-react'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 
@@ -85,23 +84,6 @@ export async function Nav({ active }: { active: NavKey }) {
           </span>
         </div>
       )}
-
-      <form action={logout} className="nav-signout-form">
-        <button type="submit" className="nav-signout">
-          <LogOut size={16} aria-hidden />
-          <span>Sign out</span>
-        </button>
-      </form>
-
-      <p className="nav-watermark" aria-hidden>
-        BIGGER
-        <br />
-        FASTER
-        <br />
-        SMARTER
-        <br />
-        NEXA AI
-      </p>
     </nav>
   )
 }
