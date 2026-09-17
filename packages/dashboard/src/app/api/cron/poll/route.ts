@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createNexaLabsAdapter } from '@nexa-ai/permission-engine'
+import { createNexaLabsAdapter, createShopifyAdapter } from '@nexa-ai/permission-engine'
 import { getEngine } from '@/lib/engine'
-import { getBusiness } from '@/lib/business'
+import { getBusiness, getDropshippingBusiness } from '@/lib/business'
 import { triggerWaitlistTriage } from '@/lib/triage'
 import { triggerTransactionReview } from '@/lib/transactionReview'
 
@@ -35,6 +35,12 @@ import { triggerTransactionReview } from '@/lib/transactionReview'
  * expected state (Stripe/crypto are both optional), not a fail-closed
  * case, so it's caught and reported as skipped rather than failing the
  * whole run.
+ *
+ * Step 26 added dropshipping's real Shopify orders here, same
+ * optional/best-effort shape as nexa-labs' Stripe/crypto transactions
+ * above — the dropshipping business row and/or SHOPIFY_SHOP_DOMAIN/
+ * SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET not existing in a given
+ * environment is an expected state, not a failure of this run.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -62,13 +68,28 @@ export async function GET(request: NextRequest) {
     const triage = await triggerWaitlistTriage(engine, business)
     const transactionReview = await triggerTransactionReview(engine, business)
 
+    let dropshippingTransactions: Awaited<ReturnType<typeof engine.ingestTransactions>> | { skipped: string }
+    try {
+      const dropshippingBusiness = await getDropshippingBusiness()
+      dropshippingTransactions = await engine.ingestTransactions(createShopifyAdapter(), dropshippingBusiness.id)
+    } catch (err) {
+      dropshippingTransactions = { skipped: err instanceof Error ? err.message : String(err) }
+    }
+
     // Step 12: a stale, orphaned 'requested' row is exactly what a killed
     // process leaves behind — see engine.ts's reapAbandonedRequests(). A
     // daily sweep here is the only place this ever runs; nothing inside
     // requestAction() itself could detect its own crash.
     const abandoned = await engine.reapAbandonedRequests()
 
-    return NextResponse.json({ events, transactions, triage, transactionReview, abandoned })
+    return NextResponse.json({
+      events,
+      transactions,
+      triage,
+      transactionReview,
+      dropshippingTransactions,
+      abandoned,
+    })
   } catch (err) {
     console.error('cron poll failed:', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
