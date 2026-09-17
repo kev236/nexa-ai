@@ -260,6 +260,9 @@ export default async function ApprovalsPage() {
 
   return (
     <>
+      <div className="page-globe-bg" aria-hidden>
+        <HoloGlobe />
+      </div>
       <BootIntro />
       <Nav active="approvals" />
       <div className="page-header">
@@ -413,7 +416,6 @@ export default async function ApprovalsPage() {
         <div className="hud-col">
           <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
             <span className="command-center-scan" aria-hidden />
-            <HoloGlobe />
             <div className="command-center-heading">
               <span className="deck-wordmark-text">NEXA AI</span>
               <span className="command-center-status">

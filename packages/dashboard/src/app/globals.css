@@ -897,15 +897,13 @@ form.login-form button:hover {
 
 .command-center-panel {
   position: relative;
-  min-height: 34rem;
   padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 1rem;
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
   border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
-  filter: drop-shadow(0 0 40px -8px var(--accent-glow));
+  filter: drop-shadow(0 0 32px -10px var(--accent-glow));
 }
 
 /* A soft light band drifting behind the header/highlights (never on top
@@ -1674,33 +1672,39 @@ form.opportunity-form button:hover {
   }
 }
 
-/* The Command Center's hero — the three.js globe (HoloGlobe.tsx) is
-   the panel's actual background now, not a staged icon with its own
-   status ring, self-centered via position:absolute + top/left:50% +
-   transform (works regardless of the panel's own runtime size). Real
-   per-agent status now lives only in the Agent roster panel, not
-   duplicated here as a ring of dots.
+/* The Command Center page's real background — the three.js globe
+   (HoloGlobe.tsx) sits fixed behind the entire home screen, not
+   inside any one panel. Every panel on this page already renders as
+   translucent + blurred glass (see the shared panel rule up top), so
+   the globe shows through all of them — KPI tiles, agent roster,
+   business cards, not just the Command Center panel's own text — as
+   a single coherent atmosphere, not a graphic boxed into one card.
 
-   Sized off the panel's own width (90%, capped at 620px) with
-   aspect-ratio:1 deriving height from that — not a fixed pixel size —
-   so the full sphere stays visible (a real center point, not just an
-   edge-to-edge texture crop) at both a wide desktop panel and a
-   narrow single-column mobile one, instead of one size that's either
-   cropped to abstraction on desktop or blown out past a phone's
-   screen. */
+   z-index:-1 keeps it (and everything in it) behind all real page
+   content without needing z-index on that content; pointer-events:none
+   on the wrapper keeps it from ever intercepting clicks meant for the
+   real UI stacked on top of it across the whole screen. */
+.page-globe-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Sized off the viewport itself (not any one panel) so the full
+   sphere — a real center point on the screen, not just texture —
+   stays visible at any window size, phone included. */
 .holo-globe {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 90%;
-  max-width: 620px;
+  width: min(62vw, 62vh, 820px);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
      reaction, not a control, so nothing keyboard-only is lost. */
   pointer-events: auto;
-  z-index: 0;
 }
 
 .holo-globe canvas {
@@ -1911,13 +1915,6 @@ form.opportunity-form button:hover {
 
   .page-header-meta {
     flex-wrap: wrap;
-  }
-
-  /* The globe itself already scales down with the panel's own width
-     (see .holo-globe) — this just keeps the panel from towering over
-     that smaller globe with empty glass on a narrow phone screen. */
-  .command-center-panel {
-    min-height: 26rem;
   }
 }
 
