@@ -897,7 +897,7 @@ form.login-form button:hover {
 
 .command-center-panel {
   position: relative;
-  min-height: 30rem;
+  min-height: 34rem;
   padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -951,57 +951,13 @@ form.login-form button:hover {
   }
 }
 
-/* The globe is the panel's ambient backdrop now, not a small inline
-   icon: a fixed 480px box, centered within the panel regardless of the
-   panel's own runtime size (position:absolute + inset:0 + margin:auto
-   centers a fixed-size box inside its positioned ancestor). z-index:0
-   here is a real value (not auto), which both scopes the ring/icon's
-   own z-index below to this box alone and keeps the whole box behind
-   the panel's real in-flow text content (heading/summary/highlights)
-   — normal-flow siblings always paint after positioned z-index:0
-   descendants, so no extra z-index is needed on the text itself. */
-.command-center-core {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 480px;
-  height: 480px;
-  z-index: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.command-center-core-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  border-right-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  animation: deck-ring-spin 14s linear infinite reverse;
-  z-index: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .command-center-core-ring {
-    animation: none;
-  }
-}
-
-.command-center-core-icon {
-  position: relative;
-  z-index: 1;
-  color: var(--accent);
-  filter: drop-shadow(0 0 10px var(--accent-glow));
-}
-
+/* HoloGlobe (see .holo-globe further down) is the panel's own ambient
+   backdrop — a direct child of .command-center-panel, self-centering
+   via its own position:absolute + top/left:50% + transform. Its
+   z-index:0 is a real value (not auto), so it still paints behind the
+   panel's real in-flow text content below (normal-flow siblings always
+   paint after positioned z-index:0 descendants) without needing a
+   wrapper or any extra z-index on the text itself. */
 .command-center-heading {
   position: relative;
   display: flex;
@@ -1718,24 +1674,20 @@ form.opportunity-form button:hover {
   }
 }
 
-/* The Command Center's hero core (see .command-center-core in the
-   shared block above) — a huge ambient backdrop globe filling the
-   panel, with a ring carrying one real node per registered agent (lit
-   and pulsing only for agents that are actually active) staged in
-   front of it. Reuses .hud-panel/.growth-gauge for everything around
-   it, so only the core/feed/status-bar pieces below are unique. */
-
-/* The three.js canvas (HoloGlobe.tsx) — sized to bleed slightly past
-   .command-center-core's 480px box for a soft glow edge, positioned
-   behind the real agent-node ring (both stay absolute-positioned
-   above this in DOM order, inside .command-center-core's own stacking
-   context). */
+/* The Command Center's hero — the three.js globe (HoloGlobe.tsx) is
+   the panel's actual background now, not a staged icon with its own
+   status ring: a big fixed-size square, self-centered via
+   position:absolute + top/left:50% + transform (works regardless of
+   the panel's own runtime size), deliberately larger than the panel
+   itself so it bleeds past every edge — the panel's clip-path is what
+   gives it its final silhouette. Real per-agent status now lives only
+   in the Agent roster panel, not duplicated here as a ring of dots. */
 .holo-globe {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 520px;
-  height: 520px;
+  width: 760px;
+  height: 760px;
   transform: translate(-50%, -50%);
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
@@ -1748,41 +1700,6 @@ form.opportunity-form button:hover {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-@keyframes deck-ring-spin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-/* One real node per registered agent, placed at a real angle around
-   the mid ring's radius (computed server-side in page.tsx, not CSS —
-   see the agents.map() there) — lit and pulsing only when that exact
-   agent is active, dim otherwise. Not decoration: it's a literal,
-   truthful map of the fleet. */
-.deck-core-node {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.deck-core-node--active {
-  background: var(--approve);
-  opacity: 1;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--approve) 70%, transparent);
-  animation: pulse-ring 2.4s ease-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-core-node--active {
-    animation: none;
-  }
 }
 
 /* The Command Center's brand mark — see .command-center-heading in the

@@ -11,7 +11,6 @@ import {
   TrendingUp,
   Film,
   Sparkles,
-  BrainCircuit,
   Banknote,
   Building2,
   Zap,
@@ -49,22 +48,6 @@ const MODEL_LABEL = 'Claude Opus 5'
 
 const GAUGE_RADIUS = 42
 const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
-
-// The Command Center's core ring is 320px across (see
-// .command-center-core-ring) — this radius places each agent node
-// exactly on that circumference, centered on the 480px
-// .command-center-core box (.deck-core-node's own negative margin
-// centers the dot on its own point).
-const CORE_NODE_RADIUS = 160
-const CORE_CENTER = 240
-
-function coreNodePosition(index: number, total: number): { left: number; top: number } {
-  const angle = (2 * Math.PI * index) / total - Math.PI / 2
-  return {
-    left: CORE_CENTER + CORE_NODE_RADIUS * Math.cos(angle),
-    top: CORE_CENTER + CORE_NODE_RADIUS * Math.sin(angle),
-  }
-}
 
 /**
  * Campaigns live under the 'promote-fun' business (see lib/business.ts),
@@ -430,22 +413,7 @@ export default async function ApprovalsPage() {
         <div className="hud-col">
           <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
             <span className="command-center-scan" aria-hidden />
-            <div className="command-center-core" aria-hidden>
-              <HoloGlobe />
-              <div className="command-center-core-ring" aria-hidden />
-              {agents.map((agent, index) => {
-                const { left, top } = coreNodePosition(index, agents.length)
-                return (
-                  <span
-                    key={agent.id}
-                    className={agent.active ? 'deck-core-node deck-core-node--active' : 'deck-core-node'}
-                    style={{ left: `${left}px`, top: `${top}px` }}
-                    aria-hidden
-                  />
-                )
-              })}
-              <BrainCircuit size={18} className="command-center-core-icon" aria-hidden />
-            </div>
+            <HoloGlobe />
             <div className="command-center-heading">
               <span className="deck-wordmark-text">NEXA AI</span>
               <span className="command-center-status">
