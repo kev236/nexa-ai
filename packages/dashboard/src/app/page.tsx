@@ -1,11 +1,34 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Users, Activity, Gauge, LayoutGrid, Target, Wallet, Megaphone, TrendingUp, Film, Sparkles, BrainCircuit } from 'lucide-react'
+import {
+  Users,
+  Activity,
+  Gauge,
+  LayoutGrid,
+  Target,
+  Wallet,
+  Megaphone,
+  TrendingUp,
+  Film,
+  Sparkles,
+  BrainCircuit,
+  Banknote,
+  Building2,
+  ListChecks,
+} from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
-import { getBusiness, getPromoteFunBusiness, getSproutlightBusiness, getTrendRushBusiness } from '@/lib/business'
+import {
+  getBusiness,
+  getPromoteFunBusiness,
+  getSproutlightBusiness,
+  getTrendRushBusiness,
+  getDropshippingBusiness,
+} from '@/lib/business'
 import { formatAmount, displayNameFromEmail } from '@/lib/format'
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
+import { summarizeRevenue } from '@/lib/revenue'
+import { sparklinePath } from '@/lib/sparkline'
 import { resolveApproval } from '@/app/actions'
 import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
@@ -79,6 +102,33 @@ async function loadBusinessCard(
   }
 }
 
+/**
+ * Real EUR revenue across every business with money-tracking configured
+ * today (nexa-labs' Stripe/crypto, dropshipping's Shopify orders) — see
+ * lib/revenue.ts for why this stays EUR-only rather than summing
+ * currencies together. A business without transactions (or that isn't
+ * registered) just contributes nothing, same optional pattern as
+ * loadBusinessCard.
+ */
+async function loadRevenueOverview(engine: ReturnType<typeof getEngine>) {
+  const businessIds: string[] = []
+  try {
+    businessIds.push((await getBusiness()).id)
+  } catch {
+    // nexa-labs not seeded — no revenue to show.
+  }
+  try {
+    businessIds.push((await getDropshippingBusiness()).id)
+  } catch {
+    // dropshipping not registered yet — no revenue to show.
+  }
+
+  const transactions = (
+    await Promise.all(businessIds.map((id) => engine.transactionStore.listByBusiness(id, 300)))
+  ).flat()
+  return summarizeRevenue(transactions)
+}
+
 function HudPanel({
   icon: Icon,
   title,
@@ -111,7 +161,7 @@ export default async function ApprovalsPage() {
   const engine = getEngine()
   const business = await getBusiness()
 
-  const [pending, agents, feed, latestTx, opportunities, campaignCount, owner] = await Promise.all([
+  const [pending, agents, feed, latestTx, opportunities, campaignCount, owner, revenue] = await Promise.all([
     engine.listPendingApprovals(),
     engine.agentStore.listByBusiness(business.id),
     engine.auditStore.listByBusiness(business.id, 12),
@@ -119,6 +169,7 @@ export default async function ApprovalsPage() {
     engine.opportunityStore.list(),
     loadCampaignCount(engine),
     engine.ownerStore.get(ownerId),
+    loadRevenueOverview(engine),
   ])
 
   const activeAgents = agents.filter((a) => a.active).length
@@ -156,8 +207,21 @@ export default async function ApprovalsPage() {
         const eligible = PLATFORMS.every((p) => (accounts.find((a) => a.platform === p)?.followerCount ?? 0) >= 200)
         return { label: 'Promote.fun', value: eligible ? 'Eligible' : 'Growing' }
       }),
+      loadBusinessCard(getDropshippingBusiness, '/transactions', async (id) => {
+        const orders = await engine.transactionStore.listByBusiness(id, 300)
+        const eurCents = orders
+          .filter((t) => t.type === 'charge' && t.currency.toLowerCase() === 'eur')
+          .reduce((sum, t) => sum + t.amountCents, 0)
+        return { label: 'Orders revenue', value: formatAmount(eurCents, 'eur') }
+      }),
     ])
   ).filter((card): card is BusinessCard => card !== undefined)
+
+  const revenueSpark = sparklinePath(
+    revenue.dailyCents.map((c) => c / 100),
+    280,
+    56,
+  )
 
   return (
     <>
@@ -185,14 +249,85 @@ export default async function ApprovalsPage() {
                 : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
             </p>
           </div>
-          <span className="page-header-clock mono">
-            <LiveClock />
-          </span>
+          <div className="page-header-meta">
+            <span className="page-header-clock mono">
+              <LiveClock />
+            </span>
+            {ownerName && (
+              <div className="owner-chip">
+                <span className="owner-chip-avatar" aria-hidden>
+                  {ownerName.charAt(0).toUpperCase()}
+                </span>
+                <span className="owner-chip-text">
+                  <span className="owner-chip-name">{ownerName}</span>
+                  <span className="owner-chip-role">Owner</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="kpi-row deck-enter" style={{ animationDelay: '0.05s' }}>
+        <div className="kpi-tile">
+          <Banknote size={16} className="kpi-tile-icon" aria-hidden />
+          <div className="kpi-tile-body">
+            <span className="kpi-tile-label">Revenue (EUR)</span>
+            <span className="kpi-tile-value">
+              <AnimatedNumber value={Math.round(revenue.totalCents / 100)} />
+            </span>
+            {revenue.deltaPct !== undefined && (
+              <span className={revenue.deltaPct >= 0 ? 'kpi-tile-delta kpi-tile-delta--up' : 'kpi-tile-delta kpi-tile-delta--down'}>
+                {revenue.deltaPct >= 0 ? '+' : ''}
+                {revenue.deltaPct.toFixed(0)}% today
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="kpi-tile">
+          <Users size={16} className="kpi-tile-icon" aria-hidden />
+          <div className="kpi-tile-body">
+            <span className="kpi-tile-label">Active agents</span>
+            <span className="kpi-tile-value">
+              <AnimatedNumber value={activeAgents} />
+              <span className="kpi-tile-value-of">/{agents.length}</span>
+            </span>
+          </div>
+        </div>
+        <div className="kpi-tile">
+          <Building2 size={16} className="kpi-tile-icon" aria-hidden />
+          <div className="kpi-tile-body">
+            <span className="kpi-tile-label">Businesses</span>
+            <span className="kpi-tile-value">
+              <AnimatedNumber value={businessCards.length} />
+            </span>
+          </div>
+        </div>
+        <div className="kpi-tile">
+          <ListChecks size={16} className="kpi-tile-icon" aria-hidden />
+          <div className="kpi-tile-body">
+            <span className="kpi-tile-label">Pending approvals</span>
+            <span className="kpi-tile-value">
+              <AnimatedNumber value={pending.length} />
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="hud-grid">
         <div className="hud-col">
+          <HudPanel icon={Banknote} title="Revenue overview" badge="last 7 days" className="deck-enter" style={{ animationDelay: '0.08s' }}>
+            {revenueSpark ? (
+              <svg viewBox="0 0 280 56" className="sparkline" preserveAspectRatio="none" role="img" aria-label="Revenue over the last 7 days">
+                <polygon points={revenueSpark.area} className="sparkline-area" />
+                <polyline points={revenueSpark.line} className="sparkline-line" />
+                <circle cx={revenueSpark.last[0]} cy={revenueSpark.last[1]} r="3" className="sparkline-dot" />
+              </svg>
+            ) : (
+              <p className="empty">No EUR revenue observed yet.</p>
+            )}
+          </HudPanel>
+
           <HudPanel icon={Users} title="Agent roster" badge={`${activeAgents}/${agents.length}`} className="deck-enter" style={{ animationDelay: '0.1s' }}>
             {agents.length === 0 ? (
               <p className="empty">No agents registered yet.</p>
@@ -274,6 +409,11 @@ export default async function ApprovalsPage() {
                   <span className="deck-core-label">pending</span>
                 </div>
               </div>
+            </div>
+
+            <div className="deck-wordmark">
+              <span className="deck-wordmark-text">NEXA AI</span>
+              <span className="deck-wordmark-tagline">Your businesses, watched — automated where it's safe.</span>
             </div>
 
             {focusApproval ? (

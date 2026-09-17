@@ -1559,6 +1559,159 @@ form.opportunity-form button:hover {
   color: var(--muted);
 }
 
+/* The reactor's own wordmark/tagline — sits between the core ring and
+   its readout, same slot a big hero visual's brand text would occupy. */
+.deck-wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0.4rem 0 1rem;
+  text-align: center;
+}
+
+.deck-wordmark-text {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--fg);
+}
+
+.deck-wordmark-tagline {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* Header-row clock + real owner identity, right-aligned opposite the
+   greeting — a real name/initial from the signed-in owner, not a stock
+   avatar image. */
+.page-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.owner-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.owner-chip-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.owner-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.owner-chip-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.owner-chip-role {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* KPI row — real headline numbers only (see loadRevenueOverview() and
+   page.tsx's own comments on why each tile is what it is, not a
+   portfolio metric invented to fill a fourth slot). */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  clip-path: var(--panel-clip-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.kpi-tile-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  flex-shrink: 0;
+}
+
+.kpi-tile-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kpi-tile-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-tile-value-of {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.kpi-tile-delta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.kpi-tile-delta--up {
+  color: var(--approve);
+}
+
+.kpi-tile-delta--down {
+  color: var(--danger);
+}
+
+@media (max-width: 900px) {
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .page-header-meta {
+    flex-wrap: wrap;
+  }
+}
+
 .deck-gauge {
   margin: 0.25rem auto 0.75rem;
   width: 120px;
