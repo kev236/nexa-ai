@@ -1676,18 +1676,25 @@ form.opportunity-form button:hover {
 
 /* The Command Center's hero — the three.js globe (HoloGlobe.tsx) is
    the panel's actual background now, not a staged icon with its own
-   status ring: a big fixed-size square, self-centered via
-   position:absolute + top/left:50% + transform (works regardless of
-   the panel's own runtime size), deliberately larger than the panel
-   itself so it bleeds past every edge — the panel's clip-path is what
-   gives it its final silhouette. Real per-agent status now lives only
-   in the Agent roster panel, not duplicated here as a ring of dots. */
+   status ring, self-centered via position:absolute + top/left:50% +
+   transform (works regardless of the panel's own runtime size). Real
+   per-agent status now lives only in the Agent roster panel, not
+   duplicated here as a ring of dots.
+
+   Sized off the panel's own width (90%, capped at 620px) with
+   aspect-ratio:1 deriving height from that — not a fixed pixel size —
+   so the full sphere stays visible (a real center point, not just an
+   edge-to-edge texture crop) at both a wide desktop panel and a
+   narrow single-column mobile one, instead of one size that's either
+   cropped to abstraction on desktop or blown out past a phone's
+   screen. */
 .holo-globe {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 760px;
-  height: 760px;
+  width: 90%;
+  max-width: 620px;
+  aspect-ratio: 1;
   transform: translate(-50%, -50%);
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
@@ -1904,6 +1911,13 @@ form.opportunity-form button:hover {
 
   .page-header-meta {
     flex-wrap: wrap;
+  }
+
+  /* The globe itself already scales down with the panel's own width
+     (see .holo-globe) — this just keeps the panel from towering over
+     that smaller globe with empty glass on a narrow phone screen. */
+  .command-center-panel {
+    min-height: 26rem;
   }
 }
 
