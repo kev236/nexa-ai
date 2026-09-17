@@ -36,7 +36,8 @@ export function createYouTubeHttpClient(apiKey: string): YouTubeClient {
 
       const response = await fetch(url)
       if (!response.ok) {
-        throw new Error(`YouTube Data API returned HTTP ${response.status}`)
+        const detail = await response.text().catch(() => '')
+        throw new Error(`YouTube Data API returned HTTP ${response.status}: ${detail}`)
       }
       const body = (await response.json()) as YouTubeChannelListResponse
       const item = body.items?.[0]
