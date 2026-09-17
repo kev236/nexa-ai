@@ -17,6 +17,7 @@ import { PostgresContentConceptStore } from '../src/contentConcepts/postgresStor
 import { PostgresStoryConceptStore } from '../src/storyConcepts/postgresStore.js'
 import { PostgresSocialAccountStore } from '../src/socialAccounts/postgresStore.js'
 import { PostgresClipStore } from '../src/clips/postgresStore.js'
+import { PostgresOAuthCredentialStore } from '../src/oauthCredentials/postgresStore.js'
 import { generateStoryConceptOnce } from '../src/agents/runStoryConceptGeneration.js'
 import { importCampaignOnce } from '../src/agents/runCampaignImport.js'
 import { generateConceptsOnce } from '../src/agents/runCreativeGeneration.js'
@@ -50,7 +51,7 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts, social_accounts, clips RESTART IDENTITY CASCADE'
+      'TRUNCATE transactions, events, approvals, audit_log, decisions, agents, owners, businesses, opportunities, campaigns, content_concepts, story_concepts, social_accounts, clips, oauth_credentials RESTART IDENTITY CASCADE'
     )
     businessSlug = `test-${randomUUID()}`
     const business = await pool.query<{ id: string }>(
@@ -925,5 +926,32 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
 
     const list = await store.listByBusiness(businessId)
     expect(list.some((c) => c.id === id)).toBe(true)
+  })
+
+  it('stores and retrieves OAuth tokens against real Postgres, keeping the refresh token on re-save when omitted (step 25)', async () => {
+    const store = new PostgresOAuthCredentialStore(pool)
+
+    await store.save(businessId, 'youtube', {
+      accessToken: 'first-access-token',
+      refreshToken: 'a-real-refresh-token',
+      expiresAt: '2026-01-01T00:00:00Z',
+      scope: 'https://www.googleapis.com/auth/youtube.upload',
+    })
+
+    const first = await store.get(businessId, 'youtube')
+    expect(first?.refreshToken).toBe('a-real-refresh-token')
+    expect(first?.accessToken).toBe('first-access-token')
+
+    // A re-authorization's token response often omits refresh_token —
+    // the existing one must survive, not get wiped out.
+    await store.save(businessId, 'youtube', {
+      accessToken: 'renewed-access-token',
+      expiresAt: '2026-01-01T01:00:00Z',
+      scope: 'https://www.googleapis.com/auth/youtube.upload',
+    })
+
+    const renewed = await store.get(businessId, 'youtube')
+    expect(renewed?.accessToken).toBe('renewed-access-token')
+    expect(renewed?.refreshToken).toBe('a-real-refresh-token')
   })
 })

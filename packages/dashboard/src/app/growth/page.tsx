@@ -30,15 +30,24 @@ const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 async function loadSection(loader: () => Promise<BusinessRecord>) {
   try {
     const business = await loader()
-    const accounts = await getEngine().socialAccountStore.listByBusiness(business.id)
-    return { business, accounts }
+    const engine = getEngine()
+    const [accounts, youtubeOAuth] = await Promise.all([
+      engine.socialAccountStore.listByBusiness(business.id),
+      engine.oauthCredentialStore.get(business.id, 'youtube'),
+    ])
+    return { business, accounts, youtubeConnected: youtubeOAuth !== undefined }
   } catch {
     return undefined
   }
 }
 
-export default async function GrowthPage() {
+export default async function GrowthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ youtube_connected?: string }>
+}) {
   await verifySession()
+  const { youtube_connected } = await searchParams
 
   const [trendRush, sproutlight] = await Promise.all([
     loadSection(getTrendRushBusiness),
@@ -57,6 +66,12 @@ export default async function GrowthPage() {
         </p>
       </div>
 
+      {youtube_connected === '1' && (
+        <p className="status-badge status-active" style={{ marginBottom: '1rem', display: 'inline-block' }}>
+          YouTube connected — publish access is authorized once verification completes.
+        </p>
+      )}
+
       {!trendRush && !sproutlight ? (
         <p className="empty">
           No growth-tracked businesses set up yet — run db:register-business for trendrush and/or sproutlight
@@ -70,6 +85,7 @@ export default async function GrowthPage() {
               meta="clip reposting"
               business={trendRush.business}
               accounts={trendRush.accounts}
+              youtubeConnected={trendRush.youtubeConnected}
               eligibilityThreshold={CAMPAIGN_ELIGIBILITY_THRESHOLD}
             />
           )}
@@ -79,6 +95,7 @@ export default async function GrowthPage() {
               meta="kids' content"
               business={sproutlight.business}
               accounts={sproutlight.accounts}
+              youtubeConnected={sproutlight.youtubeConnected}
             />
           )}
         </>
@@ -92,12 +109,14 @@ function GrowthSection({
   meta,
   business,
   accounts,
+  youtubeConnected,
   eligibilityThreshold,
 }: {
   title: string
   meta: string
   business: BusinessRecord
   accounts: SocialAccountRecord[]
+  youtubeConnected: boolean
   eligibilityThreshold?: number
 }) {
   const byPlatform = new Map(accounts.map((a) => [a.platform, a]))
@@ -132,6 +151,21 @@ function GrowthSection({
                 <span className="growth-platform">{PLATFORM_LABELS[platform]}</span>
                 {account?.handle && <span className="meta mono">@{account.handle}</span>}
               </div>
+
+              {platform === 'youtube' &&
+                (youtubeConnected ? (
+                  <span className="status-badge status-active" style={{ marginBottom: '0.5rem' }}>
+                    Publish access connected
+                  </span>
+                ) : (
+                  <a
+                    href={`/api/oauth/youtube/start?business=${business.slug}`}
+                    className="status-badge status-requested"
+                    style={{ marginBottom: '0.5rem', textDecoration: 'none' }}
+                  >
+                    Connect YouTube for publishing
+                  </a>
+                ))}
 
               {pct !== undefined ? (
                 <div className="growth-gauge">

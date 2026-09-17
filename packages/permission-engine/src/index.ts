@@ -50,6 +50,8 @@ export { createPostgresCampaignStore } from './campaigns/postgresStore.js'
 export { createPostgresContentConceptStore } from './contentConcepts/postgresStore.js'
 export { createPostgresStoryConceptStore } from './storyConcepts/postgresStore.js'
 export { createPostgresSocialAccountStore } from './socialAccounts/postgresStore.js'
+export { createPostgresOAuthCredentialStore } from './oauthCredentials/postgresStore.js'
+export type { OAuthCredentialStore, OAuthCredentialRecord, OAuthPlatform } from './oauthCredentials/store.js'
 export { createPostgresClipStore } from './clips/postgresStore.js'
 export {
   NexaLabsAdapter,

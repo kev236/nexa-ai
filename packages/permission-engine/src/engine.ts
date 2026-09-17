@@ -27,6 +27,8 @@ import type { SocialAccountStore } from './socialAccounts/store.js'
 import { InMemorySocialAccountStore } from './socialAccounts/memoryStore.js'
 import type { ClipStore } from './clips/store.js'
 import { InMemoryClipStore } from './clips/memoryStore.js'
+import type { OAuthCredentialStore } from './oauthCredentials/store.js'
+import { InMemoryOAuthCredentialStore } from './oauthCredentials/memoryStore.js'
 import type { BusinessAdapter, ObservedEvent } from './adapters/types.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
@@ -54,6 +56,8 @@ export type PermissionEngineDeps = {
   socialAccountStore?: SocialAccountStore
   /** Step 23: TrendRush's clip evaluations — same trust level as StoryConceptStore. */
   clipStore?: ClipStore
+  /** Step 25: OAuth tokens granting real write access to a connected platform account. */
+  oauthCredentialStore?: OAuthCredentialStore
   /** Step 10: optional — no notifier configured means no attempt, not an error. */
   notifier?: Notifier
 }
@@ -102,6 +106,7 @@ export type PermissionEngine = {
   storyConceptStore: StoryConceptStore
   socialAccountStore: SocialAccountStore
   clipStore: ClipStore
+  oauthCredentialStore: OAuthCredentialStore
 }
 
 /**
@@ -125,6 +130,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   const storyConceptStore = deps.storyConceptStore ?? new InMemoryStoryConceptStore()
   const socialAccountStore = deps.socialAccountStore ?? new InMemorySocialAccountStore()
   const clipStore = deps.clipStore ?? new InMemoryClipStore()
+  const oauthCredentialStore = deps.oauthCredentialStore ?? new InMemoryOAuthCredentialStore()
   const notifier = deps.notifier
 
   async function requestAction(request: ActionRequest): Promise<ActionOutcome> {
@@ -368,6 +374,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     storyConceptStore,
     socialAccountStore,
     clipStore,
+    oauthCredentialStore,
   }
 }
 
