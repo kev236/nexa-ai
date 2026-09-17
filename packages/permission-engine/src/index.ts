@@ -56,6 +56,8 @@ export {
   createNexaLabsAdapter,
   SANITY_WEBHOOK_SIGNATURE_HEADER,
 } from './adapters/nexaLabsAdapter.js'
+export { createYouTubeHttpClient, fetchYouTubeSubscriberCount } from './adapters/youtubeAdapter.js'
+export type { YouTubeClient, YouTubeChannelStats } from './adapters/youtubeAdapter.js'
 export { triageEvent } from './agents/waitlistTriageAgent.js'
 export type { TriageResult } from './agents/waitlistTriageAgent.js'
 export { runWaitlistTriageOnce } from './agents/runWaitlistTriage.js'
