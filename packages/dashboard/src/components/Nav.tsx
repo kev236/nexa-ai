@@ -92,6 +92,16 @@ export async function Nav({ active }: { active: NavKey }) {
           <span>Sign out</span>
         </button>
       </form>
+
+      <p className="nav-watermark" aria-hidden>
+        BIGGER
+        <br />
+        FASTER
+        <br />
+        SMARTER
+        <br />
+        NEXA AI
+      </p>
     </nav>
   )
 }

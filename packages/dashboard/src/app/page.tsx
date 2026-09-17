@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Bot,
   Bell,
+  ChevronDown,
 } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
@@ -32,7 +33,7 @@ import { formatAmount, displayNameFromEmail, relativeTime, humanizeActionType } 
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { summarizeRevenue } from '@/lib/revenue'
 import { sparklinePath } from '@/lib/sparkline'
-import { resolveApproval } from '@/app/actions'
+import { resolveApproval, logout } from '@/app/actions'
 import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
@@ -170,6 +171,7 @@ function HudPanel({
   icon: Icon,
   title,
   badge,
+  viewAllHref,
   children,
   className,
   style,
@@ -177,6 +179,7 @@ function HudPanel({
   icon: typeof Users
   title: string
   badge?: string
+  viewAllHref?: string
   children: ReactNode
   className?: string
   style?: React.CSSProperties
@@ -187,6 +190,11 @@ function HudPanel({
         <Icon size={15} className="hud-panel-icon" aria-hidden />
         <span className="hud-panel-title">{title}</span>
         {badge && <span className="hud-panel-badge">{badge}</span>}
+        {viewAllHref && (
+          <Link href={viewAllHref} className="hud-panel-view-all">
+            View all
+          </Link>
+        )}
       </div>
       {children}
     </div>
@@ -296,22 +304,30 @@ export default async function ApprovalsPage() {
           </div>
           <div className="page-header-meta">
             <span className="page-header-clock mono">
-              <LiveClock />
+              <LiveClock withDate />
             </span>
             <Link href="#pending-approvals" className="notification-bell" aria-label={`${pending.length} pending approvals`}>
               <Bell size={17} aria-hidden />
               {pending.length > 0 && <span className="notification-bell-badge">{pending.length}</span>}
             </Link>
             {ownerName && (
-              <div className="owner-chip">
-                <span className="owner-chip-avatar" aria-hidden>
-                  {ownerName.charAt(0).toUpperCase()}
-                </span>
-                <span className="owner-chip-text">
-                  <span className="owner-chip-name">{ownerName}</span>
-                  <span className="owner-chip-role">Owner</span>
-                </span>
-              </div>
+              <details className="owner-menu">
+                <summary className="owner-chip">
+                  <span className="owner-chip-avatar" aria-hidden>
+                    {ownerName.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="owner-chip-text">
+                    <span className="owner-chip-name">{ownerName}</span>
+                    <span className="owner-chip-role">Owner</span>
+                  </span>
+                  <ChevronDown size={14} className="owner-chip-chevron" aria-hidden />
+                </summary>
+                <form action={logout} className="owner-menu-panel">
+                  <button type="submit" className="owner-menu-signout">
+                    Sign out
+                  </button>
+                </form>
+              </details>
             )}
           </div>
         </div>
@@ -383,30 +399,6 @@ export default async function ApprovalsPage() {
               </svg>
             ) : (
               <p className="empty">No EUR revenue observed yet.</p>
-            )}
-          </HudPanel>
-
-          <HudPanel icon={Users} title="Agent roster" badge={`${activeAgents}/${agents.length}`} className="deck-enter" style={{ animationDelay: '0.1s' }}>
-            {agents.length === 0 ? (
-              <p className="empty">No agents registered yet.</p>
-            ) : (
-              <ul className="agent-roster-list">
-                {agents.map((agent) => (
-                  <li className="agent-roster-item" key={agent.id}>
-                    <span className="agent-roster-icon" aria-hidden>
-                      <Bot size={15} />
-                    </span>
-                    <div className="agent-roster-body">
-                      <span className="agent-key">{agent.key}</span>
-                      <span className="agent-roster-role">{agent.role}</span>
-                    </div>
-                    <span className={agent.active ? 'status-badge status-active' : 'status-badge status-inactive'}>
-                      {agent.active && <span className="pulse-dot pulse-dot--inline" aria-hidden />}
-                      {agent.active ? 'active' : 'idle'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             )}
           </HudPanel>
 
@@ -520,6 +512,30 @@ export default async function ApprovalsPage() {
         </div>
 
         <div className="hud-col">
+          <HudPanel icon={Users} title="Agent roster" badge={`${activeAgents}/${agents.length}`} className="deck-enter" style={{ animationDelay: '0.1s' }}>
+            {agents.length === 0 ? (
+              <p className="empty">No agents registered yet.</p>
+            ) : (
+              <ul className="agent-roster-list">
+                {agents.map((agent) => (
+                  <li className="agent-roster-item" key={agent.id}>
+                    <span className="agent-roster-icon" aria-hidden>
+                      <Bot size={15} />
+                    </span>
+                    <div className="agent-roster-body">
+                      <span className="agent-key">{agent.key}</span>
+                      <span className="agent-roster-role">{agent.role}</span>
+                    </div>
+                    <span className={agent.active ? 'status-badge status-active' : 'status-badge status-inactive'}>
+                      {agent.active && <span className="pulse-dot pulse-dot--inline" aria-hidden />}
+                      {agent.active ? 'active' : 'idle'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HudPanel>
+
           <HudPanel icon={Gauge} title="System metrics" className="deck-enter" style={{ animationDelay: '0.2s' }}>
             <div className="meter">
               <div className="meter-label">
@@ -583,7 +599,14 @@ export default async function ApprovalsPage() {
         </div>
       </div>
 
-      <HudPanel icon={Activity} title="Live activity feed" badge={`${feed.length} recent`} className="deck-feed-panel deck-enter" style={{ animationDelay: '0.4s' }}>
+      <HudPanel
+        icon={Activity}
+        title="Live activity feed"
+        badge={`${feed.length} recent`}
+        viewAllHref="/activity"
+        className="deck-feed-panel deck-enter"
+        style={{ animationDelay: '0.4s' }}
+      >
         {feed.length === 0 ? (
           <p className="empty">Nothing observed yet.</p>
         ) : (

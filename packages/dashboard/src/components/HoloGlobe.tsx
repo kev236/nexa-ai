@@ -22,8 +22,9 @@ export function HoloGlobe() {
     if (!container) return
 
     const styles = getComputedStyle(document.documentElement)
-    const accent = new THREE.Color(styles.getPropertyValue('--accent').trim() || '#a78bfa')
-    const accentStrong = new THREE.Color(styles.getPropertyValue('--accent-strong').trim() || '#8b5cf6')
+    const accent = new THREE.Color(styles.getPropertyValue('--accent').trim() || '#8b5cf6')
+    const accentStrong = new THREE.Color(styles.getPropertyValue('--accent-strong').trim() || '#7c3aed')
+    const accentBlue = new THREE.Color(styles.getPropertyValue('--accent-blue').trim() || '#3b82f6')
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -128,7 +129,7 @@ export function HoloGlobe() {
     const sweepArc = new THREE.Mesh(
       new THREE.TorusGeometry(1.25, 0.006, 8, 48, Math.PI * 0.6),
       new THREE.MeshBasicMaterial({
-        color: accentStrong,
+        color: accentBlue,
         transparent: true,
         opacity: 0.6,
         blending: THREE.AdditiveBlending,

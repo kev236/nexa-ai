@@ -4,23 +4,28 @@
   --panel-cut: 16px;
   --panel-cut-sm: 8px;
 
-  --bg: #0a0714;
-  --bg-elevated: #150f26;
-  --bg-sidebar: #0c0817;
-  --bg-inset: #0f0b1d;
-  --fg: #ede9f7;
-  --muted: #948fb0;
-  --border: #2b2347;
-  --border-strong: #40336e;
+  --bg: #070814;
+  /* Glassmorphism surfaces: translucent, blurred (see the shared panel
+     rule below for backdrop-filter) rather than opaque — the deep-space
+     background and its ambient glows show through every panel now. */
+  --bg-elevated: rgba(15, 17, 34, 0.6);
+  --bg-sidebar: rgba(9, 10, 22, 0.72);
+  --bg-inset: rgba(12, 13, 28, 0.55);
+  --fg: #ffffff;
+  --muted: #9ca3af;
+  --border: rgba(138, 92, 246, 0.2);
+  --border-strong: rgba(138, 92, 246, 0.42);
 
-  --accent: #a78bfa;
-  --accent-strong: #8b5cf6;
-  --accent-glow: rgba(167, 139, 250, 0.35);
+  --accent: #8b5cf6;
+  --accent-strong: #7c3aed;
+  --accent-blue: #3b82f6;
+  --accent-magenta: #d946ef;
+  --accent-glow: rgba(139, 92, 246, 0.35);
 
-  --danger: #f87171;
-  --danger-bg: rgba(248, 113, 113, 0.12);
-  --approve-bg: rgba(52, 211, 153, 0.12);
-  --approve: #34d399;
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --approve-bg: rgba(16, 185, 129, 0.12);
+  --approve: #10b981;
   --warn-bg: rgba(251, 191, 36, 0.12);
   --warn: #fbbf24;
 
@@ -65,8 +70,8 @@ body {
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 820px 520px at 12% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
-    radial-gradient(ellipse 640px 520px at 104% 18%, color-mix(in srgb, var(--accent-strong) 10%, transparent), transparent 60%),
-    radial-gradient(ellipse 700px 500px at 50% 120%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%);
+    radial-gradient(ellipse 640px 520px at 104% 18%, color-mix(in srgb, var(--accent-blue) 10%, transparent), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 50% 120%, color-mix(in srgb, var(--accent-magenta) 7%, transparent), transparent 60%);
   background-attachment: fixed;
   color: var(--fg);
   font-family: var(--font-body);
@@ -174,6 +179,10 @@ h1 {
   margin-top: 0.2rem;
 }
 
+.page-header-clock-sep {
+  color: var(--muted);
+}
+
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -232,6 +241,8 @@ form.login-form,
 form.opportunity-form .score-grid {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .card::before,
@@ -456,6 +467,8 @@ button.deny:hover {
   height: 100vh;
   padding: 1.75rem 1.1rem 1.5rem;
   background: var(--bg-sidebar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-right: 1px solid var(--border);
   box-shadow: 8px 0 28px -18px var(--accent-glow);
   box-sizing: border-box;
@@ -640,6 +653,29 @@ button.deny:hover {
   color: var(--danger);
   filter: none;
   border-color: transparent;
+}
+
+/* Pure branding flavor text, not a data claim — safe to stack low-opacity
+   at the foot of the sidebar the way the reference mockup does. */
+.nav-watermark {
+  margin: 0;
+  padding: 0 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg);
+  opacity: 0.06;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .nav-watermark {
+    display: none;
+  }
 }
 
 section {
@@ -835,46 +871,18 @@ form.login-form button:hover {
   color: var(--accent);
 }
 
-.signal-feed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+.hud-panel-view-all {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  margin-left: 0.6rem;
+  transition: color 0.15s ease;
 }
 
-.signal-feed-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-}
-
-.signal-feed-item .action-type {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.signal-feed-item .agent-key {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.signal-dot--off {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.5;
-  flex-shrink: 0;
+.hud-panel-view-all:hover {
+  color: var(--accent);
 }
 
 /* Agent roster — one real row per registered agent, with its own real
@@ -1259,6 +1267,8 @@ form.login-form button:hover {
   padding: 0.75rem 0.4rem;
   clip-path: var(--panel-clip-sm);
   background: var(--bg-inset);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   color: var(--muted);
   text-decoration: none;
@@ -1908,10 +1918,68 @@ form.opportunity-form button:hover {
   box-shadow: 0 0 8px color-mix(in srgb, var(--danger) 60%, transparent);
 }
 
+/* The owner chip doubles as a <details> summary (see .owner-menu) —
+   real Sign out lives in both the sidebar and here now, since the
+   reference's "expand icon" next to the profile implies a real menu,
+   not a decoration. */
+.owner-menu {
+  position: relative;
+}
+
 .owner-chip {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.owner-chip::-webkit-details-marker {
+  display: none;
+}
+
+.owner-chip-chevron {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.owner-menu[open] .owner-chip-chevron {
+  transform: rotate(180deg);
+}
+
+.owner-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  padding: 0.4rem;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+}
+
+.owner-menu-signout {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.owner-menu-signout:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .owner-chip-avatar {
@@ -1970,6 +2038,8 @@ form.opportunity-form button:hover {
   padding: 0.9rem 1rem;
   clip-path: var(--panel-clip-sm);
   background: var(--bg-elevated);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   min-width: 0;
   text-decoration: none;
