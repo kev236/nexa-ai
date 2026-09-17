@@ -788,7 +788,7 @@ form.login-form button:hover {
 
 .hud-grid {
   display: grid;
-  grid-template-columns: 1fr minmax(320px, 1.3fr) 1fr;
+  grid-template-columns: 1fr minmax(340px, 1.6fr) 1fr;
   gap: 0.75rem;
   align-items: start;
   margin-bottom: 2.5rem;
@@ -877,6 +877,61 @@ form.login-form button:hover {
   flex-shrink: 0;
 }
 
+/* Agent roster — one real row per registered agent, with its own real
+   role text as the subtitle (agent.role, already fetched for the
+   Command Center highlights) rather than a fabricated capability
+   description. One shared icon glyph, not a per-agent icon guessing at
+   what each agent specifically does. */
+.agent-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.agent-roster-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.agent-roster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+}
+
+.agent-roster-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-roster-body .agent-key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-roster-role {
+  font-size: 0.68rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The Command Center — Approvals' central real-time focal point: a
    compact real agent-status core (not a full-width hero anymore — see
    session notes on why the globe moved from centerpiece to accent),
@@ -938,26 +993,63 @@ form.login-form button:hover {
 
 .command-center-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.85rem;
+  text-align: center;
+  gap: 0.65rem;
 }
 
 .command-center-core {
   position: relative;
   flex-shrink: 0;
-  width: 90px;
-  height: 90px;
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* A soft glowing base the core "rests" on, echoing a holographic
+   projector pedestal — purely decorative, breathes independently of
+   the globe's own rotation. */
+.command-center-pedestal {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  width: 130%;
+  height: 22px;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 45%, transparent), transparent 72%);
+  filter: blur(3px);
+  animation: pedestal-pulse 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pedestal-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateX(-50%) scaleX(0.9);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) scaleX(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-center-pedestal {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 .command-center-core-ring {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 68px;
-  height: 68px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   border-top-color: color-mix(in srgb, var(--accent) 70%, transparent);
@@ -984,14 +1076,16 @@ form.login-form button:hover {
 .command-center-heading {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  align-items: center;
+  gap: 0.3rem;
   min-width: 0;
+  max-width: 320px;
 }
 
 .command-center-status {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .command-center-summary {
@@ -1687,23 +1781,23 @@ form.opportunity-form button:hover {
   }
 }
 
-/* The Command Center's compact core (see .command-center-core in the
+/* The Command Center's hero core (see .command-center-core in the
    shared block above) — a ring carrying one real node per registered
-   agent, lit and pulsing only for agents that are actually active, with
-   the three.js globe behind it as an accent rather than a full-width
-   hero. Reuses .hud-panel/.signal-feed/.growth-gauge for everything
-   around it, so only the core/feed/status-bar pieces below are unique. */
+   agent, lit and pulsing only for agents that are actually active,
+   staged in front of the three.js globe as the panel's centerpiece.
+   Reuses .hud-panel/.growth-gauge for everything around it, so only
+   the core/feed/status-bar pieces below are unique. */
 
 /* The three.js canvas (HoloGlobe.tsx) — sized and centered to bleed
-   past .command-center-core's 90px box for a soft glow edge, positioned
+   past .command-center-core's 160px box for a soft glow edge, positioned
    behind the real agent-node ring (both stay in normal flow /
    absolute-positioned above this in DOM order). */
 .holo-globe {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 140px;
-  height: 140px;
+  width: 250px;
+  height: 250px;
   transform: translate(-50%, -50%);
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
@@ -1757,9 +1851,9 @@ form.opportunity-form button:hover {
    header row it now sits in. */
 .deck-wordmark-text {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   color: var(--fg);
 }
 
@@ -1770,6 +1864,48 @@ form.opportunity-form button:hover {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+}
+
+/* Real pending-approval count (pending.length, the same number the
+   subtitle and the "Attention needed" tile already use) — links down
+   to the Pending approvals section rather than opening a fabricated
+   notification list. */
+.notification-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.notification-bell:hover,
+.notification-bell:focus-visible {
+  border-color: var(--accent-strong);
+  color: var(--accent);
+}
+
+.notification-bell-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--danger) 60%, transparent);
 }
 
 .owner-chip {

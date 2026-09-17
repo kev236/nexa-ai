@@ -16,6 +16,8 @@ import {
   Building2,
   Zap,
   AlertTriangle,
+  Bot,
+  Bell,
 } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
@@ -48,13 +50,13 @@ const MODEL_LABEL = 'Claude Opus 5'
 const GAUGE_RADIUS = 42
 const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 
-// The Command Center's core ring is 68px across (see
+// The Command Center's core ring is 120px across (see
 // .command-center-core-ring) — this radius places each agent node
-// exactly on that circumference, centered on the 90px
+// exactly on that circumference, centered on the 160px
 // .command-center-core box (.deck-core-node's own negative margin
 // centers the dot on its own point).
-const CORE_NODE_RADIUS = 34
-const CORE_CENTER = 45
+const CORE_NODE_RADIUS = 60
+const CORE_CENTER = 80
 
 function coreNodePosition(index: number, total: number): { left: number; top: number } {
   const angle = (2 * Math.PI * index) / total - Math.PI / 2
@@ -296,6 +298,10 @@ export default async function ApprovalsPage() {
             <span className="page-header-clock mono">
               <LiveClock />
             </span>
+            <Link href="#pending-approvals" className="notification-bell" aria-label={`${pending.length} pending approvals`}>
+              <Bell size={17} aria-hidden />
+              {pending.length > 0 && <span className="notification-bell-badge">{pending.length}</span>}
+            </Link>
             {ownerName && (
               <div className="owner-chip">
                 <span className="owner-chip-avatar" aria-hidden>
@@ -384,16 +390,18 @@ export default async function ApprovalsPage() {
             {agents.length === 0 ? (
               <p className="empty">No agents registered yet.</p>
             ) : (
-              <ul className="signal-feed">
+              <ul className="agent-roster-list">
                 {agents.map((agent) => (
-                  <li className="signal-feed-item" key={agent.id}>
-                    {agent.active ? (
-                      <span className="pulse-dot pulse-dot--inline" aria-hidden />
-                    ) : (
-                      <span className="signal-dot--off" aria-hidden />
-                    )}
-                    <span className="agent-key">{agent.key}</span>
+                  <li className="agent-roster-item" key={agent.id}>
+                    <span className="agent-roster-icon" aria-hidden>
+                      <Bot size={15} />
+                    </span>
+                    <div className="agent-roster-body">
+                      <span className="agent-key">{agent.key}</span>
+                      <span className="agent-roster-role">{agent.role}</span>
+                    </div>
                     <span className={agent.active ? 'status-badge status-active' : 'status-badge status-inactive'}>
+                      {agent.active && <span className="pulse-dot pulse-dot--inline" aria-hidden />}
                       {agent.active ? 'active' : 'idle'}
                     </span>
                   </li>
@@ -441,6 +449,7 @@ export default async function ApprovalsPage() {
             <span className="command-center-scan" aria-hidden />
             <div className="command-center-header">
               <div className="command-center-core">
+                <span className="command-center-pedestal" aria-hidden />
                 <HoloGlobe />
                 <div className="command-center-core-ring" aria-hidden />
                 {agents.map((agent, index) => {
@@ -638,7 +647,9 @@ export default async function ApprovalsPage() {
         </>
       )}
 
-      <h2 className="section-title">Pending approvals</h2>
+      <h2 className="section-title" id="pending-approvals">
+        Pending approvals
+      </h2>
       {pending.length === 0 ? (
         <p className="empty">Nexa AI has no pending requests right now.</p>
       ) : (
