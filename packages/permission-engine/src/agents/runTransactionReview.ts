@@ -65,9 +65,27 @@ export async function runTransactionReviewOnce(
 
     const result = await reviewTransaction(llmClient, transaction)
     const subject = `Nexa AI: ${transaction.type} worth a look`
-    const expectedResult: JsonValue = result.worthFlagging
-      ? { to: ownerEmail, subject, body: result.draftAlert ?? '' }
-      : { flagged: false }
+    // transaction-review.md's own tool schema doesn't require draftAlert
+    // even when worthFlagging is true (unlike clipDiscoveryAgent.ts /
+    // storyConceptAgent.ts, this agent has no response validation at
+    // all) — a real response shape this model can and does return. The
+    // old code trusted draftAlert being present whenever worthFlagging
+    // was true; when it wasn't, requestAction() never fired, but the
+    // transaction still got linkDecision()'d as reviewed — the one
+    // transaction the model itself judged worth an alert silently never
+    // got one, with no way to revisit it. Falling back to a body that
+    // says exactly that, rather than sending nothing, is what actually
+    // keeps this agent's own purpose intact.
+    let expectedResult: JsonValue
+    let alertBody: string | undefined
+    if (result.worthFlagging) {
+      alertBody =
+        result.draftAlert?.trim() ||
+        `Nexa AI flagged this ${transaction.type} as worth a look but didn't draft alert text. Reasoning: ${result.reasoning}`
+      expectedResult = { to: ownerEmail, subject, body: alertBody }
+    } else {
+      expectedResult = { flagged: false }
+    }
 
     const decisionId = await engine.decisionStore.record({
       businessId,
@@ -79,12 +97,12 @@ export async function runTransactionReviewOnce(
     })
     await engine.transactionStore.linkDecision(transaction.id, decisionId)
 
-    if (result.worthFlagging && result.draftAlert) {
+    if (result.worthFlagging && alertBody) {
       await engine.requestAction({
         businessId,
         agentId,
         actionType: 'send_email',
-        payload: { to: ownerEmail, subject, body: result.draftAlert },
+        payload: { to: ownerEmail, subject, body: alertBody },
         reasoning: result.reasoning,
         expectedResult,
         // Recorded for the audit trail — see runWaitlistTriage.ts's

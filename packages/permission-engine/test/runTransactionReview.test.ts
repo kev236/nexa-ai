@@ -81,6 +81,36 @@ describe('runTransactionReviewOnce', () => {
     })
   })
 
+  it('still alerts the owner when worthFlagging is true but the model left draftAlert empty', async () => {
+    registerExecutor('send_email', async (payload) => payload)
+    const engine = createPermissionEngine()
+    await engine.ingestTransactions(
+      fakeAdapter([
+        { type: 'payout', amountCents: 250000, currency: 'USD', externalRef: 'txn-2', status: 'succeeded', occurredAt: '2026-01-01T00:00:00Z' },
+      ]),
+      'biz_1'
+    )
+
+    // A real, reachable response shape: transaction-review.md's own tool
+    // schema doesn't require draftAlert even when worthFlagging is true.
+    const llmClient = fakeLlmClient({
+      reasoning: 'Unusually large payout.',
+      worthFlagging: true,
+      confidence: 0.7,
+    })
+
+    const summary = await runTransactionReviewOnce(engine, llmClient, 'biz_1', 'agent_1', OWNER_EMAIL)
+    expect(summary).toEqual({ reviewed: 1, flagged: 1 })
+
+    const pending = await engine.listPendingApprovals()
+    expect(pending).toHaveLength(1)
+    expect(pending[0]?.request.actionType).toBe('send_email')
+    const payload = pending[0]?.request.payload as { to: string; subject: string; body: string }
+    expect(payload.to).toBe(OWNER_EMAIL)
+    expect(payload.body).toMatch(/didn't draft alert text/)
+    expect(payload.body).toMatch(/Unusually large payout/)
+  })
+
   it('records a decision but requests no action for a routine transaction', async () => {
     const engine = createPermissionEngine()
     await engine.ingestTransactions(
