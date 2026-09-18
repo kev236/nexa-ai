@@ -1,9 +1,22 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Nexa AI — Approvals',
   description: 'Owner approval dashboard for Nexa AI.',
+  // Lets "Add to Home Screen" on iOS open without Safari's browser chrome —
+  // manifest.ts's display:'standalone' covers Android/Chrome, but iOS
+  // Safari has historically relied on these meta tags instead.
+  appleWebApp: {
+    title: 'Nexa AI',
+    statusBarStyle: 'black-translucent',
+  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#070814',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
