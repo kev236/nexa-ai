@@ -7,7 +7,7 @@ export class InMemoryOAuthCredentialStore implements OAuthCredentialStore {
   async save(
     businessId: string,
     platform: OAuthPlatform,
-    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string }
+    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string; externalAccountId?: string }
   ): Promise<void> {
     const existing = [...this.records.values()].find((r) => r.businessId === businessId && r.platform === platform)
     const now = new Date().toISOString()
@@ -16,6 +16,7 @@ export class InMemoryOAuthCredentialStore implements OAuthCredentialStore {
       existing.refreshToken = tokens.refreshToken || existing.refreshToken
       existing.expiresAt = tokens.expiresAt
       existing.scope = tokens.scope
+      existing.externalAccountId = tokens.externalAccountId ?? existing.externalAccountId
       existing.updatedAt = now
       return
     }
@@ -31,6 +32,7 @@ export class InMemoryOAuthCredentialStore implements OAuthCredentialStore {
       refreshToken: tokens.refreshToken,
       expiresAt: tokens.expiresAt,
       scope: tokens.scope,
+      externalAccountId: tokens.externalAccountId,
       createdAt: now,
       updatedAt: now,
     })

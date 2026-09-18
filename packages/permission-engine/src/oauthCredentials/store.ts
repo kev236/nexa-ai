@@ -8,6 +8,15 @@ export type OAuthCredentialRecord = {
   refreshToken: string
   expiresAt: string
   scope: string
+  /**
+   * Step 29: the platform's own id for the connected account, resolved
+   * once at connect time — Instagram's publish flow needs its Business
+   * Account id to build /{ig-user-id}/media, and TikTok's token
+   * response carries an open_id worth keeping for the same reason.
+   * YouTube needs neither (the access token alone identifies the
+   * channel), so this stays undefined there.
+   */
+  externalAccountId?: string
   createdAt: string
   updatedAt: string
 }
@@ -30,7 +39,7 @@ export interface OAuthCredentialStore {
   save(
     businessId: string,
     platform: OAuthPlatform,
-    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string }
+    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string; externalAccountId?: string }
   ): Promise<void>
   get(businessId: string, platform: OAuthPlatform): Promise<OAuthCredentialRecord | undefined>
 }

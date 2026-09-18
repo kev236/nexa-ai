@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { Platform } from '../socialAccounts/store.js'
 import type { ClipInput, ClipRecord, ClipStore } from './store.js'
 
 export class InMemoryClipStore implements ClipStore {
@@ -39,10 +40,19 @@ export class InMemoryClipStore implements ClipStore {
       .slice(0, limit)
   }
 
-  async markPosted(clipId: string, youtubeVideoId: string): Promise<void> {
+  async markPosted(clipId: string, platform: Platform, externalId: string): Promise<void> {
     const record = this.records.get(clipId)
     if (!record) throw new Error(`no such clip: ${clipId}`)
-    record.youtubeVideoId = youtubeVideoId
-    record.youtubePostedAt = new Date().toISOString()
+    const now = new Date().toISOString()
+    if (platform === 'youtube') {
+      record.youtubeVideoId = externalId
+      record.youtubePostedAt = now
+    } else if (platform === 'instagram') {
+      record.instagramMediaId = externalId
+      record.instagramPostedAt = now
+    } else {
+      record.tiktokPublishId = externalId
+      record.tiktokPostedAt = now
+    }
   }
 }

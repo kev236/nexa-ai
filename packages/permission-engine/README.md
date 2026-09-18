@@ -869,3 +869,75 @@ about code *outside* this package, not within it.
   executor tests each assert their fixed value), lint, and
   `tsc --noEmit` all pass. Not exercised against a live YouTube upload
   from this sandbox, same limitation as step 27.
+
+- Step 29 — TrendRush posts to Instagram and TikTok now, not just
+  YouTube, per the owner's direct instruction. New: migration `0023`
+  (per-platform posted-id columns on `clips`, plus `external_account_id`
+  on `oauth_credentials`); `ClipStore.markPosted()` generalized from a
+  YouTube-only signature to `(clipId, platform, externalId)`;
+  `src/executors/postClipTiktok.ts` and `postClipInstagram.ts`;
+  `src/adapters/tiktokUploadAdapter.ts` (the Content Posting API's
+  init/upload/status flow) and `instagramAdapter.ts` (Facebook Login
+  token exchange, Page/IG-account resolution, the container-based
+  publish flow); `tiktokAdapter.ts`'s `exchangeCode` gained a required
+  `codeVerifier` param (TikTok's posting API requires PKCE);
+  `api/oauth/tiktok/` and `api/oauth/instagram/` start+callback routes,
+  same shape as `api/oauth/youtube/`; `/clips` and `/growth` now show
+  connect/post/posted state for all three platforms, not just YouTube.
+
+  **This step is a real departure from how the rest of this codebase
+  treats external API shapes.** Every previous OAuth/publish integration
+  here (YouTube's, and `tiktokAdapter.ts`'s own original token-exchange
+  code) was built only from the owner's own pasted API reference or a
+  documentation page this environment could actually fetch — see
+  `tiktokAdapter.ts`'s pre-step-29 comment, which held that line
+  explicitly and named the risk of doing otherwise ("this project's own
+  README describes the risk that shelved the original clip-reposting
+  business once already"). `developers.tiktok.com` and
+  `developers.facebook.com` are both blocked by this sandbox's network
+  egress (confirmed via a direct fetch attempt, not assumed), so this
+  step's TikTok Content Posting API and Instagram Graph API code —
+  endpoint paths, scope names, request/response field names, PKCE and
+  chunking requirements, the Facebook Login vs. "Instagram API with
+  Instagram Login" choice — is built from several independent,
+  cross-checked third-party 2026 integration guides instead. That's
+  real signal (the same shapes appearing independently across unrelated
+  sources), but it is not the standard this codebase held itself to
+  before, and every adapter/route file carries its own comment saying
+  so. Treat every exact field/endpoint name in `tiktokUploadAdapter.ts`,
+  `instagramAdapter.ts`, and the two new OAuth route pairs as needing
+  confirmation — against the real docs once this sandbox can reach
+  them, or against a real first test post — before trusting it for a
+  real account. This is exactly the kind of unverified-external-API
+  risk the pre-step-29 standard existed to avoid; it was accepted here
+  because "prepare everything, I'll add the real API credentials and
+  test it myself later" makes that verification the owner's own next
+  step regardless, not because the risk stopped mattering.
+
+  Two structural differences from YouTube's posting path, not
+  implementation details: Instagram's publish API needs a URL its own
+  servers can fetch and never accepts raw bytes, so `postClipInstagram`
+  takes a `videoUrl` rather than a video file/buffer — only usable when
+  the owner pasted a video URL rather than uploading a file (see
+  `videoInput.ts`'s `getPublicVideoUrl`); and Meta's own guidance
+  (poll roughly once a minute for up to 5 minutes) doesn't fit inside a
+  typical serverless function's time budget, so `postClipInstagram`
+  polls faster for a shorter, configurable window and throws a clear
+  error naming the container id if it isn't done in time, rather than
+  blocking indefinitely.
+
+  Also carried over from step 28: TikTok posting has no copyright-risk
+  gate either, same reasoning and same owner instruction as YouTube's.
+  An *unaudited* TikTok API client (the state this will be in until the
+  owner's client passes TikTok's own review) is forced to `SELF_ONLY`
+  regardless of what's requested, and real Instagram publishing beyond
+  the app's own registered testers needs Meta's App Review for
+  `instagram_content_publish` — both enforced by the platform itself,
+  same shape as YouTube's own verification-gated Private cap.
+
+  Verified: full test suite (new coverage for both adapters and both
+  executors, plus the generalized `markPosted`), lint, `tsc --noEmit`,
+  and the import-boundary check all pass. Not exercised against a live
+  TikTok or Instagram account, or a real database (this migration's own
+  columns included) — same sandbox limitations steps 27/28 already
+  logged, now applying to three platforms instead of one.

@@ -22,15 +22,16 @@ export function ClipForm() {
         />
       </label>
       <label>
-        Video file (optional — posts to YouTube immediately, no review step)
+        Video file (optional — posts immediately to every connected platform, no review step)
         <input name="videoFile" type="file" accept="video/*" />
       </label>
       <label>
-        …or a video URL instead (fetched by the server, nothing to download)
+        …or a video URL instead (fetched by the server for YouTube/TikTok; Instagram uses this URL directly and needs it, not a file)
         <input name="videoUrl" type="url" placeholder="https://.../clip.mp4" />
       </label>
 
       {state?.error && <p className="error">{state.error}</p>}
+      {state?.notice && <p className="meta">{state.notice}</p>}
       <button type="submit" disabled={pending}>
         {pending ? 'Evaluating…' : 'Evaluate clip'}
       </button>

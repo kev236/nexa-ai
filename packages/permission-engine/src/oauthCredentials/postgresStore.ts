@@ -10,6 +10,7 @@ type Row = {
   refresh_token: string
   expires_at: string
   scope: string
+  external_account_id: string | null
   created_at: string
   updated_at: string
 }
@@ -23,6 +24,7 @@ function toRecord(row: Row): OAuthCredentialRecord {
     refreshToken: row.refresh_token,
     expiresAt: row.expires_at,
     scope: row.scope,
+    externalAccountId: row.external_account_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -34,7 +36,7 @@ export class PostgresOAuthCredentialStore implements OAuthCredentialStore {
   async save(
     businessId: string,
     platform: OAuthPlatform,
-    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string }
+    tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string; externalAccountId?: string }
   ): Promise<void> {
     // refresh_token is NOT NULL, not NOT-EMPTY — the upsert's own
     // COALESCE(NULLIF(...), ...) below correctly falls back to the
@@ -55,16 +57,17 @@ export class PostgresOAuthCredentialStore implements OAuthCredentialStore {
       }
     }
     await this.pool.query(
-      `INSERT INTO oauth_credentials (business_id, platform, access_token, refresh_token, expires_at, scope, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+      `INSERT INTO oauth_credentials (business_id, platform, access_token, refresh_token, expires_at, scope, external_account_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
        ON CONFLICT (business_id, platform)
        DO UPDATE SET
          access_token = EXCLUDED.access_token,
          refresh_token = COALESCE(NULLIF(EXCLUDED.refresh_token, ''), oauth_credentials.refresh_token),
          expires_at = EXCLUDED.expires_at,
          scope = EXCLUDED.scope,
+         external_account_id = COALESCE(EXCLUDED.external_account_id, oauth_credentials.external_account_id),
          updated_at = now()`,
-      [businessId, platform, tokens.accessToken, tokens.refreshToken ?? '', tokens.expiresAt, tokens.scope]
+      [businessId, platform, tokens.accessToken, tokens.refreshToken ?? '', tokens.expiresAt, tokens.scope, tokens.externalAccountId ?? null]
     )
   }
 

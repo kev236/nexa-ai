@@ -23,6 +23,12 @@ export type ClipRecord = {
   /** Step 27: set together, only once, only by post_clip_youtube's executor after a real upload succeeds — see markPosted(). */
   youtubeVideoId?: string
   youtubePostedAt?: string
+  /** Step 29: same one-time, executor-only contract as the youtube pair, for post_clip_instagram. */
+  instagramMediaId?: string
+  instagramPostedAt?: string
+  /** Step 29: same one-time, executor-only contract as the youtube pair, for post_clip_tiktok. */
+  tiktokPublishId?: string
+  tiktokPostedAt?: string
 }
 
 export type ClipInput = {
@@ -54,6 +60,11 @@ export interface ClipStore {
   get(id: string): Promise<ClipRecord | undefined>
   /** Most recent first. */
   listByBusiness(businessId: string, limit?: number): Promise<ClipRecord[]>
-  /** Idempotency guard is the caller's (the executor checks !record.youtubeVideoId first) — this just writes. */
-  markPosted(clipId: string, youtubeVideoId: string): Promise<void>
+  /**
+   * Idempotency guard is the caller's (each executor checks its own
+   * platform's id field is unset first) — this just writes. `platform`
+   * picks which pair of columns gets set; one clip can be marked posted
+   * on all three independently.
+   */
+  markPosted(clipId: string, platform: Platform, externalId: string): Promise<void>
 }

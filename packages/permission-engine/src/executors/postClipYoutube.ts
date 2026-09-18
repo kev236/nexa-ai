@@ -124,7 +124,7 @@ export function createPostClipYoutubeExecutor(
       input.mimeType
     )
 
-    await clipStore.markPosted(input.clipId, result.videoId)
+    await clipStore.markPosted(input.clipId, 'youtube', result.videoId)
 
     return { videoId: result.videoId, url: `https://youtu.be/${result.videoId}` }
   }

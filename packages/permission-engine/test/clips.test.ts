@@ -98,16 +98,31 @@ describe('InMemoryClipStore', () => {
     const id = await store.create('biz_1', { sourceDescription: 'a clip', ...evaluationInput() } as never)
     expect((await store.get(id))?.youtubeVideoId).toBeUndefined()
 
-    await store.markPosted(id, 'yt_abc123')
+    await store.markPosted(id, 'youtube', 'yt_abc123')
 
     const record = await store.get(id)
     expect(record?.youtubeVideoId).toBe('yt_abc123')
     expect(record?.youtubePostedAt).toBeDefined()
   })
 
+  it('markPosted records instagram and tiktok independently of youtube', async () => {
+    const store = new InMemoryClipStore()
+    const id = await store.create('biz_1', { sourceDescription: 'a clip', ...evaluationInput() } as never)
+
+    await store.markPosted(id, 'instagram', 'ig_media_1')
+    await store.markPosted(id, 'tiktok', 'publish_1')
+
+    const record = await store.get(id)
+    expect(record?.instagramMediaId).toBe('ig_media_1')
+    expect(record?.instagramPostedAt).toBeDefined()
+    expect(record?.tiktokPublishId).toBe('publish_1')
+    expect(record?.tiktokPostedAt).toBeDefined()
+    expect(record?.youtubeVideoId).toBeUndefined()
+  })
+
   it('markPosted throws for an unknown clip id', async () => {
     const store = new InMemoryClipStore()
-    await expect(store.markPosted('nope', 'yt_x')).rejects.toThrow(/no such clip/)
+    await expect(store.markPosted('nope', 'youtube', 'yt_x')).rejects.toThrow(/no such clip/)
   })
 })
 

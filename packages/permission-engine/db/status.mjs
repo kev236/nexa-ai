@@ -114,14 +114,20 @@ try {
       }
     }
     if (biz.slug === 'trendrush' || biz.slug === 'sproutlight') {
-      const oauth = await client
-        .query(`SELECT 1 FROM oauth_credentials WHERE business_id = $1 AND platform = 'youtube'`, [businessId])
-        .catch(() => ({ rows: [] }))
-      console.log(
-        oauth.rows.length > 0
-          ? '    [OK] YouTube connected (real upload credential on file)'
-          : '    [missing] YouTube not connected — visit /growth and click "Connect YouTube" for this business'
-      )
+      // Sproutlight only ever posts to YouTube; TrendRush posts to all
+      // three as of step 29 — see /clips and README.md's step 29 entry.
+      const platforms = biz.slug === 'trendrush' ? ['youtube', 'instagram', 'tiktok'] : ['youtube']
+      for (const platform of platforms) {
+        const oauth = await client
+          .query(`SELECT 1 FROM oauth_credentials WHERE business_id = $1 AND platform = $2`, [businessId, platform])
+          .catch(() => ({ rows: [] }))
+        const label = platform[0].toUpperCase() + platform.slice(1)
+        console.log(
+          oauth.rows.length > 0
+            ? `    [OK] ${label} connected (real upload credential on file)`
+            : `    [missing] ${label} not connected — visit /growth and click "Connect ${label}" for this business`
+        )
+      }
     }
   }
 
@@ -133,7 +139,8 @@ try {
     ['Shopify (dropshipping orders)', ['SHOPIFY_SHOP_DOMAIN', 'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET']],
     ['YouTube OAuth (TrendRush + Sproutlight posting)', ['YOUTUBE_OAUTH_CLIENT_ID', 'YOUTUBE_OAUTH_CLIENT_SECRET', 'YOUTUBE_OAUTH_REDIRECT_URI']],
     ['YouTube Data API (follower sync)', ['YOUTUBE_API_KEY']],
-    ['TikTok OAuth', ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET']],
+    ['TikTok OAuth (TrendRush posting)', ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET', 'TIKTOK_OAUTH_REDIRECT_URI']],
+    ['Instagram OAuth (TrendRush posting)', ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET', 'INSTAGRAM_OAUTH_REDIRECT_URI']],
     ['Sanity CMS', ['SANITY_PROJECT_ID', 'SANITY_DATASET']],
     ['Sanity webhook (push events)', ['SANITY_WEBHOOK_SECRET']],
     ['Self-improvement agent', ['GITHUB_TOKEN', 'GITHUB_REPOSITORY']],

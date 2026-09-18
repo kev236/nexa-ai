@@ -86,3 +86,27 @@ export async function resolveVideoInput(
   }
   return undefined
 }
+
+/**
+ * Instagram's publish API needs a URL its own servers can fetch, never
+ * raw bytes (postClipInstagram.ts's own comment has the detail) — so
+ * unlike resolveVideoInput above, an uploaded file is useless here even
+ * though it's the preferred source for YouTube/TikTok. Returns the
+ * pasted URL only when that's genuinely what was given (no file
+ * attached), same http(s) validation as readVideoFromUrl but without
+ * fetching the bytes — Instagram fetches it itself.
+ */
+export function getPublicVideoUrl(formData: FormData, fileField: string, urlField: string): string | undefined {
+  const file = formData.get(fileField)
+  if (file instanceof File && file.size > 0) return undefined
+
+  const url = formData.get(urlField)
+  if (typeof url !== 'string' || !url.trim()) return undefined
+  try {
+    const parsed = new URL(url.trim())
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined
+    return url.trim()
+  } catch {
+    return undefined
+  }
+}

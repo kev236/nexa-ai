@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { getPool } from '../db.js'
+import type { Platform } from '../socialAccounts/store.js'
 import type { ClipCaption, ClipInput, ClipRecord, ClipStore } from './store.js'
 
 type Row = {
@@ -18,6 +19,10 @@ type Row = {
   created_at: string
   youtube_video_id: string | null
   youtube_posted_at: string | null
+  instagram_media_id: string | null
+  instagram_posted_at: string | null
+  tiktok_publish_id: string | null
+  tiktok_posted_at: string | null
 }
 
 function toRecord(row: Row): ClipRecord {
@@ -37,7 +42,17 @@ function toRecord(row: Row): ClipRecord {
     createdAt: row.created_at,
     youtubeVideoId: row.youtube_video_id ?? undefined,
     youtubePostedAt: row.youtube_posted_at ?? undefined,
+    instagramMediaId: row.instagram_media_id ?? undefined,
+    instagramPostedAt: row.instagram_posted_at ?? undefined,
+    tiktokPublishId: row.tiktok_publish_id ?? undefined,
+    tiktokPostedAt: row.tiktok_posted_at ?? undefined,
   }
+}
+
+const POSTED_COLUMNS: Record<Platform, { idColumn: string; postedAtColumn: string }> = {
+  youtube: { idColumn: 'youtube_video_id', postedAtColumn: 'youtube_posted_at' },
+  instagram: { idColumn: 'instagram_media_id', postedAtColumn: 'instagram_posted_at' },
+  tiktok: { idColumn: 'tiktok_publish_id', postedAtColumn: 'tiktok_posted_at' },
 }
 
 export class PostgresClipStore implements ClipStore {
@@ -82,10 +97,15 @@ export class PostgresClipStore implements ClipStore {
     return result.rows.map(toRecord)
   }
 
-  async markPosted(clipId: string, youtubeVideoId: string): Promise<void> {
+  async markPosted(clipId: string, platform: Platform, externalId: string): Promise<void> {
+    // Column names come from the fixed POSTED_COLUMNS map, never
+    // interpolated from caller input directly — `platform`'s only use
+    // is as a lookup key into that map, so this stays injection-safe
+    // despite building the column list dynamically.
+    const { idColumn, postedAtColumn } = POSTED_COLUMNS[platform]
     const result = await this.pool.query(
-      `UPDATE clips SET youtube_video_id = $2, youtube_posted_at = now() WHERE id = $1`,
-      [clipId, youtubeVideoId]
+      `UPDATE clips SET ${idColumn} = $2, ${postedAtColumn} = now() WHERE id = $1`,
+      [clipId, externalId]
     )
     if (result.rowCount === 0) throw new Error(`no such clip: ${clipId}`)
   }

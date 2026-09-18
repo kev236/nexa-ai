@@ -21,6 +21,8 @@ import {
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
   registerPostStoryConceptYoutubeExecutor,
+  registerPostClipInstagramExecutor,
+  registerPostClipTiktokExecutor,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -97,6 +99,20 @@ export function getEngine() {
       registerPostStoryConceptYoutubeExecutor()
     } catch (err) {
       console.error('post_story_concept_youtube executor not registered:', err instanceof Error ? err.message : err)
+    }
+    // Step 29: TrendRush's Instagram and TikTok posting — same "missing
+    // env vars is expected, not a crash" shape as the YouTube executors
+    // above. Each stays unregistered (and its clip-page button hidden)
+    // until the owner sets that platform's own credentials.
+    try {
+      registerPostClipInstagramExecutor()
+    } catch (err) {
+      console.error('post_clip_instagram executor not registered:', err instanceof Error ? err.message : err)
+    }
+    try {
+      registerPostClipTiktokExecutor()
+    } catch (err) {
+      console.error('post_clip_tiktok executor not registered:', err instanceof Error ? err.message : err)
     }
   }
   return engine

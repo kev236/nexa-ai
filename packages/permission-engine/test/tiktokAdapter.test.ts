@@ -11,6 +11,7 @@ describe('createTikTokOAuthHttpClient', () => {
       const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
         expect(String(init?.body)).toContain('grant_type=authorization_code')
         expect(String(init?.body)).toContain('code=auth_code_1')
+        expect(String(init?.body)).toContain('code_verifier=verifier_1')
         return new Response(
           JSON.stringify({
             open_id: 'open_1',
@@ -27,7 +28,7 @@ describe('createTikTokOAuthHttpClient', () => {
       vi.stubGlobal('fetch', fetchMock)
 
       const client = createTikTokOAuthHttpClient()
-      const result = await client.exchangeCode('key', 'secret', 'auth_code_1', 'https://example.com/callback')
+      const result = await client.exchangeCode('key', 'secret', 'auth_code_1', 'https://example.com/callback', 'verifier_1')
 
       expect(result.openId).toBe('open_1')
       expect(result.accessToken).toBe('at_1')
@@ -48,9 +49,9 @@ describe('createTikTokOAuthHttpClient', () => {
         )
       )
       const client = createTikTokOAuthHttpClient()
-      await expect(client.exchangeCode('key', 'secret', 'bad_code', 'https://example.com/callback')).rejects.toThrow(
-        /invalid_request/
-      )
+      await expect(
+        client.exchangeCode('key', 'secret', 'bad_code', 'https://example.com/callback', 'verifier_1')
+      ).rejects.toThrow(/invalid_request/)
     })
   })
 

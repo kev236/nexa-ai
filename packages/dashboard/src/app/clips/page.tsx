@@ -6,7 +6,7 @@ import { Nav } from '@/components/Nav'
 import { ClipForm } from '@/components/ClipForm'
 import { EmptyState } from '@/components/EmptyState'
 import { PostClipButton } from '@/components/PostClipButton'
-import { postClipToYoutubeAction } from './actions'
+import { postClipToYoutubeAction, postClipToInstagramAction, postClipToTiktokAction } from './actions'
 import type { ClipRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -54,11 +54,15 @@ export default async function ClipsPage() {
   }
 
   const engine = getEngine()
-  const [clips, youtubeCredential] = await Promise.all([
+  const [clips, youtubeCredential, instagramCredential, tiktokCredential] = await Promise.all([
     engine.clipStore.listByBusiness(business.id),
     engine.oauthCredentialStore.get(business.id, 'youtube'),
+    engine.oauthCredentialStore.get(business.id, 'instagram'),
+    engine.oauthCredentialStore.get(business.id, 'tiktok'),
   ])
   const youtubeConnected = youtubeCredential !== undefined
+  const instagramConnected = instagramCredential !== undefined
+  const tiktokConnected = tiktokCredential !== undefined
 
   return (
     <>
@@ -68,7 +72,7 @@ export default async function ClipsPage() {
         <p className="subtitle">
           TrendRush&apos;s Clip Discovery Agent scores a clip you&apos;re considering reposting — virality,
           copyright risk, and a draft caption for each platform. Attach a video file and it posts straight to
-          YouTube, no review step — same for any already-scored clip below.
+          every connected platform, no review step — same for any already-scored clip below.
         </p>
       </div>
 
@@ -109,17 +113,47 @@ export default async function ClipsPage() {
 
             {clip.youtubeVideoId ? (
               <p className="meta">
-                <span className="status-badge status-executed">posted</span>{' '}
+                <span className="status-badge status-executed">posted to YouTube</span>{' '}
                 <a href={`https://youtu.be/${clip.youtubeVideoId}`} target="_blank" rel="noreferrer" className="mono">
                   youtu.be/{clip.youtubeVideoId}
                 </a>
               </p>
             ) : youtubeConnected ? (
-              <PostClipButton action={postClipToYoutubeAction.bind(null, clip.id)} />
+              <PostClipButton action={postClipToYoutubeAction.bind(null, clip.id)} platformLabel="YouTube" />
             ) : (
               <p className="meta">
                 <a href={`/api/oauth/youtube/start?business=${business.slug}`} className="status-badge status-requested">
                   Connect YouTube to post this
+                </a>
+              </p>
+            )}
+
+            {clip.tiktokPublishId ? (
+              <p className="meta">
+                <span className="status-badge status-executed">posted to TikTok</span>{' '}
+                <span className="mono">{clip.tiktokPublishId}</span>
+              </p>
+            ) : tiktokConnected ? (
+              <PostClipButton action={postClipToTiktokAction.bind(null, clip.id)} platformLabel="TikTok" />
+            ) : (
+              <p className="meta">
+                <a href={`/api/oauth/tiktok/start?business=${business.slug}`} className="status-badge status-requested">
+                  Connect TikTok to post this
+                </a>
+              </p>
+            )}
+
+            {clip.instagramMediaId ? (
+              <p className="meta">
+                <span className="status-badge status-executed">posted to Instagram</span>{' '}
+                <span className="mono">{clip.instagramMediaId}</span>
+              </p>
+            ) : instagramConnected ? (
+              <PostClipButton action={postClipToInstagramAction.bind(null, clip.id)} platformLabel="Instagram" urlOnly />
+            ) : (
+              <p className="meta">
+                <a href={`/api/oauth/instagram/start?business=${business.slug}`} className="status-badge status-requested">
+                  Connect Instagram to post this
                 </a>
               </p>
             )}

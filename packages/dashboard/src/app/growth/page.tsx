@@ -30,15 +30,27 @@ const CAMPAIGN_ELIGIBILITY_THRESHOLD = 200
 const GAUGE_RADIUS = 42
 const GAUGE_CIRCUMFERENCE = gaugeCircumference(GAUGE_RADIUS)
 
-async function loadSection(loader: () => Promise<BusinessRecord>) {
+/**
+ * publishPlatforms controls which platforms show a "Connect X for
+ * publishing" prompt at all — Sproutlight only ever publishes to
+ * YouTube (see README.md's step 29 entry: 100% original content, no
+ * Instagram/TikTok posting exists for it), so it only checks/shows
+ * that one, while TrendRush checks all three since step 29 added
+ * posting to all three there.
+ */
+async function loadSection(loader: () => Promise<BusinessRecord>, publishPlatforms: Platform[]) {
   try {
     const business = await loader()
     const engine = getEngine()
-    const [accounts, youtubeOAuth] = await Promise.all([
+    const [accounts, ...oauthResults] = await Promise.all([
       engine.socialAccountStore.listByBusiness(business.id),
-      engine.oauthCredentialStore.get(business.id, 'youtube'),
+      ...publishPlatforms.map((platform) => engine.oauthCredentialStore.get(business.id, platform)),
     ])
-    return { business, accounts, youtubeConnected: youtubeOAuth !== undefined }
+    const connectedPlatforms: Partial<Record<Platform, boolean>> = {}
+    publishPlatforms.forEach((platform, i) => {
+      connectedPlatforms[platform] = oauthResults[i] !== undefined
+    })
+    return { business, accounts, connectedPlatforms }
   } catch {
     return undefined
   }
@@ -47,14 +59,19 @@ async function loadSection(loader: () => Promise<BusinessRecord>) {
 export default async function GrowthPage({
   searchParams,
 }: {
-  searchParams: Promise<{ youtube_connected?: string }>
+  searchParams: Promise<{ youtube_connected?: string; instagram_connected?: string; tiktok_connected?: string }>
 }) {
   await verifySession()
-  const { youtube_connected } = await searchParams
+  const { youtube_connected, instagram_connected, tiktok_connected } = await searchParams
+  const justConnected =
+    (youtube_connected === '1' && 'YouTube') ||
+    (instagram_connected === '1' && 'Instagram') ||
+    (tiktok_connected === '1' && 'TikTok') ||
+    undefined
 
   const [trendRush, sproutlight] = await Promise.all([
-    loadSection(getTrendRushBusiness),
-    loadSection(getSproutlightBusiness),
+    loadSection(getTrendRushBusiness, ['youtube', 'instagram', 'tiktok']),
+    loadSection(getSproutlightBusiness, ['youtube']),
   ])
 
   return (
@@ -69,9 +86,9 @@ export default async function GrowthPage({
         </p>
       </div>
 
-      {youtube_connected === '1' && (
+      {justConnected && (
         <p className="status-badge status-active" style={{ marginBottom: '1rem', display: 'inline-block' }}>
-          YouTube connected — publish access is authorized once verification completes.
+          {justConnected} connected — publish access is authorized once that platform's own app review/verification completes.
         </p>
       )}
 
@@ -93,7 +110,7 @@ export default async function GrowthPage({
               meta="clip reposting"
               business={trendRush.business}
               accounts={trendRush.accounts}
-              youtubeConnected={trendRush.youtubeConnected}
+              connectedPlatforms={trendRush.connectedPlatforms}
               eligibilityThreshold={CAMPAIGN_ELIGIBILITY_THRESHOLD}
               delay={0.05}
             />
@@ -104,7 +121,7 @@ export default async function GrowthPage({
               meta="kids' content"
               business={sproutlight.business}
               accounts={sproutlight.accounts}
-              youtubeConnected={sproutlight.youtubeConnected}
+              connectedPlatforms={sproutlight.connectedPlatforms}
               delay={0.15}
             />
           )}
@@ -119,7 +136,7 @@ function GrowthSection({
   meta,
   business,
   accounts,
-  youtubeConnected,
+  connectedPlatforms,
   eligibilityThreshold,
   delay = 0,
 }: {
@@ -127,7 +144,7 @@ function GrowthSection({
   meta: string
   business: BusinessRecord
   accounts: SocialAccountRecord[]
-  youtubeConnected: boolean
+  connectedPlatforms: Partial<Record<Platform, boolean>>
   eligibilityThreshold?: number
   delay?: number
 }) {
@@ -164,18 +181,18 @@ function GrowthSection({
                 {account?.handle && <span className="meta mono">@{account.handle}</span>}
               </div>
 
-              {platform === 'youtube' &&
-                (youtubeConnected ? (
+              {connectedPlatforms[platform] !== undefined &&
+                (connectedPlatforms[platform] ? (
                   <span className="status-badge status-active" style={{ marginBottom: '0.5rem' }}>
                     Publish access connected
                   </span>
                 ) : (
                   <a
-                    href={`/api/oauth/youtube/start?business=${business.slug}`}
+                    href={`/api/oauth/${platform}/start?business=${business.slug}`}
                     className="status-badge status-requested"
                     style={{ marginBottom: '0.5rem', textDecoration: 'none' }}
                   >
-                    Connect YouTube for publishing
+                    Connect {PLATFORM_LABELS[platform]} for publishing
                   </a>
                 ))}
 

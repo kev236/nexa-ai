@@ -124,7 +124,7 @@ describe('post_clip_youtube executor', () => {
   it('refuses to double-post a clip that already has a youtubeVideoId', async () => {
     const clipStore = new InMemoryClipStore()
     const clipId = await clipStore.create('biz_1', evaluationInput())
-    await clipStore.markPosted(clipId, 'vid_existing')
+    await clipStore.markPosted(clipId, 'youtube', 'vid_existing')
     const oauth = new InMemoryOAuthCredentialStore()
     await oauth.save('biz_1', 'youtube', {
       accessToken: 'at_1',
