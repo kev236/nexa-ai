@@ -2242,7 +2242,6 @@ form.opportunity-form button:hover {
   flex-direction: column;
   height: 60vh;
   min-height: 420px;
-  max-width: 720px;
 }
 
 .chat-console-messages {
@@ -2261,7 +2260,7 @@ form.opportunity-form button:hover {
 }
 
 .chat-bubble {
-  max-width: 80%;
+  max-width: min(80%, 640px);
   padding: 0.6rem 0.85rem;
   border-radius: 12px;
   font-size: 0.88rem;
@@ -2341,6 +2340,5 @@ form.opportunity-form button:hover {
 @media (max-width: 900px) {
   .chat-console {
     height: 70vh;
-    max-width: none;
   }
 }
