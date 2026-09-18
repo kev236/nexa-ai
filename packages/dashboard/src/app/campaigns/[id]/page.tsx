@@ -1,7 +1,10 @@
 import { notFound } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { generateConcepts, markConceptRunReviewed, setCampaignStatus } from '@/app/campaigns/actions'
 import type { ContentConcept } from '@nexa-ai/permission-engine'
 
@@ -13,7 +16,8 @@ function ConceptCard({ concept }: { concept: ContentConcept }) {
       <div className="card-header">
         <span className="action-type">{concept.angle.replace('_', ' ')}</span>
         <span className="score-badge">
-          {concept.score.total}/100 {concept.recommended && '★'}
+          <AnimatedNumber value={concept.score.total} />
+          /100 {concept.recommended && '★'}
         </span>
       </div>
       <p className="reasoning">&quot;{concept.hook}&quot;</p>
@@ -54,7 +58,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         </p>
       </div>
 
-      <section>
+      <section className="deck-enter">
         <h2 className="section-title">Campaign data</h2>
         <div className="card">
           {campaign.targetAudience && (
@@ -114,7 +118,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         </div>
       </section>
 
-      <section>
+      <section className="deck-enter" style={{ animationDelay: '0.1s' }}>
         <h2 className="section-title">Content concepts</h2>
         <div className="opportunities-toolbar">
           <form action={generateConcepts.bind(null, id)}>
@@ -123,7 +127,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         </div>
 
         {runs.length === 0 ? (
-          <p className="empty">No concepts generated yet.</p>
+          <EmptyState icon={Sparkles} title="No concepts generated yet" />
         ) : (
           runs.map((run) => {
             const sorted = [...run.concepts].sort((a, b) => b.score.total - a.score.total)

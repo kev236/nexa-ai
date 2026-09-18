@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import { Megaphone } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getPromoteFunBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +21,15 @@ export default async function CampaignsPage() {
         <div className="page-header">
           <h1>Campaigns</h1>
         </div>
-        <p className="empty">
-          No &apos;promote-fun&apos; business registered yet — run{' '}
-          <code className="mono">npm run db:register-business -- promote-fun &quot;Promote.fun&quot;</code> first.
-        </p>
+        <EmptyState
+          icon={Megaphone}
+          title="No 'promote-fun' business registered yet"
+          hint={
+            <>
+              run <code className="mono">npm run db:register-business -- promote-fun &quot;Promote.fun&quot;</code> first
+            </>
+          }
+        />
       </>
     )
   }
@@ -40,33 +47,35 @@ export default async function CampaignsPage() {
         </p>
       </div>
 
-      <div className="opportunities-toolbar">
+      <div className="opportunities-toolbar deck-enter">
         <Link href="/campaigns/new" className="button-link">
           New campaign
         </Link>
       </div>
 
       {campaigns.length === 0 ? (
-        <p className="empty">No campaigns imported yet.</p>
+        <EmptyState icon={Megaphone} title="No campaigns imported yet" />
       ) : (
-        campaigns.map((c) => (
-          <Link href={`/campaigns/${c.id}`} key={c.id} className="card-link">
-            <div className="card">
-              <div className="card-header">
-                <span className="action-type">{c.product}</span>
-                <span className={`status-badge status-${c.status === 'active' ? 'active' : 'inactive'}`}>
-                  {c.status}
-                </span>
+        <div className="deck-enter" style={{ animationDelay: '0.1s' }}>
+          {campaigns.map((c) => (
+            <Link href={`/campaigns/${c.id}`} key={c.id} className="card-link">
+              <div className="card">
+                <div className="card-header">
+                  <span className="action-type">{c.product}</span>
+                  <span className={`status-badge status-${c.status === 'active' ? 'active' : 'inactive'}`}>
+                    {c.status}
+                  </span>
+                </div>
+                {c.problem && <p className="reasoning">{c.problem}</p>}
+                <p className="meta">
+                  {c.targetAudience && `For ${c.targetAudience} · `}
+                  {new Date(c.createdAt).toLocaleDateString()}
+                  {c.externalId && ` · ${c.externalId}`}
+                </p>
               </div>
-              {c.problem && <p className="reasoning">{c.problem}</p>}
-              <p className="meta">
-                {c.targetAudience && `For ${c.targetAudience} · `}
-                {new Date(c.createdAt).toLocaleDateString()}
-                {c.externalId && ` · ${c.externalId}`}
-              </p>
-            </div>
-          </Link>
-        ))
+            </Link>
+          ))}
+        </div>
       )}
     </>
   )

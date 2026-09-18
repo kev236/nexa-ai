@@ -1,7 +1,10 @@
+import { Bot, Radio, ScrollText } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
+import { relativeTime } from '@/lib/format'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
 import type { AgentRecord, ApprovalRecord, AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -76,7 +79,7 @@ export default async function ActivityPage() {
         <p className="subtitle">What every agent has done, and what's come in.</p>
       </div>
 
-      <div className="bar-chart" role="img" aria-label="Requests per day, last 7 days">
+      <div className="bar-chart deck-enter" role="img" aria-label="Requests per day, last 7 days">
         {weekCounts.map((day) => (
           <div className="bar-chart-col" key={day.key}>
             <span className="bar-chart-count">{day.count > 0 ? day.count : ''}</span>
@@ -89,9 +92,9 @@ export default async function ActivityPage() {
       <section>
         <h2 className="section-title">Agents</h2>
         {agents.length === 0 ? (
-          <p className="empty">No agents registered yet — run db:register-agent.</p>
+          <EmptyState icon={Bot} title="No agents registered yet" hint={<code className="mono">npm run db:register-agent</code>} />
         ) : (
-          <div className="agent-strip">
+          <div className="agent-strip deck-enter" style={{ animationDelay: '0.1s' }}>
             {agents.map((agent) => {
               const last = lastActivityFor(agent, feed)
               return (
@@ -107,7 +110,7 @@ export default async function ActivityPage() {
                   {last ? (
                     <p className="meta">
                       last: <span className={`status-badge status-${last.status}`}>{last.status}</span>{' '}
-                      {new Date(last.requestedAt).toLocaleString()}
+                      {relativeTime(last.requestedAt)}
                     </p>
                   ) : (
                     <p className="meta">no activity yet</p>
@@ -122,9 +125,17 @@ export default async function ActivityPage() {
       <section>
         <h2 className="section-title">Recently observed</h2>
         {recentEvents.length === 0 ? (
-          <p className="empty">No events observed yet — run db:backfill-nexalabs, or wait for the next poll.</p>
+          <EmptyState
+            icon={Radio}
+            title="No events observed yet"
+            hint={
+              <>
+                run <code className="mono">db:backfill-nexalabs</code>, or wait for the next poll
+              </>
+            }
+          />
         ) : (
-          <div className="event-list">
+          <div className="event-list deck-enter" style={{ animationDelay: '0.2s' }}>
             {recentEvents.map((event) => {
               const payload = event.payload
               const email =
@@ -135,7 +146,7 @@ export default async function ActivityPage() {
                 <div className="event-item" key={event.id}>
                   <span className="action-type">{event.type}</span>
                   {email && <span className="meta">{email}</span>}
-                  <span className="meta">{new Date(event.occurredAt).toLocaleString()}</span>
+                  <span className="meta">{relativeTime(event.occurredAt)}</span>
                 </div>
               )
             })}
@@ -146,28 +157,30 @@ export default async function ActivityPage() {
       <section>
         <h2 className="section-title">Audit log</h2>
         {feed.length === 0 ? (
-          <p className="empty">Nothing requested yet.</p>
+          <EmptyState icon={ScrollText} title="Nothing requested yet" />
         ) : (
-          feed.map((record) => {
-            const label = approvalLabel(record, approvalsByAuditId)
-            return (
-              <div className="card" key={record.id}>
-                <div className="card-header">
-                  <span className="action-type">{record.actionType}</span>
-                  <span className="meta">
-                    agent {record.agentId} · {new Date(record.requestedAt).toLocaleString()}
-                  </span>
+          <div className="deck-enter" style={{ animationDelay: '0.3s' }}>
+            {feed.map((record) => {
+              const label = approvalLabel(record, approvalsByAuditId)
+              return (
+                <div className="card" key={record.id}>
+                  <div className="card-header">
+                    <span className="action-type">{record.actionType}</span>
+                    <span className="meta">
+                      agent {record.agentId} · {relativeTime(record.requestedAt)}
+                    </span>
+                  </div>
+                  <p className="reasoning">{record.reasoning}</p>
+                  <p className="meta">
+                    <span className={`status-badge status-${record.status}`}>{record.status}</span>
+                    {record.status === 'denied' && record.deniedReason ? ` — ${record.deniedReason}` : null}
+                    {record.status === 'abandoned' && record.abandonedReason ? ` — ${record.abandonedReason}` : null}
+                    {label ? ` — ${label}` : null}
+                  </p>
                 </div>
-                <p className="reasoning">{record.reasoning}</p>
-                <p className="meta">
-                  <span className={`status-badge status-${record.status}`}>{record.status}</span>
-                  {record.status === 'denied' && record.deniedReason ? ` — ${record.deniedReason}` : null}
-                  {record.status === 'abandoned' && record.abandonedReason ? ` — ${record.abandonedReason}` : null}
-                  {label ? ` — ${label}` : null}
-                </p>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </section>
     </>

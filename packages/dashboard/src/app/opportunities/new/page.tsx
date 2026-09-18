@@ -14,7 +14,9 @@ export default async function NewOpportunityPage() {
         <h1>New opportunity</h1>
         <p className="subtitle">Score every dimension 0-100 — higher always means more favorable.</p>
       </div>
-      <OpportunityForm action={createOpportunity} dimensions={SCORE_DIMENSIONS} submitLabel="Save opportunity" />
+      <div className="deck-enter">
+        <OpportunityForm action={createOpportunity} dimensions={SCORE_DIMENSIONS} submitLabel="Save opportunity" />
+      </div>
     </>
   )
 }

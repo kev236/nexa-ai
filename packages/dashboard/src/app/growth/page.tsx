@@ -1,8 +1,11 @@
+import { TrendingUp } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getTrendRushBusiness, getSproutlightBusiness } from '@/lib/business'
 import { gaugeCircumference, gaugeDashoffset } from '@/lib/radialGauge'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { updateFollowerCount } from './actions'
 import { PLATFORMS, type BusinessRecord, type Platform, type SocialAccountRecord } from '@nexa-ai/permission-engine'
 
@@ -73,10 +76,15 @@ export default async function GrowthPage({
       )}
 
       {!trendRush && !sproutlight ? (
-        <p className="empty">
-          No growth-tracked businesses set up yet — run db:register-business for trendrush and/or sproutlight
-          first.
-        </p>
+        <EmptyState
+          icon={TrendingUp}
+          title="No growth-tracked businesses set up yet"
+          hint={
+            <>
+              run <code className="mono">db:register-business</code> for trendrush and/or sproutlight first
+            </>
+          }
+        />
       ) : (
         <>
           {trendRush && (
@@ -87,6 +95,7 @@ export default async function GrowthPage({
               accounts={trendRush.accounts}
               youtubeConnected={trendRush.youtubeConnected}
               eligibilityThreshold={CAMPAIGN_ELIGIBILITY_THRESHOLD}
+              delay={0.05}
             />
           )}
           {sproutlight && (
@@ -96,6 +105,7 @@ export default async function GrowthPage({
               business={sproutlight.business}
               accounts={sproutlight.accounts}
               youtubeConnected={sproutlight.youtubeConnected}
+              delay={0.15}
             />
           )}
         </>
@@ -111,6 +121,7 @@ function GrowthSection({
   accounts,
   youtubeConnected,
   eligibilityThreshold,
+  delay = 0,
 }: {
   title: string
   meta: string
@@ -118,6 +129,7 @@ function GrowthSection({
   accounts: SocialAccountRecord[]
   youtubeConnected: boolean
   eligibilityThreshold?: number
+  delay?: number
 }) {
   const byPlatform = new Map(accounts.map((a) => [a.platform, a]))
   const eligible =
@@ -126,7 +138,7 @@ function GrowthSection({
       : undefined
 
   return (
-    <section>
+    <section className="deck-enter" style={{ animationDelay: `${delay}s` }}>
       <div className="card-header">
         <h2 className="section-title" style={{ marginBottom: 0 }}>
           {title} <span className="meta">— {meta}</span>
@@ -182,12 +194,16 @@ function GrowthSection({
                     />
                   </svg>
                   <div className="growth-gauge-label">
-                    <span className="growth-count">{count.toLocaleString()}</span>
+                    <span className="growth-count">
+                      <AnimatedNumber value={count} />
+                    </span>
                     <span className="meta">/ {eligibilityThreshold}</span>
                   </div>
                 </div>
               ) : (
-                <div className="growth-count">{count.toLocaleString()}</div>
+                <div className="growth-count">
+                  <AnimatedNumber value={count} />
+                </div>
               )}
 
               <form action={updateFollowerCount.bind(null, business.id)} className="growth-form">

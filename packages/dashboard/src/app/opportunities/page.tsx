@@ -1,8 +1,11 @@
 import Link from 'next/link'
+import { Target } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { setOpportunityStatus } from '@/app/actions'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { DiscoverOpportunitiesButton } from '@/components/DiscoverOpportunitiesButton'
 
 export const dynamic = 'force-dynamic'
@@ -24,17 +27,17 @@ export default async function OpportunitiesPage() {
         </p>
       </div>
 
-      <div className="opportunities-toolbar">
+      <div className="opportunities-toolbar deck-enter">
         <Link href="/opportunities/new" className="button-link">
           New opportunity
         </Link>
         <DiscoverOpportunitiesButton />
       </div>
 
-      <section>
+      <section className="deck-enter" style={{ animationDelay: '0.1s' }}>
         <h2 className="section-title">Open ({open.length})</h2>
         {open.length === 0 ? (
-          <p className="empty">Nothing scored yet.</p>
+          <EmptyState icon={Target} title="Nothing scored yet" />
         ) : (
           open.map((o) => (
             <div className="card" key={o.id}>
@@ -43,7 +46,10 @@ export default async function OpportunitiesPage() {
                   <span className="action-type">{o.name}</span>
                   {o.proposedByAgentId && <span className="status-badge status-requested">discovered</span>}
                 </span>
-                <span className="score-badge">{o.totalScore}/100</span>
+                <span className="score-badge">
+                  <AnimatedNumber value={o.totalScore} />
+                  /100
+                </span>
               </div>
               <p className="reasoning">{o.problem}</p>
               <p className="meta">
@@ -65,7 +71,7 @@ export default async function OpportunitiesPage() {
       </section>
 
       {archived.length > 0 && (
-        <section>
+        <section className="deck-enter" style={{ animationDelay: '0.2s' }}>
           <h2 className="section-title">Archived ({archived.length})</h2>
           {archived.map((o) => (
             <div className="card" key={o.id}>
@@ -74,7 +80,10 @@ export default async function OpportunitiesPage() {
                   <span className="action-type">{o.name}</span>
                   {o.proposedByAgentId && <span className="status-badge status-requested">discovered</span>}
                 </span>
-                <span className="score-badge">{o.totalScore}/100</span>
+                <span className="score-badge">
+                  <AnimatedNumber value={o.totalScore} />
+                  /100
+                </span>
               </div>
               <p className="reasoning">{o.problem}</p>
               <p className="meta">

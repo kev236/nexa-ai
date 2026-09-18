@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Bot,
   Bell,
+  ShieldCheck,
 } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
@@ -37,6 +38,7 @@ import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
 import { HoloGlobeLazy as HoloGlobe } from '@/components/HoloGlobeLazy'
+import { EmptyState } from '@/components/EmptyState'
 import { PLATFORMS, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -625,7 +627,7 @@ export default async function ApprovalsPage() {
         Pending approvals
       </h2>
       {pending.length === 0 ? (
-        <p className="empty">Nexa AI has no pending requests right now.</p>
+        <EmptyState icon={ShieldCheck} title="Nexa AI has no pending requests right now" tone="approve" />
       ) : (
         pending.map((approval) => {
           const approve = resolveApproval.bind(null, approval.id, 'approved')

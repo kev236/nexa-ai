@@ -1,8 +1,10 @@
+import { Sparkles } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getSproutlightBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
 import { StoryConceptForm } from '@/components/StoryConceptForm'
+import { EmptyState } from '@/components/EmptyState'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,15 +21,19 @@ export default async function StoryConceptsPage() {
         <div className="page-header">
           <h1>Sproutlight</h1>
         </div>
-        <p className="empty">
-          No &apos;sproutlight&apos; business registered yet — run{' '}
-          <code className="mono">npm run db:register-business -- sproutlight &quot;Sproutlight&quot;</code>, then{' '}
-          <code className="mono">
-            npm run db:register-agent -- sproutlight story-concept-agent &quot;Drafts nursery-rhyme and
-            short-story concepts&quot;
-          </code>
-          .
-        </p>
+        <EmptyState
+          icon={Sparkles}
+          title="No 'sproutlight' business registered yet"
+          hint={
+            <>
+              run <code className="mono">npm run db:register-business -- sproutlight &quot;Sproutlight&quot;</code>, then{' '}
+              <code className="mono">
+                npm run db:register-agent -- sproutlight story-concept-agent &quot;Drafts nursery-rhyme and
+                short-story concepts&quot;
+              </code>
+            </>
+          }
+        />
       </>
     )
   }
@@ -46,13 +52,15 @@ export default async function StoryConceptsPage() {
         </p>
       </div>
 
-      <StoryConceptForm />
+      <div className="deck-enter">
+        <StoryConceptForm />
+      </div>
 
       {concepts.length === 0 ? (
-        <p className="empty">No concepts generated yet.</p>
+        <EmptyState icon={Sparkles} title="No concepts generated yet" />
       ) : (
         concepts.map((c) => (
-          <div className="card" key={c.id}>
+          <div className="card deck-enter" style={{ animationDelay: '0.1s' }} key={c.id}>
             <div className="card-header">
               <span className="action-type-row">
                 <span className="concept-title">{c.title}</span>

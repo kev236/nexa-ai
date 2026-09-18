@@ -1,39 +1,9 @@
 import Link from 'next/link'
-import { BrainCircuit, LayoutDashboard, Activity, Wallet, Target, Megaphone, TrendingUp, Film, Sparkles } from 'lucide-react'
+import { BrainCircuit } from 'lucide-react'
 import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
-
-// Grouped by what each page is *for*, not alphabetically — matches how
-// the owner actually uses the app: decide (Command), watch for signal
-// (Intelligence), run the businesses (Operations). Every href here is a
-// real page; nothing named after a feature that doesn't exist yet.
-const NAV_GROUPS = [
-  {
-    label: 'Command',
-    links: [
-      { key: 'approvals', href: '/', label: 'Command Center', icon: LayoutDashboard },
-      { key: 'activity', href: '/activity', label: 'Activity', icon: Activity },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    links: [
-      { key: 'opportunities', href: '/opportunities', label: 'Opportunities', icon: Target },
-      { key: 'growth', href: '/growth', label: 'Growth', icon: TrendingUp },
-      { key: 'story-concepts', href: '/story-concepts', label: 'Sproutlight', icon: Sparkles },
-    ],
-  },
-  {
-    label: 'Operations',
-    links: [
-      { key: 'money', href: '/transactions', label: 'Money', icon: Wallet },
-      { key: 'campaigns', href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-      { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
-    ],
-  },
-] as const
-
-type NavKey = (typeof NAV_GROUPS)[number]['links'][number]['key']
+import { NAV_GROUPS, type NavKey } from '@/lib/navLinks'
+import { CommandPalette } from '@/components/CommandPalette'
 
 /**
  * The sidebar's own live readout — real agent counts for the primary
@@ -84,6 +54,8 @@ export async function Nav({ active }: { active: NavKey }) {
           </span>
         </div>
       )}
+
+      <CommandPalette />
     </nav>
   )
 }

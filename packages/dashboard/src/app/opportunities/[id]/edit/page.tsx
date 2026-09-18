@@ -21,12 +21,14 @@ export default async function EditOpportunityPage({ params }: { params: Promise<
         <h1>Edit opportunity</h1>
         <p className="subtitle">Score every dimension 0-100 — higher always means more favorable.</p>
       </div>
-      <OpportunityForm
-        action={updateOpportunity.bind(null, id)}
-        dimensions={SCORE_DIMENSIONS}
-        initial={opportunity}
-        submitLabel="Save changes"
-      />
+      <div className="deck-enter">
+        <OpportunityForm
+          action={updateOpportunity.bind(null, id)}
+          dimensions={SCORE_DIMENSIONS}
+          initial={opportunity}
+          submitLabel="Save changes"
+        />
+      </div>
     </>
   )
 }

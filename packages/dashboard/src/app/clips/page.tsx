@@ -1,8 +1,10 @@
+import { Film } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getTrendRushBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
 import { ClipForm } from '@/components/ClipForm'
+import { EmptyState } from '@/components/EmptyState'
 import type { ClipRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -32,15 +34,19 @@ export default async function ClipsPage() {
         <div className="page-header">
           <h1>Clips</h1>
         </div>
-        <p className="empty">
-          No &apos;trendrush&apos; business registered yet — run{' '}
-          <code className="mono">npm run db:register-business -- trendrush &quot;TrendRush&quot;</code>, then{' '}
-          <code className="mono">
-            npm run db:register-agent -- trendrush clip-discovery-agent &quot;Evaluates clips TrendRush is
-            considering reposting&quot;
-          </code>
-          .
-        </p>
+        <EmptyState
+          icon={Film}
+          title="No 'trendrush' business registered yet"
+          hint={
+            <>
+              run <code className="mono">npm run db:register-business -- trendrush &quot;TrendRush&quot;</code>, then{' '}
+              <code className="mono">
+                npm run db:register-agent -- trendrush clip-discovery-agent &quot;Evaluates clips TrendRush is
+                considering reposting&quot;
+              </code>
+            </>
+          }
+        />
       </>
     )
   }
@@ -59,13 +65,15 @@ export default async function ClipsPage() {
         </p>
       </div>
 
-      <ClipForm />
+      <div className="deck-enter">
+        <ClipForm />
+      </div>
 
       {clips.length === 0 ? (
-        <p className="empty">No clips evaluated yet.</p>
+        <EmptyState icon={Film} title="No clips evaluated yet" />
       ) : (
         clips.map((clip) => (
-          <div className="card" key={clip.id}>
+          <div className="card deck-enter" style={{ animationDelay: '0.1s' }} key={clip.id}>
             <div className="card-header">
               <span className="action-type-row">
                 <span className="concept-title">{clip.title}</span>

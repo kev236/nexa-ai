@@ -15,7 +15,9 @@ export default async function NewCampaignPage() {
           Campaign Agent.
         </p>
       </div>
-      <CampaignForm />
+      <div className="deck-enter">
+        <CampaignForm />
+      </div>
     </>
   )
 }

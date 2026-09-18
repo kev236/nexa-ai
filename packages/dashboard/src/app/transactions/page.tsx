@@ -1,9 +1,11 @@
+import { Wallet, Receipt } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
 import { getBusiness, getDropshippingBusiness } from '@/lib/business'
-import { formatAmount } from '@/lib/format'
+import { formatAmount, relativeTime } from '@/lib/format'
 import { sparklinePath } from '@/lib/sparkline'
 import { Nav } from '@/components/Nav'
+import { EmptyState } from '@/components/EmptyState'
 import type { BusinessRecord, TransactionRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -43,10 +45,15 @@ export default async function TransactionsPage() {
       </div>
 
       {!nexaLabs && !dropshipping ? (
-        <p className="empty">
-          No transaction-tracked businesses set up yet — run db:seed and/or db:register-business dropshipping
-          first.
-        </p>
+        <EmptyState
+          icon={Wallet}
+          title="No transaction-tracked businesses set up yet"
+          hint={
+            <>
+              run <code className="mono">db:seed</code> and/or <code className="mono">db:register-business dropshipping</code> first
+            </>
+          }
+        />
       ) : (
         <>
           {nexaLabs && (
@@ -54,6 +61,7 @@ export default async function TransactionsPage() {
               title="nexa-labs"
               business={nexaLabs.business}
               recent={nexaLabs.recent}
+              delay={0.05}
               emptyHint="set STRIPE_SECRET_KEY and/or ETHERSCAN_API_KEY + WALLET_ADDRESS, then run db:backfill-nexalabs or wait for the next poll"
             />
           )}
@@ -62,6 +70,7 @@ export default async function TransactionsPage() {
               title="Dropshipping"
               business={dropshipping.business}
               recent={dropshipping.recent}
+              delay={0.15}
               emptyHint="set SHOPIFY_SHOP_DOMAIN, SHOPIFY_CLIENT_ID, and SHOPIFY_CLIENT_SECRET, then run db:backfill-dropshipping — real once the store has orders"
             />
           )}
@@ -76,11 +85,13 @@ function TransactionsSection({
   business,
   recent,
   emptyHint,
+  delay = 0,
 }: {
   title: string
   business: BusinessRecord
   recent: TransactionRecord[]
   emptyHint: string
+  delay?: number
 }) {
   // Real amounts, oldest-first, same slice already fetched above — a
   // trend line for what's already on the page, not a new query.
@@ -91,7 +102,7 @@ function TransactionsSection({
   )
 
   return (
-    <section key={business.id} style={{ marginBottom: '2rem' }}>
+    <section key={business.id} className="deck-enter" style={{ marginBottom: '2rem', animationDelay: `${delay}s` }}>
       <h2 className="section-title">{title}</h2>
 
       {spark && (
@@ -117,7 +128,7 @@ function TransactionsSection({
       )}
 
       {recent.length === 0 ? (
-        <p className="empty">No transactions observed yet — {emptyHint}.</p>
+        <EmptyState icon={Receipt} title="No transactions observed yet" hint={`${emptyHint}.`} />
       ) : (
         <div className="event-list">
           {recent.map((tx) => (
@@ -128,7 +139,7 @@ function TransactionsSection({
                 {tx.status}
               </span>
               {tx.externalRef && <span className="meta mono">{tx.externalRef}</span>}
-              <span className="meta">{new Date(tx.createdAt).toLocaleString()}</span>
+              <span className="meta">{relativeTime(tx.createdAt)}</span>
             </div>
           ))}
         </div>
