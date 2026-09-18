@@ -31,7 +31,6 @@ export function ClipForm() {
       </label>
 
       {state?.error && <p className="error">{state.error}</p>}
-      {state?.notice && <p className="meta">{state.notice}</p>}
       <button type="submit" disabled={pending}>
         {pending ? 'Evaluating…' : 'Evaluate clip'}
       </button>

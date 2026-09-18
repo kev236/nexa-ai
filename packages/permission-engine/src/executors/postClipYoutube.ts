@@ -59,14 +59,14 @@ const REFRESH_SKEW_MS = 60_000
  * something this code can shortcut); OAuthCredentialStore already has
  * room for those platforms whenever that review clears.
  *
- * Deliberately still gated one level up, not in this executor: only
- * copyrightRisk === 'low' clips ever reach requestAction() for this
- * actionType without the owner clicking a button first — see
- * lib/clipPosting.ts in the dashboard package. This file trusts
- * whatever payload it's given the same way every other executor does;
- * the copyright judgment call happens before a request ever reaches
- * here, same shape as sendEmail.ts trusting its payload and leaving
- * "should this actually be sent" to the agent that composed it.
+ * No copyright-risk gate anywhere in this path (dashboard's
+ * clips/actions.ts and lib/clipPosting.ts included) — every evaluated
+ * clip with a video attached posts immediately regardless of
+ * copyrightRisk, per the owner's explicit, repeated instruction that
+ * nothing here should sit as a draft (README.md step 27, reconfirmed
+ * directly for this specific gate afterward). This file trusts
+ * whatever payload it's given the same way every other executor does,
+ * same shape as sendEmail.ts.
  */
 export function createPostClipYoutubeExecutor(
   clipStore: ClipStore,
@@ -110,7 +110,16 @@ export function createPostClipYoutubeExecutor(
     const video = Buffer.from(input.videoBase64, 'base64')
     const result = await uploadClient.uploadVideo(
       accessToken,
-      { title: input.title, description: input.description, tags: input.tags, privacyStatus: input.privacyStatus },
+      {
+        title: input.title,
+        description: input.description,
+        tags: input.tags,
+        privacyStatus: input.privacyStatus,
+        // TrendRush content is never children's content — explicit false
+        // rather than leaving it unset, so the field is never silently
+        // missing from an upload.
+        madeForKids: false,
+      },
       video,
       input.mimeType
     )

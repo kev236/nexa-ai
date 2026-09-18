@@ -67,6 +67,7 @@ describe('post_clip_youtube executor', () => {
 
     expect(result).toEqual({ videoId: 'vid_1', url: 'https://youtu.be/vid_1' })
     expect(uploadedWith).toMatchObject({ accessToken: 'at_1', mimeType: 'video/mp4' })
+    expect((uploadedWith as { metadata: { madeForKids: boolean } }).metadata.madeForKids).toBe(false)
     const record = await clipStore.get(clipId)
     expect(record?.youtubeVideoId).toBe('vid_1')
     expect(record?.youtubePostedAt).toBeDefined()

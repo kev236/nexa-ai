@@ -8,7 +8,7 @@ import { postClipToYoutube } from '@/lib/clipPosting'
 import { resolveVideoInput } from '@/lib/videoInput'
 import { createAnthropicClient, discoverClipOnce } from '@nexa-ai/permission-engine'
 
-export type EvaluateClipState = { error?: string; notice?: string } | undefined
+export type EvaluateClipState = { error?: string } | undefined
 export type PostClipState = { error?: string; success?: boolean } | undefined
 
 export async function evaluateClipAction(
@@ -43,30 +43,20 @@ export async function evaluateClipAction(
   }
 
   // A video attached up front (a file, or a pasted URL) posts
-  // immediately — no second click, no review step, per the owner's
-  // standing instruction. Evaluation is already saved at this point
-  // regardless of what happens next.
-  //
-  // But that no-review-step shortcut only applies at low copyright
-  // risk — postClipYoutube.ts's own executor comment already says so
-  // ("only copyrightRisk === 'low' clips ever reach requestAction() for
-  // this actionType without the owner clicking a button first"); this
-  // is that gate actually being enforced, not just documented. Above
-  // low risk, the video that was attached here is *not* posted (and
-  // isn't kept anywhere — this request's memory is the only place it
-  // ever existed), so re-attach it via the per-clip "Post to YouTube"
-  // button below once you've reviewed the risk badge and reasoning.
+  // immediately — no second click, no review step, no copyright-risk
+  // gate — per the owner's standing instruction ("I don't want anything
+  // in Nexa AI to draft, I want it to act fully on its own", logged in
+  // README.md's step 27 entry) reconfirmed directly for this specific
+  // gate. Evaluation is already saved at this point regardless of what
+  // happens next. postClipYoutube.ts's own executor comment has been
+  // updated to match — nothing gates this action anymore, at any risk
+  // level, the same way postClipToYoutubeAction below never did.
   try {
     const video = await resolveVideoInput(formData, 'videoFile', 'videoUrl')
     if (video) {
       const clip = await engine.clipStore.get(clipId)
-      if (clip?.copyrightRisk === 'low') {
+      if (clip) {
         await postClipToYoutube(engine, business, clip, video)
-      } else if (clip) {
-        revalidatePath('/clips')
-        return {
-          notice: `Clip evaluated — copyright risk: ${clip.copyrightRisk}. Videos only auto-post at low risk, so the file/URL you attached wasn't used — review it below and re-attach it to "Post to YouTube" if you still want to post it.`,
-        }
       }
     }
   } catch (err) {

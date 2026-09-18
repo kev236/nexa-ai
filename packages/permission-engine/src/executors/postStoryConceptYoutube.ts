@@ -108,7 +108,19 @@ export function createPostStoryConceptYoutubeExecutor(
     const video = Buffer.from(input.videoBase64, 'base64')
     const result = await uploadClient.uploadVideo(
       accessToken,
-      { title: input.title, description: input.description, tags: input.tags, privacyStatus: input.privacyStatus },
+      {
+        title: input.title,
+        description: input.description,
+        tags: input.tags,
+        privacyStatus: input.privacyStatus,
+        // Sproutlight is exclusively children's content — every upload
+        // through this executor is "made for kids" by construction, not
+        // something to trust from the payload. YouTube enforces real
+        // restrictions off this flag (no personalized ads, comments and
+        // notifications off, etc.), so getting it right here is a COPPA
+        // compliance requirement, not a preference.
+        madeForKids: true,
+      },
       video,
       input.mimeType
     )

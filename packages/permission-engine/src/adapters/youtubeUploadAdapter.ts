@@ -5,6 +5,15 @@ export type YouTubeVideoMetadata = {
   description: string
   tags: string[]
   privacyStatus: 'public' | 'unlisted' | 'private'
+  /**
+   * COPPA "made for kids" self-declaration, required on every upload —
+   * YouTube defaults a video to not-made-for-kids if this is left out,
+   * which is the wrong default for content that actually is children's
+   * content. Each executor sets this explicitly for its own business
+   * rather than trusting a caller-supplied payload, so a channel
+   * intended for kids can't accidentally upload mis-declared.
+   */
+  madeForKids: boolean
 }
 
 export type YouTubeUploadResult = { videoId: string }
@@ -73,7 +82,7 @@ export function createYouTubeUploadHttpClient(): YouTubeUploadClient {
       const boundary = `nexaai-${randomUUID()}`
       const metadataPart = JSON.stringify({
         snippet: { title: metadata.title, description: metadata.description, tags: metadata.tags },
-        status: { privacyStatus: metadata.privacyStatus },
+        status: { privacyStatus: metadata.privacyStatus, selfDeclaredMadeForKids: metadata.madeForKids },
       })
       const preamble = Buffer.from(
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}\r\n` +

@@ -46,7 +46,7 @@ describe('createYouTubeUploadHttpClient', () => {
       const video = Buffer.from('fake video bytes')
       const result = await client.uploadVideo(
         'at_1',
-        { title: 'A clip', description: 'desc', tags: ['a', 'b'], privacyStatus: 'unlisted' },
+        { title: 'A clip', description: 'desc', tags: ['a', 'b'], privacyStatus: 'unlisted', madeForKids: false },
         video,
         'video/mp4'
       )
@@ -58,7 +58,30 @@ describe('createYouTubeUploadHttpClient', () => {
       const body = capturedInit?.body as Buffer
       expect(body.toString('utf8')).toContain('"title":"A clip"')
       expect(body.toString('utf8')).toContain('"privacyStatus":"unlisted"')
+      expect(body.toString('utf8')).toContain('"selfDeclaredMadeForKids":false')
       expect(body.includes(video)).toBe(true)
+    })
+
+    it('declares selfDeclaredMadeForKids:true when the caller marks the video as made for kids', async () => {
+      let capturedInit: RequestInit | undefined
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: string | URL, init?: RequestInit) => {
+          capturedInit = init
+          return new Response(JSON.stringify({ id: 'vid_456' }), { status: 200 })
+        })
+      )
+
+      const client = createYouTubeUploadHttpClient()
+      await client.uploadVideo(
+        'at_1',
+        { title: 'A song', description: 'desc', tags: [], privacyStatus: 'public', madeForKids: true },
+        Buffer.from('fake video bytes'),
+        'video/mp4'
+      )
+
+      const body = capturedInit?.body as Buffer
+      expect(body.toString('utf8')).toContain('"selfDeclaredMadeForKids":true')
     })
 
     it('throws a clear error on a failed upload', async () => {
@@ -68,7 +91,12 @@ describe('createYouTubeUploadHttpClient', () => {
       )
       const client = createYouTubeUploadHttpClient()
       await expect(
-        client.uploadVideo('at_1', { title: 't', description: '', tags: [], privacyStatus: 'private' }, Buffer.from('x'), 'video/mp4')
+        client.uploadVideo(
+          'at_1',
+          { title: 't', description: '', tags: [], privacyStatus: 'private', madeForKids: false },
+          Buffer.from('x'),
+          'video/mp4'
+        )
       ).rejects.toThrow(/quota exceeded/)
     })
   })

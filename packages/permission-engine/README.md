@@ -822,3 +822,50 @@ about code *outside* this package, not within it.
   live Google or Postgres endpoints from this sandbox — both need a
   live run against a real environment before the owner trusts this for
   a real post.
+
+- Step 28 — two owner-directed changes, both to TrendRush/Sproutlight's
+  YouTube posting path.
+
+  First, the copyright-risk gate that step 27 shipped with
+  (`clips/actions.ts`'s `evaluateClipAction` only auto-posting a clip
+  scored `copyrightRisk === 'low'`) is removed. The owner reconfirmed
+  directly, after this file's own step 27 entry and `prompts/clip-discovery.md`
+  both flagged the real legal exposure a bare repost carries (this
+  exact risk is why an earlier version of the business was shelved,
+  per that prompt's own text) and TrendRush's content direction was
+  set to editing and reposting other creators' clips: every evaluated
+  clip with a video attached now posts immediately regardless of
+  `copyrightRisk` or `recommendation`, matching what
+  `postClipToYoutubeAction` (the manual per-clip "Post to YouTube"
+  button) already did unconditionally. `copyrightRisk` is still scored
+  and shown on `/clips` — the model's own judgment call is still
+  visible to the owner after the fact, it just no longer blocks
+  anything. This is the owner's call to make about their own business,
+  not something this file can resolve on the model's authority — it's
+  logged here as a real, deliberate change from step 27's shipped
+  behavior, same as step 27 logged its own change from what came
+  before it.
+
+  Second, `src/adapters/youtubeUploadAdapter.ts`'s `YouTubeVideoMetadata`
+  gained a required `madeForKids` field, sent as the YouTube Data API's
+  `status.selfDeclaredMadeForKids` on every upload. Not previously set
+  at all, which defaults to *not* made for kids — the wrong default for
+  Sproutlight, whose entire catalog (per the owner's direction, "child/
+  nursery shorts/videos only on YouTube") is children's content and
+  legally must be self-declared as such under COPPA once real uploads
+  start. `postStoryConceptYoutube.ts` now hardcodes `true`;
+  `postClipYoutube.ts` hardcodes `false` (TrendRush is never kids'
+  content) — set per-executor rather than trusted from the request
+  payload, so it can't be gotten wrong per-call. Sproutlight's posting
+  path was already YouTube-only with no Instagram/TikTok cross-posting
+  anywhere in the code, and `prompts/story-concept.md`'s existing
+  safety rules already scope every generated concept to young
+  children — both already matched the owner's direction with no
+  further change needed.
+
+  Verified: full test suite (including new/updated coverage for both
+  changes — `youtubeUploadAdapter.test.ts` asserts
+  `selfDeclaredMadeForKids` for both `true` and `false`; the two
+  executor tests each assert their fixed value), lint, and
+  `tsc --noEmit` all pass. Not exercised against a live YouTube upload
+  from this sandbox, same limitation as step 27.
