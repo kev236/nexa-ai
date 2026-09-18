@@ -92,6 +92,23 @@ describe('InMemoryClipStore', () => {
     const list = await store.listByBusiness('biz_1')
     expect(list.map((c) => c.title)).toEqual(['Second', 'First'])
   })
+
+  it('markPosted records the YouTube video id and a posted timestamp', async () => {
+    const store = new InMemoryClipStore()
+    const id = await store.create('biz_1', { sourceDescription: 'a clip', ...evaluationInput() } as never)
+    expect((await store.get(id))?.youtubeVideoId).toBeUndefined()
+
+    await store.markPosted(id, 'yt_abc123')
+
+    const record = await store.get(id)
+    expect(record?.youtubeVideoId).toBe('yt_abc123')
+    expect(record?.youtubePostedAt).toBeDefined()
+  })
+
+  it('markPosted throws for an unknown clip id', async () => {
+    const store = new InMemoryClipStore()
+    await expect(store.markPosted('nope', 'yt_x')).rejects.toThrow(/no such clip/)
+  })
 })
 
 describe('discoverClipOnce', () => {

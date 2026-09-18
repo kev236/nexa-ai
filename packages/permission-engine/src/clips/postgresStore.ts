@@ -16,6 +16,8 @@ type Row = {
   reasoning: string
   confidence: number | null
   created_at: string
+  youtube_video_id: string | null
+  youtube_posted_at: string | null
 }
 
 function toRecord(row: Row): ClipRecord {
@@ -33,6 +35,8 @@ function toRecord(row: Row): ClipRecord {
     reasoning: row.reasoning,
     confidence: row.confidence ?? undefined,
     createdAt: row.created_at,
+    youtubeVideoId: row.youtube_video_id ?? undefined,
+    youtubePostedAt: row.youtube_posted_at ?? undefined,
   }
 }
 
@@ -76,6 +80,14 @@ export class PostgresClipStore implements ClipStore {
       [businessId, limit]
     )
     return result.rows.map(toRecord)
+  }
+
+  async markPosted(clipId: string, youtubeVideoId: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE clips SET youtube_video_id = $2, youtube_posted_at = now() WHERE id = $1`,
+      [clipId, youtubeVideoId]
+    )
+    if (result.rowCount === 0) throw new Error(`no such clip: ${clipId}`)
   }
 }
 

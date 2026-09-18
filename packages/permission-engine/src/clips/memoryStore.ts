@@ -38,4 +38,11 @@ export class InMemoryClipStore implements ClipStore {
       .reverse()
       .slice(0, limit)
   }
+
+  async markPosted(clipId: string, youtubeVideoId: string): Promise<void> {
+    const record = this.records.get(clipId)
+    if (!record) throw new Error(`no such clip: ${clipId}`)
+    record.youtubeVideoId = youtubeVideoId
+    record.youtubePostedAt = new Date().toISOString()
+  }
 }

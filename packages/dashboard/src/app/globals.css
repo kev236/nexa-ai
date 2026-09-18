@@ -1457,6 +1457,26 @@ form.opportunity-form button:hover {
   padding: 0.4rem 0.75rem;
 }
 
+.clip-post-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.clip-post-form input[type='file'] {
+  font-size: 0.75rem;
+  color: var(--muted);
+  max-width: 220px;
+}
+
+.clip-post-form button {
+  font-size: 0.72rem;
+  padding: 0.4rem 0.75rem;
+  flex-shrink: 0;
+}
+
 .chart-card {
   padding: 1.25rem 1.25rem 0.75rem;
   margin-bottom: 1.5rem;

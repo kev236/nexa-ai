@@ -19,6 +19,7 @@ import {
   createResendEmailNotifier,
   registerSendEmailExecutor,
   registerProposeOpportunityExecutor,
+  registerPostClipYoutubeExecutor,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -78,6 +79,14 @@ export function getEngine() {
     // Step 17: never throws (no external credentials needed), so no
     // try/catch — unlike send_email, there's no "unconfigured" state.
     registerProposeOpportunityExecutor(opportunityStore)
+    // Step 27: same "missing env vars is an expected state, not a crash"
+    // shape as send_email above — a business without YouTube publish
+    // credentials configured just leaves 'post_clip_youtube' unregistered.
+    try {
+      registerPostClipYoutubeExecutor()
+    } catch (err) {
+      console.error('post_clip_youtube executor not registered:', err instanceof Error ? err.message : err)
+    }
   }
   return engine
 }

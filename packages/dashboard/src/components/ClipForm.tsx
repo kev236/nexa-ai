@@ -21,6 +21,10 @@ export function ClipForm() {
           required
         />
       </label>
+      <label>
+        Video file (optional — posts to YouTube immediately, no review step)
+        <input name="videoFile" type="file" accept="video/*" />
+      </label>
 
       {state?.error && <p className="error">{state.error}</p>}
       <button type="submit" disabled={pending}>

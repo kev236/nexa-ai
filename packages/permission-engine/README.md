@@ -747,3 +747,78 @@ about code *outside* this package, not within it.
   rather than crashing, but the owner still needs to run a real
   evaluation once against a valid key to judge actual scoring quality
   before trusting this for a real repost decision.
+
+- Step 27 — the repost executor step 23's own entry (and migration
+  `0018`'s comment) flagged as missing: `post_clip_youtube`
+  (`src/executors/postClipYoutube.ts`) uploads a real video to
+  TrendRush's connected YouTube channel. Steps 24-26 (real per-platform
+  follower sync, the YouTube OAuth consent flow, and Shopify dropshipping
+  transactions) shipped in code between step 23 and this one without a
+  matching README entry each — not backfilled here, out of scope for
+  this step.
+
+  The owner gave two explicit, back-to-back instructions this step is
+  built around, both logged here because they're real departures from
+  how this file previously described the system: first, that
+  copyright-risk clips should still require an owner click rather than
+  auto-posting (the design this step shipped with initially); then,
+  superseding that within the same session, "I don't want anything in
+  Nexa AI to draft, I want it to act fully on its own" — so the shipped
+  behavior drops the risk-based gate entirely. Attaching a video file
+  to an evaluated clip (at evaluation time, or later from the Clips
+  page) posts it immediately, regardless of `copyrightRisk` or
+  `recommendation`. This is a real, deliberate widening of step 18's
+  already-permissive default (everything except money auto-executes) —
+  it does not touch the money line itself, which the owner was
+  separately asked to confirm and hadn't, as of this entry.
+  `src/adapters/youtubeUploadAdapter.ts` does the real HTTP: a
+  refresh-token exchange against Google's OAuth token endpoint, and a
+  non-resumable `multipart/related` upload against the YouTube Data
+  API's `videos.insert` (appropriate for TrendRush's short clips; a
+  pipeline handling long-form video would want the resumable upload
+  protocol instead). The executor (`createPostClipYoutubeExecutor`)
+  refreshes an expiring/expired access token itself and persists the
+  new one, refuses to double-post a clip that already has a
+  `youtubeVideoId` (migration `0020`), and otherwise trusts its payload
+  the same way every other executor does — the copyright judgment call
+  happens one layer up, in the dashboard's `lib/clipPosting.ts`, which
+  builds the YouTube title/description/tags from the clip's own
+  `captions` array rather than re-deriving them.
+  Scoped to YouTube only: Instagram and TikTok's own posting APIs both
+  gate publishing behind a developer-app review process on their end —
+  a real external dependency this code can't shortcut, not a design
+  choice — `OAuthCredentialStore` already has room for both whenever
+  that clears.
+  Dashboard: `ClipForm` gained an optional video-file input; each
+  evaluated clip on `/clips` shows a "posted" link once
+  `youtubeVideoId` is set, a "Post to YouTube" file-attach form
+  (`PostClipButton`) if the business's YouTube credential exists, or a
+  "Connect YouTube" prompt if it doesn't.
+
+  Google's own app-verification gate still applies regardless of any
+  of this (see `start/route.ts`'s note from step 25): until this OAuth
+  app passes Google's compliance audit, every upload comes back capped
+  at `privacyStatus: 'private'` no matter what's requested — invisible
+  to anyone but the owner's own account, so it does nothing toward the
+  200-follower goal until that clears. Also unverified this step, and
+  blocking in production regardless of that audit:
+  `YOUTUBE_OAUTH_CLIENT_ID`/`YOUTUBE_OAUTH_CLIENT_SECRET` exist in
+  `.env.example` but were not set in this environment's real `.env`, so
+  the owner needs to add real values (a Google Cloud Console OAuth
+  client) before any of this executes for real, and migration `0020`
+  needs `npm run db:migrate` run against a reachable database — this
+  sandbox's own `DATABASE_URL` timed out on every connection attempt,
+  so nothing here was exercised against a real database this step.
+
+  Verified: unit tests for the upload adapter (token refresh, a
+  real-shaped multipart body, both failure paths) and the executor
+  (upload + `markPosted`, an expired-token refresh that persists the
+  new token, refusing a business with no YouTube credential, refusing
+  a double-post, a malformed payload), all against fakes/mocked
+  `fetch` — matching every other adapter/executor's identical test
+  shape in this package. Full suite, lint, `tsc --noEmit`, the import-
+  boundary check, and a real production build all pass. Could not run
+  the migration or exercise the real upload/refresh HTTP calls against
+  live Google or Postgres endpoints from this sandbox — both need a
+  live run against a real environment before the owner trusts this for
+  a real post.

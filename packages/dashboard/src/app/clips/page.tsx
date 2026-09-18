@@ -5,6 +5,8 @@ import { getTrendRushBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
 import { ClipForm } from '@/components/ClipForm'
 import { EmptyState } from '@/components/EmptyState'
+import { PostClipButton } from '@/components/PostClipButton'
+import { postClipToYoutubeAction } from './actions'
 import type { ClipRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -24,9 +26,9 @@ const PLATFORM_LABELS: Record<string, string> = {
 export default async function ClipsPage() {
   await verifySession()
 
-  let businessId: string
+  let business
   try {
-    businessId = (await getTrendRushBusiness()).id
+    business = await getTrendRushBusiness()
   } catch {
     return (
       <>
@@ -51,7 +53,12 @@ export default async function ClipsPage() {
     )
   }
 
-  const clips = await getEngine().clipStore.listByBusiness(businessId)
+  const engine = getEngine()
+  const [clips, youtubeCredential] = await Promise.all([
+    engine.clipStore.listByBusiness(business.id),
+    engine.oauthCredentialStore.get(business.id, 'youtube'),
+  ])
+  const youtubeConnected = youtubeCredential !== undefined
 
   return (
     <>
@@ -60,8 +67,8 @@ export default async function ClipsPage() {
         <h1>Clips</h1>
         <p className="subtitle">
           TrendRush&apos;s Clip Discovery Agent scores a clip you&apos;re considering reposting — virality,
-          copyright risk, and a draft caption for each platform — before you spend time producing or posting
-          anything. Nothing here reposts, schedules, or publishes.
+          copyright risk, and a draft caption for each platform. Attach a video file and it posts straight to
+          YouTube, no review step — same for any already-scored clip below.
         </p>
       </div>
 
@@ -99,6 +106,23 @@ export default async function ClipsPage() {
             <p className="reasoning">
               <strong>Copyright notes:</strong> {clip.copyrightNotes}
             </p>
+
+            {clip.youtubeVideoId ? (
+              <p className="meta">
+                <span className="status-badge status-executed">posted</span>{' '}
+                <a href={`https://youtu.be/${clip.youtubeVideoId}`} target="_blank" rel="noreferrer" className="mono">
+                  youtu.be/{clip.youtubeVideoId}
+                </a>
+              </p>
+            ) : youtubeConnected ? (
+              <PostClipButton action={postClipToYoutubeAction.bind(null, clip.id)} />
+            ) : (
+              <p className="meta">
+                <a href={`/api/oauth/youtube/start?business=${business.slug}`} className="status-badge status-requested">
+                  Connect YouTube to post this
+                </a>
+              </p>
+            )}
 
             <details>
               <summary className="meta">
