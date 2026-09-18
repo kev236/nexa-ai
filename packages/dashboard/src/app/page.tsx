@@ -36,7 +36,7 @@ import { Nav } from '@/components/Nav'
 import { BootIntro } from '@/components/BootIntro'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
-import { HoloGlobe } from '@/components/HoloGlobe'
+import { HoloGlobeLazy as HoloGlobe } from '@/components/HoloGlobeLazy'
 import { PLATFORMS, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
