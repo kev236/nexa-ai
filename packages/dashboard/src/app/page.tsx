@@ -260,9 +260,6 @@ export default async function ApprovalsPage() {
 
   return (
     <>
-      <div className="page-globe-bg" aria-hidden>
-        <HoloGlobe />
-      </div>
       <BootIntro />
       <Nav active="approvals" />
       <div className="page-header">
@@ -285,6 +282,12 @@ export default async function ApprovalsPage() {
               {pending.length === 0
                 ? "Nothing waiting on you across your businesses."
                 : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
+            </p>
+            <p className="page-header-status">
+              Monitoring {businessCards.length} business{businessCards.length === 1 ? '' : 'es'} ·{' '}
+              {activeAgents} agent{activeAgents === 1 ? '' : 's'} active · {pending.length} approval
+              {pending.length === 1 ? '' : 's'} required. Auto-executes everything except real spending — that
+              always waits for you.
             </p>
           </div>
           <div className="page-header-meta">
@@ -411,24 +414,8 @@ export default async function ApprovalsPage() {
               <p className="empty">Nothing scored yet.</p>
             )}
           </HudPanel>
-        </div>
 
-        <div className="hud-col">
-          <div className="command-center-panel deck-enter" style={{ animationDelay: '0.3s' }}>
-            <span className="command-center-scan" aria-hidden />
-            <div className="command-center-heading">
-              <span className="deck-wordmark-text">NEXA AI</span>
-              <span className="command-center-status">
-                Auto-executes everything except real spending — that always waits for you.
-              </span>
-            </div>
-
-            <p className="command-center-summary">
-              Monitoring {businessCards.length} business{businessCards.length === 1 ? '' : 'es'} ·{' '}
-              {activeAgents} agent{activeAgents === 1 ? '' : 's'} active ·{' '}
-              {pending.length} approval{pending.length === 1 ? '' : 's'} required
-            </p>
-
+          <HudPanel icon={Zap} title="Highlights" className="deck-enter" style={{ animationDelay: '0.3s' }}>
             <ul className="command-center-highlights">
               {executedHighlights.map((record) => (
                 <li className="highlight-item" key={record.id}>
@@ -466,6 +453,12 @@ export default async function ApprovalsPage() {
                 <li className="empty">Nothing automated yet.</li>
               )}
             </ul>
+          </HudPanel>
+        </div>
+
+        <div className="hud-col hud-col--globe">
+          <div className="hud-globe-slot" aria-hidden>
+            <HoloGlobe />
           </div>
         </div>
 

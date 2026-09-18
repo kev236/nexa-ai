@@ -161,7 +161,19 @@ h1 {
 .subtitle {
   color: var(--muted);
   font-size: 0.9rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.35rem;
+}
+
+/* The real policy/monitoring line that used to sit overlaid on the
+   globe (back when the globe lived inside one panel) — moved here
+   once the globe got its own dedicated slot with nothing drawn over
+   it (see .hud-globe-slot). */
+.page-header-status {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-width: 60ch;
+  margin: 0 0 2rem;
 }
 
 .page-header-row {
@@ -221,7 +233,6 @@ h1 {
 .chart-card,
 .growth-card,
 .hud-panel,
-.command-center-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -235,7 +246,6 @@ form.opportunity-form .score-grid {
 .chart-card,
 .growth-card,
 .hud-panel,
-.command-center-panel,
 .bar-chart,
 form.login-form,
 form.opportunity-form .score-grid {
@@ -251,7 +261,6 @@ form.opportunity-form .score-grid {
 .chart-card::before,
 .growth-card::before,
 .hud-panel::before,
-.command-center-panel::before,
 .bar-chart::before,
 form.login-form::before {
   content: '';
@@ -271,7 +280,6 @@ form.login-form::before {
 .chart-card::after,
 .growth-card::after,
 .hud-panel::after,
-.command-center-panel::after,
 .bar-chart::after,
 form.login-form::after {
   content: '';
@@ -889,106 +897,9 @@ form.login-form button:hover {
   white-space: nowrap;
 }
 
-/* The Command Center — Approvals' central real-time focal point: a
-   compact real agent-status core (not a full-width hero anymore — see
-   session notes on why the globe moved from centerpiece to accent),
-   a real one-line policy summary, and real recent activity/opportunity/
-   approval highlights below it. */
-
-.command-center-panel {
-  position: relative;
-  padding: 1.5rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
-  filter: drop-shadow(0 0 32px -10px var(--accent-glow));
-}
-
-/* A soft light band drifting behind the header/highlights (never on top
-   of them — z-index:-1 keeps it under this panel's own in-flow content,
-   inside the stacking context clip-path already establishes here). */
-.command-center-scan {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.command-center-scan::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -30%;
-  width: 30%;
-  height: 100%;
-  background: linear-gradient(
-    100deg,
-    transparent,
-    color-mix(in srgb, var(--accent) 16%, transparent) 45%,
-    transparent 90%
-  );
-  animation: scan-sweep 7s ease-in-out infinite;
-}
-
-@keyframes scan-sweep {
-  0%,
-  100% {
-    left: -30%;
-  }
-  50% {
-    left: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .command-center-scan {
-    display: none;
-  }
-}
-
-/* HoloGlobe (see .holo-globe further down) is the panel's own ambient
-   backdrop — a direct child of .command-center-panel, self-centering
-   via its own position:absolute + top/left:50% + transform. Its
-   z-index:0 is a real value (not auto), so it still paints behind the
-   panel's real in-flow text content below (normal-flow siblings always
-   paint after positioned z-index:0 descendants) without needing a
-   wrapper or any extra z-index on the text itself. */
-.command-center-heading {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.3rem;
-  min-width: 0;
-  margin: 0 auto;
-  max-width: 320px;
-}
-
-.command-center-status {
-  font-size: 0.74rem;
-  color: var(--muted);
-  line-height: 1.45;
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--bg) 90%, transparent);
-}
-
-.command-center-summary {
-  position: relative;
-  font-size: 0.82rem;
-  color: var(--fg);
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 45%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
+/* Real recent activity/opportunity/approval highlights — see the
+   "Highlights" panel in the left column of the hud-grid. */
 .command-center-highlights {
-  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -998,7 +909,6 @@ form.login-form button:hover {
 }
 
 .highlight-item {
-  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
@@ -1672,49 +1582,29 @@ form.opportunity-form button:hover {
   }
 }
 
-/* The Command Center page's real background — the three.js globe
-   (HoloGlobe.tsx) sits fixed behind the entire home screen, not
-   inside any one panel. Every panel on this page already renders as
-   translucent + blurred glass (see the shared panel rule up top), so
-   the globe shows through all of them — KPI tiles, agent roster,
-   business cards, not just the Command Center panel's own text — as
-   a single coherent atmosphere, not a graphic boxed into one card.
+/* The globe now lives in its own dedicated slot — the center column
+   of the hud-grid — in normal document flow, not a position:fixed
+   layer behind the whole page. Nothing else is ever placed in this
+   column, so nothing scrolls over or renders in front of the globe;
+   a fixed viewport-pinned globe had exactly that problem, since panels
+   in normal scrolling flow would slide over it as the page scrolled. */
+.hud-col--globe {
+  align-items: center;
+  justify-content: center;
+}
 
-   z-index:-1 keeps it (and everything in it) behind all real page
-   content without needing z-index on that content; pointer-events:none
-   on the wrapper keeps it from ever intercepting clicks meant for the
-   real UI stacked on top of it across the whole screen. */
-.page-globe-bg {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  /* Centered on the real content area (right of the fixed sidebar),
-     not the raw window — otherwise the globe sits visibly left of
-     where the actual data is, instead of that data surrounding it. */
-  left: var(--sidebar-w);
-  z-index: -1;
+.hud-globe-slot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  pointer-events: none;
 }
 
-@media (max-width: 900px) {
-  .page-globe-bg {
-    /* The sidebar collapses into a horizontal top bar below 900px
-       (see .nav), so there's no left offset to center around anymore. */
-    left: 0;
-  }
-}
-
-/* Sized off the viewport itself (not any one panel) so the full
-   sphere — a real center point on the screen, not just texture —
-   stays visible at any window size, phone included. */
 .holo-globe {
-  width: min(60vw, 62vh, 820px);
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
      reaction, not a control, so nothing keyboard-only is lost. */
@@ -1734,15 +1624,6 @@ form.opportunity-form button:hover {
     drop-shadow(0 0 64px color-mix(in srgb, var(--accent-blue) 28%, transparent));
 }
 
-/* The Command Center's brand mark — see .command-center-heading in the
-   header row it now sits in. */
-.deck-wordmark-text {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  color: var(--fg);
-}
 
 /* Header-row clock + real owner identity, right-aligned opposite the
    greeting — a real name/initial from the signed-in owner, not a stock
@@ -2005,7 +1886,7 @@ form.opportunity-form button:hover {
 }
 
 @media (max-width: 1080px) {
-  .command-center-panel {
+  .hud-col--globe {
     order: -1;
   }
 }
