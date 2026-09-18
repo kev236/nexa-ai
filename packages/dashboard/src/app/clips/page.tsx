@@ -5,7 +5,7 @@ import { getTrendRushBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
 import { ClipForm } from '@/components/ClipForm'
 import { EmptyState } from '@/components/EmptyState'
-import { PostClipButton } from '@/components/PostClipButton'
+import { ClipPlatformPills } from '@/components/ClipPlatformPills'
 import { postClipToYoutubeAction, postClipToInstagramAction, postClipToTiktokAction } from './actions'
 import type { ClipRecord } from '@nexa-ai/permission-engine'
 
@@ -111,52 +111,37 @@ export default async function ClipsPage() {
               <strong>Copyright notes:</strong> {clip.copyrightNotes}
             </p>
 
-            {clip.youtubeVideoId ? (
-              <p className="meta">
-                <span className="status-badge status-executed">posted to YouTube</span>{' '}
-                <a href={`https://youtu.be/${clip.youtubeVideoId}`} target="_blank" rel="noreferrer" className="mono">
-                  youtu.be/{clip.youtubeVideoId}
-                </a>
-              </p>
-            ) : youtubeConnected ? (
-              <PostClipButton action={postClipToYoutubeAction.bind(null, clip.id)} platformLabel="YouTube" />
-            ) : (
-              <p className="meta">
-                <a href={`/api/oauth/youtube/start?business=${business.slug}`} className="status-badge status-requested">
-                  Connect YouTube to post this
-                </a>
-              </p>
-            )}
-
-            {clip.tiktokPublishId ? (
-              <p className="meta">
-                <span className="status-badge status-executed">posted to TikTok</span>{' '}
-                <span className="mono">{clip.tiktokPublishId}</span>
-              </p>
-            ) : tiktokConnected ? (
-              <PostClipButton action={postClipToTiktokAction.bind(null, clip.id)} platformLabel="TikTok" />
-            ) : (
-              <p className="meta">
-                <a href={`/api/oauth/tiktok/start?business=${business.slug}`} className="status-badge status-requested">
-                  Connect TikTok to post this
-                </a>
-              </p>
-            )}
-
-            {clip.instagramMediaId ? (
-              <p className="meta">
-                <span className="status-badge status-executed">posted to Instagram</span>{' '}
-                <span className="mono">{clip.instagramMediaId}</span>
-              </p>
-            ) : instagramConnected ? (
-              <PostClipButton action={postClipToInstagramAction.bind(null, clip.id)} platformLabel="Instagram" urlOnly />
-            ) : (
-              <p className="meta">
-                <a href={`/api/oauth/instagram/start?business=${business.slug}`} className="status-badge status-requested">
-                  Connect Instagram to post this
-                </a>
-              </p>
-            )}
+            <ClipPlatformPills
+              platforms={[
+                {
+                  key: 'youtube',
+                  label: 'YouTube',
+                  state: clip.youtubeVideoId
+                    ? { kind: 'posted', label: 'YouTube', href: `https://youtu.be/${clip.youtubeVideoId}` }
+                    : youtubeConnected
+                      ? { kind: 'postable', action: postClipToYoutubeAction.bind(null, clip.id) }
+                      : { kind: 'connect', href: `/api/oauth/youtube/start?business=${business.slug}` },
+                },
+                {
+                  key: 'tiktok',
+                  label: 'TikTok',
+                  state: clip.tiktokPublishId
+                    ? { kind: 'posted', label: 'TikTok' }
+                    : tiktokConnected
+                      ? { kind: 'postable', action: postClipToTiktokAction.bind(null, clip.id) }
+                      : { kind: 'connect', href: `/api/oauth/tiktok/start?business=${business.slug}` },
+                },
+                {
+                  key: 'instagram',
+                  label: 'Instagram',
+                  state: clip.instagramMediaId
+                    ? { kind: 'posted', label: 'Instagram' }
+                    : instagramConnected
+                      ? { kind: 'postable', action: postClipToInstagramAction.bind(null, clip.id), urlOnly: true }
+                      : { kind: 'connect', href: `/api/oauth/instagram/start?business=${business.slug}` },
+                },
+              ]}
+            />
 
             <details>
               <summary className="meta">

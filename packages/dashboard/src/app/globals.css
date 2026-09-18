@@ -731,9 +731,23 @@ section {
   color: var(--warn);
 }
 
+/*
+ * Deliberately louder than .status-denied even though both use the
+ * same red — a denial is a routine, expected outcome (the owner said
+ * no), while 'failed' means an approved action actually crashed
+ * mid-execution. Same always-on glow treatment as .status-requested
+ * (an active glow, not just a static color), so a real failure reads
+ * as "needs attention" at a glance instead of blending into ordinary
+ * red noise on a busy activity feed.
+ */
 .status-failed {
   background: var(--danger-bg);
   color: var(--danger);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--danger) 55%, transparent));
+}
+
+.status-failed::before {
+  content: '! ';
 }
 
 .event-item {
@@ -1505,6 +1519,61 @@ form.opportunity-form button:hover {
   font-size: 0.72rem;
   padding: 0.4rem 0.75rem;
   flex-shrink: 0;
+}
+
+/*
+ * One compact row instead of three stacked YouTube/TikTok/Instagram
+ * blocks — a clip connected to all three platforms no longer pushes
+ * the card's height around just to repeat the same three states.
+ * Each pill is its own state (posted / postable / connect-first); a
+ * postable pill's own form only shows once you click it, one at a
+ * time — see ClipPlatformPills.tsx.
+ */
+.clip-platform-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.clip-platform-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.65rem 0.3rem 0.7rem;
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.clip-platform-pill--posted {
+  background: var(--approve-bg);
+  color: var(--approve);
+}
+
+.clip-platform-pill--postable {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.clip-platform-pill--postable[aria-expanded='true'] {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+
+.clip-platform-pill--connect {
+  background: var(--bg-inset);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.clip-platform-pill--connect:hover {
+  border-color: var(--border-strong);
 }
 
 .chart-card {
