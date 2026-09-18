@@ -85,6 +85,8 @@ export { registerProposeOpportunityExecutor } from './executors/proposeOpportuni
 export { registerPostClipYoutubeExecutor } from './executors/postClipYoutube.js'
 export { createYouTubeUploadHttpClient } from './adapters/youtubeUploadAdapter.js'
 export type { YouTubeUploadClient, YouTubeVideoMetadata, YouTubeUploadResult } from './adapters/youtubeUploadAdapter.js'
+export { createTikTokOAuthHttpClient } from './adapters/tiktokAdapter.js'
+export type { TikTokOAuthClient, TikTokTokenResult } from './adapters/tiktokAdapter.js'
 export { discoverOpportunities } from './agents/opportunityDiscoveryAgent.js'
 export type { OpportunityProposal, OpportunityDiscoveryResult } from './agents/opportunityDiscoveryAgent.js'
 export { runOpportunityDiscoveryOnce } from './agents/runOpportunityDiscovery.js'
