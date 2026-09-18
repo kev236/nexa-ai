@@ -98,4 +98,28 @@ describe('resolveApproval', () => {
     await engine.resolveApproval(outcome.approvalId, 'approved', 'owner_kevin')
     expect(capturedBusinessId).toBe('biz_specific')
   })
+
+  it('records a failed audit status (not a permanently stuck "requested" row) when the executor throws', async () => {
+    registerExecutor('always-throws', async () => {
+      throw new Error('upstream upload failed')
+    })
+
+    const engine = createPermissionEngine()
+    const outcome = await engine.requestAction(baseRequest({ actionType: 'always-throws' }))
+    if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
+
+    await expect(engine.resolveApproval(outcome.approvalId, 'approved', 'owner_kevin')).rejects.toThrow(
+      /upstream upload failed/
+    )
+
+    const record = await engine.auditStore.get(outcome.auditId)
+    expect(record?.status).toBe('failed')
+    expect(record?.failedReason).toBe('upstream upload failed')
+    expect(record?.resolvedAt).toBeDefined()
+
+    // The approval itself is still 'approved' — the decision to execute
+    // was made and stands; it's specifically the attempt that failed.
+    const approvals = await engine.approvalStore.listPending()
+    expect(approvals.find((a) => a.id === outcome.approvalId)).toBeUndefined()
+  })
 })

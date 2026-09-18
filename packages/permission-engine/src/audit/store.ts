@@ -10,11 +10,13 @@ export type AuditLogRecord = {
   reasoning: string
   expectedResult: JsonValue
   expectedCost?: { amountCents: number; currency: string }
-  status: 'requested' | 'denied' | 'executed' | 'abandoned'
+  status: 'requested' | 'denied' | 'executed' | 'abandoned' | 'failed'
   actualResult?: JsonValue
   deniedReason?: string
   /** Step 12: set only when status is 'abandoned' — see recordAbandoned(). */
   abandonedReason?: string
+  /** Set only when status is 'failed' — see recordFailed(). */
+  failedReason?: string
   requestedAt: string
   resolvedAt?: string
 }
@@ -32,6 +34,8 @@ export interface AuditLogStore {
   recordExecuted(auditId: string, result: JsonValue): Promise<void>
   /** Step 12: a crashed/killed run's row, discovered later — never a normal resolution path. See reapAbandonedRequests() in engine.ts. */
   recordAbandoned(auditId: string, reason: string): Promise<void>
+  /** An approved request whose executor threw — distinct from recordAbandoned() (never resolved at all) and recordDenied() (never attempted). See resolveApproval() in engine.ts. */
+  recordFailed(auditId: string, reason: string): Promise<void>
   get(auditId: string): Promise<AuditLogRecord | undefined>
   /** Most recent first — the dashboard's activity feed (step 8). */
   listByBusiness(businessId: string, limit?: number): Promise<AuditLogRecord[]>

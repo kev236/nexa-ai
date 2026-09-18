@@ -36,6 +36,24 @@ export class PostgresOAuthCredentialStore implements OAuthCredentialStore {
     platform: OAuthPlatform,
     tokens: { accessToken: string; refreshToken?: string; expiresAt: string; scope: string }
   ): Promise<void> {
+    // refresh_token is NOT NULL, not NOT-EMPTY — the upsert's own
+    // COALESCE(NULLIF(...), ...) below correctly falls back to the
+    // existing row's token on a re-authorization, but says nothing
+    // about a genuine first-time authorization that arrives with no
+    // refresh token at all (Google omitting it despite prompt=consent,
+    // or a bug upstream). Without this check that case would silently
+    // insert an empty string — satisfies NOT NULL, produces no error,
+    // and leaves a permanently broken credential no one finds out about
+    // until the next upload fails a token refresh against an empty
+    // string. InMemoryOAuthCredentialStore already throws on exactly
+    // this case; this brings the store actually used in production to
+    // the same "fail loudly" standard instead of a silent one.
+    if (!tokens.refreshToken) {
+      const existing = await this.get(businessId, platform)
+      if (!existing) {
+        throw new Error(`no refresh token available for a first-time ${platform} authorization`)
+      }
+    }
     await this.pool.query(
       `INSERT INTO oauth_credentials (business_id, platform, access_token, refresh_token, expires_at, scope, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, now(), now())

@@ -18,6 +18,7 @@ type Row = {
   actual_result: JsonValue | null
   denied_reason: string | null
   abandoned_reason: string | null
+  failed_reason: string | null
   requested_at: string
   resolved_at: string | null
 }
@@ -39,6 +40,7 @@ function toRecord(row: Row): AuditLogRecord {
     actualResult: row.actual_result ?? undefined,
     deniedReason: row.denied_reason ?? undefined,
     abandonedReason: row.abandoned_reason ?? undefined,
+    failedReason: row.failed_reason ?? undefined,
     requestedAt: row.requested_at,
     resolvedAt: row.resolved_at ?? undefined,
   }
@@ -87,6 +89,13 @@ export class PostgresAuditLogStore implements AuditLogStore {
   async recordAbandoned(auditId: string, reason: string): Promise<void> {
     await this.pool.query(
       `UPDATE audit_log SET status = 'abandoned', abandoned_reason = $2, resolved_at = now() WHERE id = $1`,
+      [auditId, reason]
+    )
+  }
+
+  async recordFailed(auditId: string, reason: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE audit_log SET status = 'failed', failed_reason = $2, resolved_at = now() WHERE id = $1`,
       [auditId, reason]
     )
   }

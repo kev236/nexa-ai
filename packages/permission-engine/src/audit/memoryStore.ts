@@ -51,6 +51,13 @@ export class InMemoryAuditLogStore implements AuditLogStore {
     record.resolvedAt = new Date().toISOString()
   }
 
+  async recordFailed(auditId: string, reason: string): Promise<void> {
+    const record = this.mustGet(auditId)
+    record.status = 'failed'
+    record.failedReason = reason
+    record.resolvedAt = new Date().toISOString()
+  }
+
   async get(auditId: string): Promise<AuditLogRecord | undefined> {
     return this.records.get(auditId)
   }

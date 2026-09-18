@@ -731,6 +731,11 @@ section {
   color: var(--warn);
 }
 
+.status-failed {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 .event-item {
   display: flex;
   flex-wrap: wrap;

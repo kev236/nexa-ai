@@ -175,6 +175,7 @@ export default async function ActivityPage() {
                     <span className={`status-badge status-${record.status}`}>{record.status}</span>
                     {record.status === 'denied' && record.deniedReason ? ` — ${record.deniedReason}` : null}
                     {record.status === 'abandoned' && record.abandonedReason ? ` — ${record.abandonedReason}` : null}
+                    {record.status === 'failed' && record.failedReason ? ` — ${record.failedReason}` : null}
                     {label ? ` — ${label}` : null}
                   </p>
                 </div>

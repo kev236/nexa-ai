@@ -505,6 +505,26 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     expect(normalRecord?.status).toBe('requested')
   })
 
+  it('records a failed audit status against real Postgres when the executor throws', async () => {
+    registerExecutor('always-throws-pg', async () => {
+      throw new Error('upstream upload failed')
+    })
+    const auditStore = new PostgresAuditLogStore(pool)
+    const engine = createPermissionEngine({ auditStore })
+
+    const outcome = await engine.requestAction(baseRequest({ actionType: 'always-throws-pg' }))
+    if (outcome.status !== 'pending_approval') throw new Error('expected pending_approval')
+
+    await expect(engine.resolveApproval(outcome.approvalId, 'approved', 'owner_kevin')).rejects.toThrow(
+      /upstream upload failed/
+    )
+
+    const record = await auditStore.get(outcome.auditId)
+    expect(record?.status).toBe('failed')
+    expect(record?.failedReason).toBe('upstream upload failed')
+    expect(record?.resolvedAt).toBeDefined()
+  })
+
   it('a legacy spendingLimit business config no longer affects anything against real Postgres (step 13, superseded by step 18)', async () => {
     // step 13's spending-cap-gated-auto-approval was removed — money never
     // auto-approves anymore regardless of amount, so there's nothing left
@@ -953,5 +973,19 @@ describe.skipIf(!connectionString)('Postgres-backed stores', () => {
     const renewed = await store.get(businessId, 'youtube')
     expect(renewed?.accessToken).toBe('renewed-access-token')
     expect(renewed?.refreshToken).toBe('a-real-refresh-token')
+  })
+
+  it('throws rather than silently storing an empty refresh token on a first-time save', async () => {
+    const store = new PostgresOAuthCredentialStore(pool)
+
+    await expect(
+      store.save(businessId, 'youtube', {
+        accessToken: 'first-access-token',
+        expiresAt: '2026-01-01T00:00:00Z',
+        scope: 'https://www.googleapis.com/auth/youtube.upload',
+      })
+    ).rejects.toThrow(/no refresh token available/)
+
+    expect(await store.get(businessId, 'youtube')).toBeUndefined()
   })
 })

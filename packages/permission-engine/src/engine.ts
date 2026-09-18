@@ -34,6 +34,7 @@ import { hashPassword, verifyPassword } from './password.js'
 import { getExecutor } from './executors/registry.js'
 import type { Notifier } from './notifications/notifier.js'
 import type { ActionOutcome, ActionRequest } from './types.js'
+import type { JsonValue } from './json.js'
 
 export type PermissionEngineDeps = {
   auditStore?: AuditLogStore
@@ -252,10 +253,28 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     }
 
     await approvalStore.resolve(approvalId, 'approved', resolvedBy)
-    const result = await executor(approval.request.payload, {
-      businessId: approval.request.businessId,
-      agentId: approval.request.agentId,
-    })
+    // Before this, an executor that threw left nothing behind: the
+    // approval already says 'approved', but recordExecuted() never runs,
+    // so the audit_log row stays stuck at 'requested' forever — not
+    // 'abandoned' either, since reapAbandonedRequests() explicitly skips
+    // any row that already has an approval (see its own comment). A real
+    // upload failure (expired token, a network blip, Google's API
+    // erroring) left a permanently stuck, invisible row and an unhandled
+    // rejection for the caller. recordFailed() gives that outcome an
+    // actual terminal state instead of falling through the cracks
+    // between the four states that already existed — still rethrown so
+    // every existing caller's try/catch keeps working exactly as before.
+    let result: JsonValue
+    try {
+      result = await executor(approval.request.payload, {
+        businessId: approval.request.businessId,
+        agentId: approval.request.agentId,
+      })
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      await auditStore.recordFailed(approval.auditId, reason)
+      throw err
+    }
     await auditStore.recordExecuted(approval.auditId, result)
     return { status: 'executed', auditId: approval.auditId, result }
   }
