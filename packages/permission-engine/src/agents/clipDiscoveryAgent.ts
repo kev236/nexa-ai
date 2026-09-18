@@ -117,8 +117,9 @@ export type ClipEvaluationResult = {
  * clip (a URL and/or description) and evaluates it: a virality score,
  * a copyright-risk check (the real reason an earlier version of this
  * business was shelved — see prompts/clip-discovery.md), per-platform
- * captions, and a recommendation. No repost executor exists, so this
- * drafts only, same shape as Campaigns/Creative/Story-Concept agents.
+ * captions, and a recommendation. This step only drafts the evaluation;
+ * posting is a separate step (see executors/postClipYoutube.ts) that
+ * only runs once a real video is actually attached.
  */
 export async function evaluateClip(
   client: MessagesClient,

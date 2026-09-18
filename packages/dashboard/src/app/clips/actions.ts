@@ -45,16 +45,33 @@ async function readVideoFromUrl(url: string): Promise<{ bytes: Buffer; mimeType:
   if (!contentType.startsWith('video/')) {
     throw new Error(`That URL didn't return a video (got "${contentType}").`)
   }
+  // Fast-path rejection when the host reports its size honestly — but
+  // content-length can be absent (chunked transfer) or wrong, so it's
+  // never the only guard: the stream below enforces the real cap as
+  // bytes arrive, instead of buffering an unbounded body into memory
+  // and only checking afterward.
   const contentLength = Number(response.headers.get('content-length') ?? 0)
   if (contentLength > MAX_VIDEO_BYTES) {
     throw new Error(`Video is too large (${Math.round(contentLength / 1024 / 1024)}MB, limit 200MB).`)
   }
-
-  const bytes = Buffer.from(await response.arrayBuffer())
-  if (bytes.length > MAX_VIDEO_BYTES) {
-    throw new Error(`Video is too large (${Math.round(bytes.length / 1024 / 1024)}MB, limit 200MB).`)
+  if (!response.body) {
+    throw new Error('Video fetch returned no body.')
   }
-  return { bytes, mimeType: contentType }
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAX_VIDEO_BYTES) {
+      await reader.cancel()
+      throw new Error('Video is too large (limit 200MB).')
+    }
+    chunks.push(value)
+  }
+  return { bytes: Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))), mimeType: contentType }
 }
 
 /** Prefers an uploaded file; falls back to fetching a pasted URL server-side. */
