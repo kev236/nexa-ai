@@ -69,6 +69,29 @@ export async function completeWithTool<T>(
   return toolUse.input as T
 }
 
+/**
+ * The chat-with-Nexa-AI feature's one call shape — auto tool_choice
+ * (Claude decides whether/which read-only tool to call, possibly none),
+ * unlike completeWithTool's forced single structured response. Still
+ * routes through the one place model choice is made; the caller owns
+ * the multi-turn loop and the tool handlers themselves (business-
+ * specific read queries, not this package's concern).
+ */
+export async function chatTurn(
+  client: MessagesClient,
+  system: string,
+  messages: Anthropic.MessageParam[],
+  tools: ToolSchema[] = []
+): Promise<Anthropic.Message> {
+  return client.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system,
+    tools: tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.inputSchema })),
+    messages,
+  })
+}
+
 export function createAnthropicClient(): MessagesClient {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {

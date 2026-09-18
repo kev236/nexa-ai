@@ -9,6 +9,7 @@ import {
   Film,
   Sparkles,
   PlusCircle,
+  MessageCircle,
 } from 'lucide-react'
 
 // Shared between Nav.tsx (a server component) and CommandPalette.tsx (a
@@ -19,6 +20,7 @@ import {
 export type NavKey =
   | 'approvals'
   | 'activity'
+  | 'chat'
   | 'opportunities'
   | 'growth'
   | 'story-concepts'
@@ -38,6 +40,7 @@ export const NAV_GROUPS: { label: string; links: NavLink[] }[] = [
     links: [
       { key: 'approvals', href: '/', label: 'Command Center', icon: LayoutDashboard },
       { key: 'activity', href: '/activity', label: 'Activity', icon: Activity },
+      { key: 'chat', href: '/chat', label: 'Chat', icon: MessageCircle },
     ],
   },
   {

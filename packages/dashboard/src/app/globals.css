@@ -2234,3 +2234,113 @@ form.opportunity-form button:hover {
 .empty-state--approve .empty-state-icon::before {
   border-color: color-mix(in srgb, var(--approve) 30%, transparent);
 }
+
+/* Chat with Nexa AI — the owner's own text/voice console. */
+
+.chat-console {
+  display: flex;
+  flex-direction: column;
+  height: 60vh;
+  min-height: 420px;
+  max-width: 720px;
+}
+
+.chat-console-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.25rem;
+  clip-path: var(--panel-clip);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  margin-bottom: 0.75rem;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.chat-bubble--user {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-bottom-right-radius: 3px;
+}
+
+.chat-bubble--assistant {
+  align-self: flex-start;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 3px;
+}
+
+.chat-bubble--pending {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-console-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-console-input-row input[type='text'] {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.85rem;
+  clip-path: var(--panel-clip-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--fg);
+  min-width: 0;
+}
+
+.chat-console-input-row input[type='text']:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 40%, transparent));
+}
+
+.chat-console-input-row button {
+  padding: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chat-mic-button {
+  background: var(--bg-inset);
+  color: var(--muted);
+}
+
+.chat-mic-button--active {
+  color: var(--accent);
+  border-color: var(--accent-strong);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-mic-button--active {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .chat-console {
+    height: 70vh;
+    max-width: none;
+  }
+}
