@@ -1725,6 +1725,13 @@ form.opportunity-form button:hover {
   display: block;
   width: 100%;
   height: 100%;
+  /* A cheap CSS-only bloom: the canvas itself is transparent outside
+     the wireframe/points/glow, so a drop-shadow halos exactly those
+     lit pixels — no WebGL postprocessing pass (no extra render
+     target, no extra per-frame GPU cost beyond the blur itself). Two
+     layers (tight + wide) read as a softer falloff than one. */
+  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--accent) 55%, transparent))
+    drop-shadow(0 0 64px color-mix(in srgb, var(--accent-blue) 28%, transparent));
 }
 
 /* The Command Center's brand mark — see .command-center-heading in the

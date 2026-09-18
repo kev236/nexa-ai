@@ -254,6 +254,10 @@ export function HoloGlobe() {
       globeGroup.rotation.y += 0.0022
       globeGroup.rotation.x += (Math.sin(Date.now() / 8000) * 0.08 + pointerY * 0.18 - globeGroup.rotation.x) * 0.04
       globeGroup.rotation.z += (pointerX * -0.12 - globeGroup.rotation.z) * 0.04
+      // A very slow, subtle breathing scale — reads as "alive" rather
+      // than a static object with a spinning texture on it.
+      const breath = 1 + Math.sin(Date.now() / 4200) * 0.012
+      globeGroup.scale.setScalar(breath)
       rings.forEach((ring, i) => {
         ring.rotation.z += i % 2 === 0 ? 0.0016 : -0.0011
       })
