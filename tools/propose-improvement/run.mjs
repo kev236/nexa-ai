@@ -155,17 +155,45 @@ const tools = [
   { type: 'text_editor_20250728', name: 'str_replace_based_edit_tool' },
 ]
 
+// Cost control — this loop can run up to 40 turns, resending the whole
+// growing conversation every time; the first run burned ~813k tokens
+// without finishing. Two independent fixes, both free wins (no capability
+// traded away), per shared/cost-optimization.md + shared/prompt-caching.md
+// in the claude-api skill:
+//   - Prompt caching: an explicit 1-hour breakpoint on the system prompt
+//     (covers the tool defs too — they render before system) plus
+//     top-level automatic caching for the growing message tail. 1-hour
+//     TTL, not the 5-minute default, because a single bash call (lint/
+//     test/build) can run close to BASH_TIMEOUT_MS between the request
+//     that issues it and the one carrying its result — long enough to
+//     blow a 5-minute cache entry.
+//   - Compaction (beta): once the accumulated file/bash-output history
+//     crosses ~150K tokens, the API summarizes older turns server-side
+//     instead of this process resending the full history forever.
+//     Requires the messages.push(...response.content...) below to keep
+//     passing the *full* content array (already does) — compaction
+//     blocks live there and get silently dropped by anything that only
+//     keeps the text.
 const messages = [{ role: 'user', content: 'Find and implement one real improvement, then summarize it.' }]
 let finalSummary = ''
 
 for (let turn = 0; turn < MAX_TURNS; turn++) {
-  const response = await client.messages.create({
+  const response = await client.beta.messages.create({
+    betas: ['compact-2026-01-12'],
     model: MODEL,
-    max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    max_tokens: 16000,
+    cache_control: { type: 'ephemeral', ttl: '1h' },
+    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral', ttl: '1h' } }],
     tools,
     messages,
+    context_management: { edits: [{ type: 'compact_20260112' }] },
   })
+
+  const u = response.usage
+  console.log(
+    `[turn ${turn + 1}/${MAX_TURNS}] input=${u.input_tokens} cache_read=${u.cache_read_input_tokens ?? 0} ` +
+      `cache_write=${u.cache_creation_input_tokens ?? 0} output=${u.output_tokens}`
+  )
 
   if (response.stop_reason === 'refusal') {
     console.error('Claude refused this run:', JSON.stringify(response.stop_details))
