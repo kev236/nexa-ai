@@ -41,6 +41,7 @@ export function NexaWidget() {
   const voiceOnRef = useRef(voiceOn)
   const busyRef = useRef(false)
   const failureRef = useRef(0)
+  const lastErrorRef = useRef<string | undefined>(undefined)
   const wakeRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const handleWakeRef = useRef<() => void>(() => {})
 
@@ -86,8 +87,18 @@ export function NexaWidget() {
         }
       }
     }
-    recognition.onerror = () => {
-      if (!triggered) failureRef.current += 1
+    recognition.onerror = (event) => {
+      // 'no-speech' fires constantly in continuous mode — it just means
+      // a few seconds passed with nothing said, completely normal while
+      // waiting for a wake phrase. 'aborted' is us calling .stop()
+      // ourselves (wake detected, manual mic, voice mode toggled off).
+      // Neither is a real failure; counting them was the actual bug —
+      // a few seconds of silence was enough to hit the failure ceiling
+      // and silently turn voice mode back off before anyone finished
+      // saying "hello Nexa".
+      if (triggered || event.error === 'no-speech' || event.error === 'aborted') return
+      failureRef.current += 1
+      lastErrorRef.current = event.error
     }
     recognition.onend = () => {
       wakeRecognitionRef.current = null
@@ -100,7 +111,7 @@ export function NexaWidget() {
       if (failureRef.current >= MAX_CONSECUTIVE_FAILURES) {
         failureRef.current = 0
         setVoiceOn(false)
-        setMicError('Voice mode turned off — could not keep the microphone listening.')
+        setMicError(`Voice mode turned off — microphone error: ${lastErrorRef.current ?? 'unknown'}.`)
         return
       }
       startWakeListening()
@@ -110,8 +121,19 @@ export function NexaWidget() {
     try {
       recognition.start()
       setWakeArmed(true)
-    } catch {
+    } catch (err) {
       wakeRecognitionRef.current = null
+      failureRef.current += 1
+      lastErrorRef.current = err instanceof Error ? err.message : String(err)
+      if (failureRef.current >= MAX_CONSECUTIVE_FAILURES) {
+        failureRef.current = 0
+        setVoiceOn(false)
+        setMicError(`Voice mode turned off — the browser would not start the microphone (${lastErrorRef.current}).`)
+      } else {
+        setTimeout(() => {
+          if (voiceOnRef.current && !busyRef.current) startWakeListening()
+        }, 300)
+      }
     }
   }, [setVoiceOn])
 
