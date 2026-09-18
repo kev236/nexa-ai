@@ -5,12 +5,16 @@ import * as THREE from 'three'
 
 /**
  * Purely decorative — a rotating wireframe globe with a Fresnel
- * atmosphere rim, a layered node/constellation mesh, and a static
- * starfield for depth, rendered as the Command Center page's own
- * background (see .page-globe-bg in globals.css). Runs entirely
- * client-side via WebGL, so unlike every model discussed this session
- * it has zero server/API cost: no GPU host, no per-render charge,
- * just the visitor's own browser.
+ * atmosphere rim, a layered node/constellation mesh, a static
+ * starfield for depth, and a "NEXA AI" label, all rendered inside the
+ * WebGL scene itself (the label is a camera-facing Sprite built from a
+ * 2D canvas texture, not DOM/CSS text stacked on top of the canvas —
+ * the dashboard's own rule is nothing renders in front of the globe).
+ * Lives in the Command Center's dedicated globe slot (see
+ * .hud-globe-slot in globals.css). Runs entirely client-side via
+ * WebGL, so unlike every model discussed this session it has zero
+ * server/API cost: no GPU host, no per-render charge, just the
+ * visitor's own browser.
  *
  * Colors are read from the page's own CSS custom properties at mount
  * time rather than hardcoded, so this stays in sync with the design
@@ -222,6 +226,77 @@ export function HoloGlobe() {
     sweepArc.rotation.x = 0.5
     globeGroup.add(sweepArc)
 
+    // A second sweep arc, counter-rotating and in the violet accent,
+    // for a busier "two signals crossing" read instead of one lone arc.
+    const sweepArc2 = new THREE.Mesh(
+      new THREE.TorusGeometry(1.32, 0.005, 8, 48, Math.PI * 0.4),
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    )
+    sweepArc2.rotation.x = -0.8
+    sweepArc2.rotation.y = 0.6
+    globeGroup.add(sweepArc2)
+
+    // "NEXA AI", rendered as an actual texture in the WebGL scene (a
+    // camera-facing sprite drawn from a 2D canvas), not DOM/CSS text
+    // overlaid on top of the canvas — the owner explicitly wants
+    // nothing in front of the globe, and a Sprite added directly to
+    // `scene` (not globeGroup) stays centered and readable without
+    // spinning away, the same way it would if it were a real label on
+    // the globe rather than a layer stacked over it.
+    const labelCanvas = document.createElement('canvas')
+    labelCanvas.width = 1024
+    labelCanvas.height = 256
+    const labelCtx = labelCanvas.getContext('2d')
+    let labelSprite: THREE.Sprite | undefined
+    let labelTexture: THREE.CanvasTexture | undefined
+
+    function drawLabel() {
+      if (!labelCtx) return
+      labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height)
+      labelCtx.textAlign = 'center'
+      labelCtx.textBaseline = 'middle'
+      labelCtx.font = '700 128px Sora, sans-serif'
+      labelCtx.fillStyle = '#ffffff'
+      labelCtx.shadowColor = accent.getStyle()
+      labelCtx.shadowBlur = 40
+      labelCtx.fillText('NEXA AI', labelCanvas.width / 2, labelCanvas.height / 2)
+      if (labelTexture) labelTexture.needsUpdate = true
+    }
+
+    if (labelCtx) {
+      drawLabel()
+      labelTexture = new THREE.CanvasTexture(labelCanvas)
+      labelTexture.colorSpace = THREE.SRGBColorSpace
+      const labelMaterial = new THREE.SpriteMaterial({
+        map: labelTexture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      })
+      labelSprite = new THREE.Sprite(labelMaterial)
+      labelSprite.scale.set(1.7, 0.425, 1)
+      labelSprite.position.set(0, 0, 1.3)
+      labelSprite.renderOrder = 10
+      scene.add(labelSprite)
+
+      // Canvas text doesn't re-flow when a web font finishes loading
+      // the way DOM text does — redraw once Sora is actually ready, in
+      // case this mounted before the Google Fonts link resolved (the
+      // fallback sans-serif draw above still looks fine in the
+      // meantime, just not the house font).
+      if (typeof document !== 'undefined' && 'fonts' in document) {
+        document.fonts.ready.then(() => {
+          if (labelCtx) drawLabel()
+        })
+      }
+    }
+
     function resize() {
       if (!container) return
       const size = container.clientWidth
@@ -262,6 +337,7 @@ export function HoloGlobe() {
         ring.rotation.z += i % 2 === 0 ? 0.0016 : -0.0011
       })
       sweepArc.rotation.z += 0.01
+      sweepArc2.rotation.z -= 0.007
       renderer.render(scene, camera)
       frame = requestAnimationFrame(tick)
     }
@@ -292,6 +368,12 @@ export function HoloGlobe() {
       linkMaterial.dispose()
       sweepArc.geometry.dispose()
       ;(sweepArc.material as THREE.Material).dispose()
+      sweepArc2.geometry.dispose()
+      ;(sweepArc2.material as THREE.Material).dispose()
+      if (labelSprite) {
+        ;(labelSprite.material.map as THREE.Texture | null)?.dispose()
+        labelSprite.material.dispose()
+      }
       rings.forEach((ring) => {
         ring.geometry.dispose()
         ;(ring.material as THREE.Material).dispose()
