@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "check:boundaries": "node tools/import-boundary/check.mjs",
     "db:migrate": "node --env-file-if-exists=.env packages/permission-engine/db/migrate.mjs",
+    "db:status": "node --env-file-if-exists=.env packages/permission-engine/db/status.mjs",
     "db:seed": "node --env-file-if-exists=.env packages/permission-engine/db/seed.mjs",
     "db:create-owner": "node --env-file-if-exists=.env packages/permission-engine/db/createOwner.mjs",
     "db:backfill-nexalabs": "npm run build:permission-engine && node --env-file-if-exists=.env packages/permission-engine/db/backfillNexaLabs.mjs",
