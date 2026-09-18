@@ -4,15 +4,18 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 /**
- * Purely decorative — a rotating wireframe globe behind the reactor
- * core's real data (agent nodes, pending count; see page.tsx). Runs
- * entirely client-side via WebGL, so unlike every model discussed this
- * session it has zero server/API cost: no GPU host, no per-render
- * charge, just the visitor's own browser.
+ * Purely decorative — a rotating wireframe globe with a Fresnel
+ * atmosphere rim, a layered node/constellation mesh, and a static
+ * starfield for depth, rendered as the Command Center page's own
+ * background (see .page-globe-bg in globals.css). Runs entirely
+ * client-side via WebGL, so unlike every model discussed this session
+ * it has zero server/API cost: no GPU host, no per-render charge,
+ * just the visitor's own browser.
  *
  * Colors are read from the page's own CSS custom properties at mount
  * time rather than hardcoded, so this stays in sync with the design
- * system's --accent/--accent-strong instead of drifting from it.
+ * system's --accent/--accent-strong/--accent-blue instead of drifting
+ * from them.
  */
 export function HoloGlobe() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,22 +39,82 @@ export function HoloGlobe() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     container.appendChild(renderer.domElement)
 
+    // A sparse field of distant points well outside the globe itself —
+    // gives the scene actual depth (something for the globe to be the
+    // center *of*) instead of one object floating on flat transparency.
+    // Static, not part of globeGroup, so it doesn't spin with the globe.
+    const STAR_COUNT = 220
+    const starPositions = new Float32Array(STAR_COUNT * 3)
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const radius = 3.2 + Math.random() * 4.5
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(Math.random() * 2 - 1)
+      starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
+      starPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
+      starPositions[i * 3 + 2] = radius * Math.cos(phi)
+    }
+    const starGeometry = new THREE.BufferGeometry()
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
+    const starMaterial = new THREE.PointsMaterial({
+      color: accent,
+      size: 0.012,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    const starField = new THREE.Points(starGeometry, starMaterial)
+    scene.add(starField)
+
     const globeGroup = new THREE.Group()
     scene.add(globeGroup)
 
-    // Wireframe shell — the globe's silhouette.
-    const wireGeometry = new THREE.WireframeGeometry(new THREE.SphereGeometry(1, 20, 14))
-    const wireMaterial = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.45 })
+    // Wireframe shell — the globe's silhouette. Finer segments than a
+    // decorative icon needs, since this now renders large enough (a
+    // real viewport-scale background) that low-poly faceting would show.
+    const wireGeometry = new THREE.WireframeGeometry(new THREE.SphereGeometry(1, 32, 24))
+    const wireMaterial = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.4 })
     globeGroup.add(new THREE.LineSegments(wireGeometry, wireMaterial))
 
-    // Soft inner fill — approximates a glow without a full bloom pass.
+    // Fresnel-style atmosphere rim — brighter at the grazing edge than
+    // face-on, the standard cheap trick for a "glowing planet" look
+    // (view-dependent intensity via the vertex normal vs. view
+    // direction, no lights or postprocessing pass needed).
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+      uniforms: { glowColor: { value: accentStrong } },
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 glowColor;
+        varying vec3 vNormal;
+        void main() {
+          float intensity = pow(0.55 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 5.0);
+          gl_FragColor = vec4(glowColor, clamp(intensity, 0.0, 1.0) * 0.4);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.BackSide,
+    })
+    const atmosphereGeometry = new THREE.SphereGeometry(1.14, 32, 24)
+    globeGroup.add(new THREE.Mesh(atmosphereGeometry, atmosphereMaterial))
+
+    // Soft inner fill underneath the atmosphere rim — keeps the sphere's
+    // face from reading as fully hollow/flat between the wireframe lines.
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: accentStrong,
       transparent: true,
-      opacity: 0.07,
+      opacity: 0.06,
       side: THREE.BackSide,
     })
-    globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.05, 24, 18), glowMaterial))
+    const glowGeometry = new THREE.SphereGeometry(1.05, 32, 24)
+    globeGroup.add(new THREE.Mesh(glowGeometry, glowMaterial))
 
     // Node points scattered evenly over the surface (Fibonacci sphere) —
     // reads as "data" on the globe without claiming to encode anything real.
@@ -81,6 +144,26 @@ export function HoloGlobe() {
       depthWrite: false,
     })
     globeGroup.add(new THREE.Points(nodeGeometry, nodeMaterial))
+
+    // A sparser second layer, larger and in the electric-blue accent —
+    // reads as a few "highlighted" data points among the rest rather
+    // than a uniform dot grid, cheap size/color variance without a
+    // custom per-point shader.
+    const highlightPositions: number[] = []
+    for (let i = 0; i < nodeVectors.length; i += 11) {
+      highlightPositions.push(nodeVectors[i].x, nodeVectors[i].y, nodeVectors[i].z)
+    }
+    const highlightGeometry = new THREE.BufferGeometry()
+    highlightGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(highlightPositions), 3))
+    const highlightMaterial = new THREE.PointsMaterial({
+      color: accentBlue,
+      size: 0.04,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    globeGroup.add(new THREE.Points(highlightGeometry, highlightMaterial))
 
     // Constellation lines — each node joined to its two nearest
     // neighbors, so the surface reads as a connected data mesh rather
@@ -167,6 +250,7 @@ export function HoloGlobe() {
 
     let frame: number | undefined
     function tick() {
+      starField.rotation.y += 0.0003
       globeGroup.rotation.y += 0.0022
       globeGroup.rotation.x += (Math.sin(Date.now() / 8000) * 0.08 + pointerY * 0.18 - globeGroup.rotation.x) * 0.04
       globeGroup.rotation.z += (pointerX * -0.12 - globeGroup.rotation.z) * 0.04
@@ -188,11 +272,18 @@ export function HoloGlobe() {
       if (frame !== undefined) cancelAnimationFrame(frame)
       resizeObserver.disconnect()
       container.removeEventListener('pointermove', onPointerMove)
+      starGeometry.dispose()
+      starMaterial.dispose()
       wireGeometry.dispose()
       wireMaterial.dispose()
+      atmosphereGeometry.dispose()
+      atmosphereMaterial.dispose()
+      glowGeometry.dispose()
       glowMaterial.dispose()
       nodeGeometry.dispose()
       nodeMaterial.dispose()
+      highlightGeometry.dispose()
+      highlightMaterial.dispose()
       linkGeometry.dispose()
       linkMaterial.dispose()
       sweepArc.geometry.dispose()

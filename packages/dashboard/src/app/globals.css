@@ -1686,7 +1686,13 @@ form.opportunity-form button:hover {
    real UI stacked on top of it across the whole screen. */
 .page-globe-bg {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* Centered on the real content area (right of the fixed sidebar),
+     not the raw window — otherwise the globe sits visibly left of
+     where the actual data is, instead of that data surrounding it. */
+  left: var(--sidebar-w);
   z-index: -1;
   display: flex;
   align-items: center;
@@ -1695,11 +1701,19 @@ form.opportunity-form button:hover {
   pointer-events: none;
 }
 
+@media (max-width: 900px) {
+  .page-globe-bg {
+    /* The sidebar collapses into a horizontal top bar below 900px
+       (see .nav), so there's no left offset to center around anymore. */
+    left: 0;
+  }
+}
+
 /* Sized off the viewport itself (not any one panel) so the full
    sphere — a real center point on the screen, not just texture —
    stays visible at any window size, phone included. */
 .holo-globe {
-  width: min(62vw, 62vh, 820px);
+  width: min(60vw, 62vh, 820px);
   aspect-ratio: 1;
   /* auto, not none: HoloGlobe.tsx reads pointermove off this element
      for its pointer-parallax tilt. Still aria-hidden — it's a visual
