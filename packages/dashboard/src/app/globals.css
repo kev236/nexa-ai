@@ -161,19 +161,7 @@ h1 {
 .subtitle {
   color: var(--muted);
   font-size: 0.9rem;
-  margin-bottom: 0.35rem;
-}
-
-/* The real policy/monitoring line that used to sit overlaid on the
-   globe (back when the globe lived inside one panel) — moved here
-   once the globe got its own dedicated slot with nothing drawn over
-   it (see .hud-globe-slot). */
-.page-header-status {
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.5;
-  max-width: 60ch;
-  margin: 0 0 2rem;
+  margin-bottom: 0;
 }
 
 .page-header-row {

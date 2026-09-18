@@ -285,12 +285,6 @@ export default async function ApprovalsPage() {
                 ? "Nothing waiting on you across your businesses."
                 : `${pending.length} action${pending.length === 1 ? '' : 's'} waiting for a decision.`}
             </p>
-            <p className="page-header-status">
-              Monitoring {businessCards.length} business{businessCards.length === 1 ? '' : 'es'} ·{' '}
-              {activeAgents} agent{activeAgents === 1 ? '' : 's'} active · {pending.length} approval
-              {pending.length === 1 ? '' : 's'} required. Auto-executes everything except real spending — that
-              always waits for you.
-            </p>
           </div>
           <div className="page-header-meta">
             <span className="page-header-clock mono">
