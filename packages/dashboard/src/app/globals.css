@@ -2342,3 +2342,150 @@ form.opportunity-form button:hover {
     height: 70vh;
   }
 }
+
+/* Nexa AI floating quick-access widget — mounted once via Nav, portaled
+   to document.body (see NexaWidget.tsx for why). Bottom-right on every
+   page; clear of the sidebar (fixed, left-docked) and, on mobile, the
+   top nav bar (static there, not fixed — see the .nav mobile rules). */
+
+.nexa-widget-fab {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 250;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-strong);
+  color: white;
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 70%, black 15%);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 24px -6px var(--accent-glow);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.nexa-widget-fab:hover {
+  transform: scale(1.05);
+}
+
+.nexa-widget-fab--open {
+  background: var(--bg-elevated);
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+.nexa-widget-fab-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: pulse-ring 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexa-widget-fab-pulse {
+    animation: none;
+  }
+}
+
+.nexa-widget-panel {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 5.5rem;
+  z-index: 250;
+  width: min(380px, calc(100vw - 2rem));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  clip-path: var(--panel-clip);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6), 0 0 40px -10px var(--accent-glow);
+  padding: 0.9rem;
+  animation: command-palette-in 0.18s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexa-widget-panel {
+    animation: none;
+  }
+}
+
+.nexa-widget-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.nexa-widget-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+}
+
+.nexa-widget-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.nexa-widget-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nexa-widget-close:hover {
+  color: var(--fg);
+}
+
+.nexa-widget-messages {
+  flex: 1;
+  min-height: 200px;
+  margin-bottom: 0;
+}
+
+.nexa-widget-error {
+  margin: 0;
+}
+
+.nexa-widget-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 480px) {
+  .nexa-widget-fab {
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .nexa-widget-panel {
+    right: 0.75rem;
+    left: 0.75rem;
+    bottom: 4.75rem;
+    width: auto;
+  }
+}

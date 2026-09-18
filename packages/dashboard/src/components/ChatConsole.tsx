@@ -2,99 +2,27 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Mic, MicOff, Send, Volume2, VolumeX } from 'lucide-react'
-import { sendChatMessageAction } from '@/app/chat/actions'
-import type { ChatMessage } from '@/lib/chat'
-
-// Voice via the browser's built-in Web Speech API — no new API key, no
-// new vendor, works today. SpeechRecognition for the mic button,
-// SpeechSynthesis to read Nexa's replies aloud. Both are unavailable in
-// some browsers (notably Firefox for recognition); the UI degrades to
-// text-only rather than erroring when they're missing.
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-  start(): void
-  stop(): void
-}
-
-function getSpeechRecognition(): (new () => SpeechRecognitionLike) | undefined {
-  if (typeof window === 'undefined') return undefined
-  const w = window as unknown as {
-    SpeechRecognition?: new () => SpeechRecognitionLike
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike
-  }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition
-}
+import { useNexaChat } from '@/components/useNexaChat'
 
 export function ChatConsole() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', text: "I'm Nexa AI. Ask me about revenue, pending approvals, growth, or recent activity." },
-  ])
+  const {
+    messages,
+    pending,
+    error,
+    voiceOn,
+    setVoiceOn,
+    listening,
+    speechSupported,
+    ttsSupported,
+    send,
+    toggleListening,
+  } = useNexaChat("I'm Nexa AI. Ask me about revenue, pending approvals, growth, or recent activity.")
   const [input, setInput] = useState('')
-  const [pending, setPending] = useState(false)
-  const [listening, setListening] = useState(false)
-  const [voiceOn, setVoiceOn] = useState(false)
-  const [error, setError] = useState<string | undefined>()
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const speechSupported = typeof window !== 'undefined' && getSpeechRecognition() !== undefined
-  const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
-
-  function speak(text: string) {
-    if (!voiceOn || !ttsSupported) return
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))
-  }
-
-  async function send(text: string) {
-    const trimmed = text.trim()
-    if (!trimmed || pending) return
-    setError(undefined)
-    const nextHistory: ChatMessage[] = [...messages, { role: 'user', text: trimmed }]
-    setMessages(nextHistory)
-    setInput('')
-    setPending(true)
-    const result = await sendChatMessageAction(nextHistory)
-    setPending(false)
-    if ('error' in result) {
-      setError(result.error)
-      return
-    }
-    setMessages((prev) => [...prev, { role: 'assistant', text: result.reply }])
-    speak(result.reply)
-  }
-
-  function toggleListening() {
-    const Recognition = getSpeechRecognition()
-    if (!Recognition) return
-
-    if (listening) {
-      recognitionRef.current?.stop()
-      return
-    }
-
-    const recognition = new Recognition()
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.lang = 'en-US'
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript
-      if (transcript) send(transcript)
-    }
-    recognition.onerror = () => setListening(false)
-    recognition.onend = () => setListening(false)
-    recognitionRef.current = recognition
-    recognition.start()
-    setListening(true)
-  }
 
   return (
     <div className="chat-console">
@@ -114,6 +42,7 @@ export function ChatConsole() {
         onSubmit={(e) => {
           e.preventDefault()
           send(input)
+          setInput('')
         }}
       >
         {speechSupported && (

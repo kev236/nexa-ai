@@ -4,6 +4,7 @@ import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 import { NAV_GROUPS, type NavKey } from '@/lib/navLinks'
 import { CommandPalette } from '@/components/CommandPalette'
+import { NexaWidget } from '@/components/NexaWidget'
 
 /**
  * The sidebar's own live readout — real agent counts for the primary
@@ -56,6 +57,7 @@ export async function Nav({ active }: { active: NavKey }) {
       )}
 
       <CommandPalette />
+      {active !== 'chat' && <NexaWidget />}
     </nav>
   )
 }
