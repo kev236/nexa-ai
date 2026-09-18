@@ -16,7 +16,9 @@ export function PostClipButton({
 
   return (
     <form action={formAction} className="clip-post-form">
-      <input name="videoFile" type="file" accept="video/*" required aria-label="Video file to post" />
+      <input name="videoFile" type="file" accept="video/*" aria-label="Video file to post" />
+      <span className="clip-post-form-or">or</span>
+      <input name="videoUrl" type="url" placeholder="https://.../clip.mp4" aria-label="Video URL to post" />
       <button type="submit" disabled={pending}>
         {pending ? 'Posting…' : 'Post to YouTube'}
       </button>

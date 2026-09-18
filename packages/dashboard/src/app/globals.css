@@ -1471,6 +1471,31 @@ form.opportunity-form button:hover {
   max-width: 220px;
 }
 
+.clip-post-form input[type='url'] {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.55rem;
+  clip-path: var(--panel-clip-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--fg);
+  min-width: 0;
+  flex: 1;
+}
+
+.clip-post-form input[type='url']:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+}
+
+.clip-post-form-or {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
 .clip-post-form button {
   font-size: 0.72rem;
   padding: 0.4rem 0.75rem;

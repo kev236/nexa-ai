@@ -25,6 +25,10 @@ export function ClipForm() {
         Video file (optional — posts to YouTube immediately, no review step)
         <input name="videoFile" type="file" accept="video/*" />
       </label>
+      <label>
+        …or a video URL instead (fetched by the server, nothing to download)
+        <input name="videoUrl" type="url" placeholder="https://.../clip.mp4" />
+      </label>
 
       {state?.error && <p className="error">{state.error}</p>}
       <button type="submit" disabled={pending}>
