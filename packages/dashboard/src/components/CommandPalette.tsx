@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { COMMAND_ITEMS } from '@/lib/navLinks'
@@ -9,13 +10,25 @@ import { COMMAND_ITEMS } from '@/lib/navLinks'
  * Global quick-nav, mounted once inside Nav.tsx so it's on every
  * authenticated page. Ctrl/Cmd+K (or the sidebar hint button) opens it;
  * every result is a real page this app already has — see navLinks.ts.
+ *
+ * The overlay renders through a portal into document.body, not in
+ * place — `.nav` (this component's parent) has `backdrop-filter`,
+ * which per spec creates a new containing block for `position: fixed`
+ * descendants. Left in place, the "fixed, full-viewport" overlay was
+ * actually being sized and positioned relative to the 232px sidebar
+ * box instead of the viewport, breaking it almost entirely.
  */
 export function CommandPalette() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const [mounted, setMounted] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -92,8 +105,10 @@ export function CommandPalette() {
         <kbd>⌘K</kbd>
       </button>
 
-      {open && (
-        <div className="command-palette-overlay" onClick={() => setOpen(false)}>
+      {open &&
+        mounted &&
+        createPortal(
+          <div className="command-palette-overlay" onClick={() => setOpen(false)}>
           <div
             className="command-palette"
             role="dialog"
@@ -151,8 +166,9 @@ export function CommandPalette() {
               <span>esc close</span>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </>
   )
 }

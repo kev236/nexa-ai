@@ -58,6 +58,34 @@
   box-sizing: border-box;
 }
 
+/* A themed scrollbar everywhere instead of the browser's default —
+   on this dark HUD background a default light/gray OS scrollbar reads
+   as a stray bright bar on the right edge of the screen. Thin and
+   accent-tinted, not hidden outright: an invisible scrollbar removes
+   the one visual cue that a region actually scrolls. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
