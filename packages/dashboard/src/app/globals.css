@@ -128,15 +128,8 @@ main {
 }
 
 main:has(> .nav) {
-  /* On a normal-width screen this is just the sidebar offset (the
-     centering term goes negative and max() throws it away) — content
-     still fills edge-to-edge exactly as before. Only once the viewport
-     has real excess width beyond the sidebar + 1600px content does the
-     centering term win, so the dashboard reads as centered on a wide
-     monitor instead of stretching every panel out to the far edge. */
-  margin-left: max(var(--sidebar-w), calc((100vw - 1600px) / 2));
-  margin-right: auto;
-  max-width: 1600px;
+  margin: 0 0 0 var(--sidebar-w);
+  max-width: none;
   padding: 2.5rem 3rem 4rem;
 }
 
