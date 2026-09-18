@@ -5,15 +5,17 @@ import { getSproutlightBusiness } from '@/lib/business'
 import { Nav } from '@/components/Nav'
 import { StoryConceptForm } from '@/components/StoryConceptForm'
 import { EmptyState } from '@/components/EmptyState'
+import { PostStoryConceptButton } from '@/components/PostStoryConceptButton'
+import { postStoryConceptToYoutubeAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
 export default async function StoryConceptsPage() {
   await verifySession()
 
-  let businessId: string
+  let business
   try {
-    businessId = (await getSproutlightBusiness()).id
+    business = await getSproutlightBusiness()
   } catch {
     return (
       <>
@@ -38,7 +40,12 @@ export default async function StoryConceptsPage() {
     )
   }
 
-  const concepts = await getEngine().storyConceptStore.listByBusiness(businessId)
+  const engine = getEngine()
+  const [concepts, youtubeCredential] = await Promise.all([
+    engine.storyConceptStore.listByBusiness(business.id),
+    engine.oauthCredentialStore.get(business.id, 'youtube'),
+  ])
+  const youtubeConnected = youtubeCredential !== undefined
 
   return (
     <>
@@ -47,8 +54,8 @@ export default async function StoryConceptsPage() {
         <h1>Sproutlight</h1>
         <p className="subtitle">
           AI-generated nursery rhymes and short stories for young children. The Story Concept Agent drafts a
-          concept — script, scenes, and its own safety notes — for you to review. Nothing here generates video,
-          audio, or publishes anything yet.
+          concept — script, scenes, and its own safety notes — for you to review. Attach a real video for any
+          concept below and it posts straight to YouTube, no review step — original content, no copyright gate.
         </p>
       </div>
 
@@ -78,6 +85,24 @@ export default async function StoryConceptsPage() {
             <p className="reasoning">
               <strong>Safety notes:</strong> {c.safetyNotes}
             </p>
+
+            {c.youtubeVideoId ? (
+              <p className="meta">
+                <span className="status-badge status-executed">posted</span>{' '}
+                <a href={`https://youtu.be/${c.youtubeVideoId}`} target="_blank" rel="noreferrer" className="mono">
+                  youtu.be/{c.youtubeVideoId}
+                </a>
+              </p>
+            ) : youtubeConnected ? (
+              <PostStoryConceptButton action={postStoryConceptToYoutubeAction.bind(null, c.id)} />
+            ) : (
+              <p className="meta">
+                <a href={`/api/oauth/youtube/start?business=${business.slug}`} className="status-badge status-requested">
+                  Connect YouTube to post this
+                </a>
+              </p>
+            )}
+
             <details>
               <summary className="meta">
                 {c.scenes.length} scene{c.scenes.length === 1 ? '' : 's'} · reasoning

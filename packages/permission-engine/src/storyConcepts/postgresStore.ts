@@ -16,6 +16,8 @@ type Row = {
   reasoning: string
   confidence: number | null
   created_at: string
+  youtube_video_id: string | null
+  youtube_posted_at: string | null
 }
 
 function toRecord(row: Row): StoryConceptRecord {
@@ -33,6 +35,8 @@ function toRecord(row: Row): StoryConceptRecord {
     reasoning: row.reasoning,
     confidence: row.confidence ?? undefined,
     createdAt: row.created_at,
+    youtubeVideoId: row.youtube_video_id ?? undefined,
+    youtubePostedAt: row.youtube_posted_at ?? undefined,
   }
 }
 
@@ -76,6 +80,14 @@ export class PostgresStoryConceptStore implements StoryConceptStore {
       [businessId, limit]
     )
     return result.rows.map(toRecord)
+  }
+
+  async markPosted(conceptId: string, youtubeVideoId: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE story_concepts SET youtube_video_id = $2, youtube_posted_at = now() WHERE id = $1`,
+      [conceptId, youtubeVideoId]
+    )
+    if (result.rowCount === 0) throw new Error(`no such story concept: ${conceptId}`)
   }
 }
 

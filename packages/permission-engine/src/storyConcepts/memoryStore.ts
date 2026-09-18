@@ -37,4 +37,11 @@ export class InMemoryStoryConceptStore implements StoryConceptStore {
       .reverse()
       .slice(0, limit)
   }
+
+  async markPosted(conceptId: string, youtubeVideoId: string): Promise<void> {
+    const record = this.records.get(conceptId)
+    if (!record) throw new Error(`no such story concept: ${conceptId}`)
+    record.youtubeVideoId = youtubeVideoId
+    record.youtubePostedAt = new Date().toISOString()
+  }
 }

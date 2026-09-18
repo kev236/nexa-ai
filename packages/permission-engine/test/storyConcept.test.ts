@@ -82,6 +82,25 @@ describe('generateStoryConcept — Story Concept Agent', () => {
   })
 })
 
+describe('InMemoryStoryConceptStore.markPosted', () => {
+  it('records the YouTube video id and a posted timestamp', async () => {
+    const store = new InMemoryStoryConceptStore()
+    const id = await store.create('biz_1', { theme: 'counting flowers', ...toolResult() } as never)
+    expect((await store.get(id))?.youtubeVideoId).toBeUndefined()
+
+    await store.markPosted(id, 'yt_abc123')
+
+    const record = await store.get(id)
+    expect(record?.youtubeVideoId).toBe('yt_abc123')
+    expect(record?.youtubePostedAt).toBeDefined()
+  })
+
+  it('throws for an unknown concept id', async () => {
+    const store = new InMemoryStoryConceptStore()
+    await expect(store.markPosted('nope', 'yt_x')).rejects.toThrow(/no such story concept/)
+  })
+})
+
 describe('generateStoryConceptOnce', () => {
   it('generates and stores a concept, tagged with the submitted theme', async () => {
     const store = new InMemoryStoryConceptStore()

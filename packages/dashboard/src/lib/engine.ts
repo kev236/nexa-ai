@@ -20,6 +20,7 @@ import {
   registerSendEmailExecutor,
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
+  registerPostStoryConceptYoutubeExecutor,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -86,6 +87,16 @@ export function getEngine() {
       registerPostClipYoutubeExecutor()
     } catch (err) {
       console.error('post_clip_youtube executor not registered:', err instanceof Error ? err.message : err)
+    }
+    // Sproutlight's equivalent — same "missing env vars is expected"
+    // shape. Both executors share the same YOUTUBE_OAUTH_CLIENT_ID/
+    // SECRET; each business's own oauth_credentials row (not these env
+    // vars) is what makes posting fail closed per-business until that
+    // business's owner actually connects its channel.
+    try {
+      registerPostStoryConceptYoutubeExecutor()
+    } catch (err) {
+      console.error('post_story_concept_youtube executor not registered:', err instanceof Error ? err.message : err)
     }
   }
   return engine
