@@ -10,6 +10,7 @@ import {
   Sparkles,
   PlusCircle,
   MessageCircle,
+  KeyRound,
 } from 'lucide-react'
 
 // Shared between Nav.tsx (a server component) and CommandPalette.tsx (a
@@ -27,6 +28,7 @@ export type NavKey =
   | 'money'
   | 'campaigns'
   | 'clips'
+  | 'api-keys'
 
 type NavLink = { key: NavKey; href: string; label: string; icon: LucideIcon }
 
@@ -57,6 +59,7 @@ export const NAV_GROUPS: { label: string; links: NavLink[] }[] = [
       { key: 'money', href: '/transactions', label: 'Money', icon: Wallet },
       { key: 'campaigns', href: '/campaigns', label: 'Campaigns', icon: Megaphone },
       { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
+      { key: 'api-keys', href: '/api-keys', label: 'API Keys', icon: KeyRound },
     ],
   },
 ]

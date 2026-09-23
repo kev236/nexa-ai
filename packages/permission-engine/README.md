@@ -941,3 +941,44 @@ about code *outside* this package, not within it.
   TikTok or Instagram account, or a real database (this migration's own
   columns included) — same sandbox limitations steps 27/28 already
   logged, now applying to three platforms instead of one.
+
+- Step 30 — a new, small product: the Clip Scoring API. The owner asked
+  for something that could earn a small amount of money in the
+  background while the other businesses get finalized, without needing
+  new hosting or a large new subsystem. `POST /api/v1/score-clip`
+  wraps `evaluateClip()` (`agents/clipDiscoveryAgent.ts`) — the exact
+  same scoring TrendRush's own `/clips` page already runs internally —
+  for external callers, authenticated with a new `api_keys` row instead
+  of a dashboard session.
+
+  Deliberately not business-scoped: migration `0024` adds a standalone
+  `api_keys` table (`id`, `name`, `key_hash`, `request_count`,
+  `created_at`, `last_used_at`, `revoked_at`) with no `business_id` —
+  `evaluateClip()` itself is a pure function with no store writes, so
+  there's nothing TrendRush-specific to attach a key to, and this
+  product's customers aren't TrendRush's own business data.
+  `apiKeys/crypto.ts` generates a 256-bit key (`nexa_live_` prefix, a
+  cosmetic recognizability convention, not part of the secret) and
+  stores only its SHA-256 hash — a fast hash, not `password.ts`'s
+  deliberately slow scrypt, since the security question here is
+  different: scrypt exists to slow down brute-forcing a low-entropy
+  human password, while a 256-bit random key has no meaningfully
+  exploitable search space regardless of hash speed, and the lookup
+  goes through an indexed equality query, not an app-level compare
+  loop. The plaintext key is returned exactly once, at creation
+  (`/api-keys`'s `CreateApiKeyForm`), and never stored or shown again.
+
+  Billing is manual, deliberately: the owner generates a key after
+  being paid outside this system (bank transfer, whatever) and revokes
+  it if a customer stops paying. No Stripe or other payment integration
+  was added here — real billing is a separate, later step, kept
+  separate from "does the product work" on purpose.
+
+  Verified: new `apiKeys.test.ts` (create/find/revoke/usage-tracking/
+  ordering, including the same same-millisecond `createdAt` tie-
+  breaking fix `clips/memoryStore.ts` and `audit/memoryStore.ts`
+  already needed), full suite, lint, `tsc --noEmit`, the import-
+  boundary check, and a real `next build` (the new `/api/v1/score-clip`
+  route and `/api-keys` page both compile and appear in the route
+  list) all pass. Not exercised against a live request or a real
+  database — same sandbox limitation as every other step this session.

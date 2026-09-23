@@ -766,6 +766,32 @@ section {
   font-family: var(--font-mono);
 }
 
+.key-reveal {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  clip-path: var(--panel-clip-sm);
+}
+
+.key-reveal code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.key-reveal button {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.7rem;
+  flex-shrink: 0;
+}
+
 form.login-form {
   display: flex;
   flex-direction: column;

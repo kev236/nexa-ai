@@ -23,6 +23,8 @@ import {
   registerPostStoryConceptYoutubeExecutor,
   registerPostClipInstagramExecutor,
   registerPostClipTiktokExecutor,
+  createPostgresApiKeyStore,
+  type ApiKeyStore,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -116,6 +118,21 @@ export function getEngine() {
     }
   }
   return engine
+}
+
+/**
+ * Step 30: the clip-scoring API product's key store — not part of
+ * PermissionEngineDeps since it isn't business-scoped (see migration
+ * 0024's own comment), so it gets its own small singleton rather than
+ * forcing every engine consumer to carry a store it mostly won't use.
+ */
+let apiKeyStore: ApiKeyStore | undefined
+
+export function getApiKeyStore(): ApiKeyStore {
+  if (!apiKeyStore) {
+    apiKeyStore = createPostgresApiKeyStore()
+  }
+  return apiKeyStore
 }
 
 function tryCreateNotifier(
