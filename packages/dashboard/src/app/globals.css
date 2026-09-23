@@ -3133,4 +3133,15 @@ form.opportunity-form button:hover {
   .nexa-widget-panel {
     bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 4.75rem);
   }
+
+  /* /chat's 70vh (the >900px tablet override above) was already tight
+     on a short phone before the fixed top/bottom bars existed; now that
+     they permanently claim ~120px, size against real available height
+     instead, with a floor so it never collapses. dvh (not vh) so a
+     mobile browser's own collapsing address bar doesn't chop the input
+     row off-screen. */
+  .chat-console {
+    height: clamp(320px, calc(100dvh - var(--mobile-topbar-h) - var(--mobile-tabbar-h) - 12rem), 560px);
+    min-height: 0;
+  }
 }
