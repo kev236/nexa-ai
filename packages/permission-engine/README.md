@@ -1015,3 +1015,29 @@ about code *outside* this package, not within it.
   surface compiles) all pass. Not exercised against a live request or
   a real database — same sandbox limitation as every other step this
   session.
+
+- Step 32 — reversed step 31's core premise: the owner decided against
+  any public surface on this app at all, having thought it through
+  further. `/clip-api` and its `requestApiKeyAccessAction` server
+  action (`clip-api/actions.ts`) both call `verifySession()` now, same
+  as every other page and action in this codebase — a Server Action is
+  its own reachable endpoint independent of whether the page that
+  renders its form is gated, so both needed the same fix, not just the
+  page. A full sweep confirmed every other `page.tsx` and every other
+  `'use server'` file already called `verifySession()` — `/login` is
+  the only file in the app that legitimately doesn't (requiring a
+  session to view the login page would be a lockout bug), so this
+  closes the one real gap step 31 introduced, not a wider one.
+
+  `/clip-api` still exists — it's now an internal reference/pitch page
+  for the product, reachable only with a dashboard login, not a
+  stranger-facing landing page. `api/v1/score-clip` itself is
+  unaffected: it was never session-gated to begin with, and still
+  isn't — API-key auth is a different, legitimate access-control
+  mechanism for an API endpoint, not the "page a random person can
+  browse to" the owner's instruction was about.
+
+  Verified: `tsc --noEmit`, lint, and a real `next build` all pass —
+  confirming `/clip-api` now renders dynamically (`ƒ`), not statically
+  (`○`) as it did under step 31, which is the concrete proof the gate
+  is real rather than cosmetic.

@@ -1,10 +1,20 @@
 import type { Metadata } from 'next'
+import { verifySession } from '@/lib/dal'
 import { RequestApiAccessForm } from '@/components/RequestApiAccessForm'
 
 export const metadata: Metadata = {
   title: 'Clip Scoring API — Nexa AI',
-  description: "Score a short-form clip's virality and copyright risk before you spend time editing it. One API call, real reasoning, no dashboard required.",
+  description: "Score a short-form clip's virality and copyright risk before you spend time editing it. One API call, real reasoning.",
 }
+
+/**
+ * Step 31 built this as a public page anyone could land on. Step 32:
+ * the owner decided against any public surface on this app at all, so
+ * this is now gated like every other page — an internal reference page
+ * for the product's own pitch/API contract, not something a stranger
+ * can reach. requestApiKeyAccessAction (actions.ts) is gated the same
+ * way, for the same reason.
+ */
 
 const EXAMPLE_REQUEST = `curl https://<your-nexa-ai-domain>/api/v1/score-clip \\
   -H "Authorization: Bearer nexa_live_..." \\
@@ -31,7 +41,8 @@ const EXAMPLE_RESPONSE = `{
   "confidence": 0.82
 }`
 
-export default function ClipApiLandingPage() {
+export default async function ClipApiLandingPage() {
+  await verifySession()
   return (
     <div className="clip-api-page">
       <header className="clip-api-hero">

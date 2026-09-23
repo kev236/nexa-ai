@@ -1,5 +1,6 @@
 'use server'
 
+import { verifySession } from '@/lib/dal'
 import { getApiKeyRequestStore } from '@/lib/engine'
 
 export type RequestAccessState = { error?: string; success?: boolean } | undefined
@@ -7,12 +8,17 @@ export type RequestAccessState = { error?: string; success?: boolean } | undefin
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
- * Step 31: the ONLY server action on this route that doesn't call
- * verifySession() — deliberately, this page is public. No dashboard
- * data is read or returned here, only a new row written to an inbox
- * only the owner's /api-keys page can see.
+ * Step 31 originally left this action open on purpose (the page it
+ * belongs to was meant to be public). The owner decided against any
+ * public surface on this app at all — /clip-api itself now calls
+ * verifySession() too, so this is here for the same reason every other
+ * server action in this codebase calls it: a Server Action is its own
+ * reachable endpoint regardless of whether the page that renders its
+ * form is gated, so gating only the page and not the action would have
+ * left a real hole.
  */
 export async function requestApiKeyAccessAction(_prevState: RequestAccessState, formData: FormData): Promise<RequestAccessState> {
+  await verifySession()
   // A hidden field real visitors never fill in; a bot's autofill often does.
   const honeypot = formData.get('company_website')
   if (typeof honeypot === 'string' && honeypot.trim()) {

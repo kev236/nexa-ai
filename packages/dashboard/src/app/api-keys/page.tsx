@@ -18,9 +18,13 @@ export const dynamic = 'force-dynamic'
  * stop paying. No Stripe wiring here yet, deliberately — see this
  * route's own comment.
  *
- * Step 31 added the public /clip-api landing page's request-access
- * inbox — shown here, above the key list, since a new lead is the
- * thing this page's owner most needs to notice first.
+ * Step 31 added /clip-api's request-access inbox — shown here, above
+ * the key list, since a new lead is the thing this page's owner most
+ * needs to notice first. Step 32: /clip-api is no longer public (the
+ * owner decided against any public surface on this app), so this inbox
+ * only ever gets a new row from someone the owner already gave
+ * dashboard access to — logged here so that constraint isn't a
+ * surprise reading this file later.
  */
 export default async function ApiKeysPage() {
   await verifySession()
@@ -34,7 +38,8 @@ export default async function ApiKeysPage() {
         <p className="subtitle">
           Access to the clip-scoring API (<code className="mono">POST /api/v1/score-clip</code>) — the same
           evaluation TrendRush&apos;s own Clip Discovery Agent runs, exposed for anyone paying for it. Billing is
-          manual for now: generate a key once someone&apos;s paid, revoke it when they stop. Public page:{' '}
+          manual for now: generate a key once someone&apos;s paid, revoke it when they stop. Product page (dashboard
+          login required, not public):{' '}
           <code className="mono">/clip-api</code>.
         </p>
       </div>
