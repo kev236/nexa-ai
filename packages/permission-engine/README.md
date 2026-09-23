@@ -1085,16 +1085,19 @@ about code *outside* this package, not within it.
   Verified: lint, `tsc -b --noEmit`, the import-boundary check, and a
   real `next build` all pass (`/campaigns`, `/campaigns/[id]`,
   `/campaigns/new` all render `ƒ` dynamic, as expected for
-  session-gated pages). The full `vitest` suite was started but didn't
-  finish in this sandbox run (no output, no crash — just still running
-  well past every prior step's runtime here); re-run `npm test` to
-  confirm before relying on this beyond what the four checks above
-  already cover. Not run against the real database either way — this
-  sandbox's egress policy blocks the configured `DATABASE_URL` host,
-  same limitation noted on every earlier step — so the `nexa-labs`
-  business's actual campaign row and its first concept batch need
-  either a live `next dev`/deployed run, or the owner using
-  `/campaigns?business=nexa-labs` → New campaign directly.
+  session-gated pages). The full `vitest` suite finished at 253/284
+  passing (39/40 files) — the 31 failures are all in
+  `postgresStore.test.ts`, every one a `pool.end()`/hook timeout trying
+  to reach the real `DATABASE_URL` host, which this sandbox's egress
+  policy blocks (same limitation noted on every earlier step, this is
+  just the first time a step's own run sat through all 31 timeouts
+  instead of failing fast). Not specific to this change: the failures
+  span totally unrelated tests in that file (owner login, audit log,
+  transactions), not just the one campaign-related test in there — so
+  the `nexa-labs` business's actual campaign row and its first concept
+  batch still need either a live `next dev`/deployed run, or the owner
+  using `/campaigns?business=nexa-labs` → New campaign directly, to get
+  real Postgres coverage this sandbox can't provide.
 
   Verified: `tsc --noEmit`, lint, and a real `next build` all pass —
   confirming `/clip-api` now renders dynamically (`ƒ`), not statically
