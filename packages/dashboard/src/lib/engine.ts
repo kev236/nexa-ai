@@ -23,6 +23,7 @@ import {
   registerPostStoryConceptYoutubeExecutor,
   registerPostClipInstagramExecutor,
   registerPostClipTiktokExecutor,
+  registerCreateBlogPostDraftExecutor,
   createPostgresApiKeyStore,
   type ApiKeyStore,
   createPostgresApiKeyRequestStore,
@@ -117,6 +118,15 @@ export function getEngine() {
       registerPostClipTiktokExecutor()
     } catch (err) {
       console.error('post_clip_tiktok executor not registered:', err instanceof Error ? err.message : err)
+    }
+    // Step 33's automated marketing loop — same "missing env vars is
+    // expected, not a crash" shape as every executor above. Without
+    // SANITY_WRITE_TOKEN set, 'create_blog_post_draft' just stays
+    // unregistered and requestAction() denies it cleanly.
+    try {
+      registerCreateBlogPostDraftExecutor()
+    } catch (err) {
+      console.error('create_blog_post_draft executor not registered:', err instanceof Error ? err.message : err)
     }
   }
   return engine

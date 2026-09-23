@@ -5,6 +5,7 @@ import { getEngine } from '@/lib/engine'
 import { getBusiness, getDropshippingBusiness } from '@/lib/business'
 import { triggerWaitlistTriage } from '@/lib/triage'
 import { triggerTransactionReview } from '@/lib/transactionReview'
+import { triggerBlogGeneration } from '@/lib/blogGeneration'
 
 /**
  * Step 8: closes the loop that steps 4-6 left manual — polls nexalabs
@@ -41,6 +42,12 @@ import { triggerTransactionReview } from '@/lib/transactionReview'
  * above — the dropshipping business row and/or SHOPIFY_SHOP_DOMAIN/
  * SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET not existing in a given
  * environment is an expected state, not a failure of this run.
+ *
+ * Step 33 added the Blog Agent — same "missing agent/config is an
+ * expected state, not a failure of this run" shape as waitlist triage
+ * above, caught rather than propagated so one unconfigured piece never
+ * takes the whole poll down. Most runs skip via runBlogGenerationOnce's
+ * own cadence check (roughly one post per 5 days), not via an error.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -82,6 +89,13 @@ export async function GET(request: NextRequest) {
     // requestAction() itself could detect its own crash.
     const abandoned = await engine.reapAbandonedRequests()
 
+    let blogGeneration: Awaited<ReturnType<typeof triggerBlogGeneration>> | { skipped: string }
+    try {
+      blogGeneration = await triggerBlogGeneration(engine, business)
+    } catch (err) {
+      blogGeneration = { skipped: err instanceof Error ? err.message : String(err) }
+    }
+
     return NextResponse.json({
       events,
       transactions,
@@ -89,6 +103,7 @@ export async function GET(request: NextRequest) {
       transactionReview,
       dropshippingTransactions,
       abandoned,
+      blogGeneration,
     })
   } catch (err) {
     console.error('cron poll failed:', err)

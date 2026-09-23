@@ -1103,3 +1103,61 @@ about code *outside* this package, not within it.
   confirming `/clip-api` now renders dynamically (`ƒ`), not statically
   (`○`) as it did under step 31, which is the concrete proof the gate
   is real rather than cosmetic.
+
+- Step 34 — the Blog Agent: automated draft generation for nexalabs.tech's
+  blog, closing the gap step 33 left ("fully automate" meant the drafting
+  loop, not unsupervised posting). New `blogAgent.ts` (an LLM call against
+  `prompts/blog-post.md`, which hard-bans invented statistics, fabricated
+  testimonials, promised income/growth outcomes, and stated-as-fact legal
+  conclusions about copyright — the same honesty constraints this project
+  has held everywhere else, now written into an agent's own system
+  prompt instead of just this package's conventions) picks a topic from a
+  small rotating candidate list, avoiding whatever's already covered by
+  an existing post title, and drafts a real 400-700 word post.
+
+  New `create_blog_post_draft` executor (`executors/createBlogPostDraft.ts`)
+  is the one side effect: creates a Sanity *draft* `post` document via a
+  dedicated `SANITY_WRITE_TOKEN` (deliberately separate from
+  `NexaLabsAdapter`'s read-only `SANITY_READ_TOKEN` — least privilege).
+  Deliberately stops at draft, never calls publish — a Sanity draft isn't
+  public, so it's the same "not customer-facing, not irreversible" shape
+  campaigns.ts's own comment already uses to justify content_concepts
+  skipping requestAction() entirely; this one *does* still go through
+  requestAction() (it's a real external side effect, unlike drafting
+  campaign concepts), but with no `expectedCost` it auto-executes under
+  step 18's policy the moment an active agent requests it — audited,
+  but no owner click needed for a draft. Putting unreviewed, unattended
+  AI writing on the live public site is a different, much worse action
+  than drafting it, and that one step stays a human's call, same as
+  every other "make this public" action already in this codebase.
+
+  `runBlogGeneration.ts` orchestrates: reads the 20 most recent post
+  titles/dates via a new dedicated read-only Sanity client
+  (`createSanityReadClient()`, exported from this package rather than
+  the dashboard per invariant #1 — first pass put it in
+  `packages/dashboard/src/lib/blogGeneration.ts` directly, which
+  `npm run check:boundaries` correctly flagged as a violation: a
+  credential-holding `@sanity/client` import only belongs inside this
+  package), skips if the most recent post is younger than 5 days
+  (default; configurable), otherwise drafts one and submits it. Wired
+  into the existing daily cron (`packages/dashboard/src/lib/
+  blogGeneration.ts` → `app/api/cron/poll/route.ts`), same
+  "missing agent/config is expected, not a crash" shape as every other
+  piece of that route — most runs skip via the cadence check, not an
+  error. Needs a `blog-writer` agent registered for `nexa-labs`
+  (`npm run db:register-business -- ...` already covers the business
+  itself; `db:register-agent` still needs running for this key) before
+  it'll do anything.
+
+  Verified: 6 new tests (`createBlogPostDraftExecutor.test.ts`,
+  `runBlogGeneration.test.ts` — payload validation, draft-not-publish
+  shape, the cadence skip/proceed boundary, auto-execution with no
+  pending approval), full suite at 259/259 passing outside
+  `postgresStore.test.ts` (same sandbox DB-network limitation as every
+  earlier step), lint, `tsc -b --noEmit`, the import-boundary check
+  (which is what caught and fixed the violation above), and a real
+  `next build` (`/api/cron/poll` compiles with the new wiring) all pass.
+  Not exercised against a live Sanity write or a real database — same
+  sandbox limitation as every step before it; the first real draft
+  needs either a live cron run or `npm run db:register-agent -- ...`
+  followed by a manual trigger once deployed.
