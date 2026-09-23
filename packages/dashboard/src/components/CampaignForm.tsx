@@ -3,11 +3,12 @@
 import { useActionState } from 'react'
 import { createCampaign, type CampaignFormState } from '@/app/campaigns/actions'
 
-export function CampaignForm() {
+export function CampaignForm({ businessSlug }: { businessSlug: string }) {
   const [state, formAction, pending] = useActionState<CampaignFormState, FormData>(createCampaign, undefined)
 
   return (
     <form action={formAction} className="opportunity-form">
+      <input type="hidden" name="business" value={businessSlug} />
       <label>
         Campaign brief
         <textarea

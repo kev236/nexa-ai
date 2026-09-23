@@ -49,3 +49,14 @@ export async function getTrendRushBusiness() {
 export async function getDropshippingBusiness() {
   return getBusiness('dropshipping')
 }
+
+// The Campaigns feature (step 16) was built against getPromoteFunBusiness()
+// alone — one business, no switcher. Nexa Labs' own marketing (the Clip
+// Scoring API's launch campaign) reuses the exact same Campaign Agent /
+// Creative Agent pipeline under the dashboard's own default business
+// rather than a new one — this is just an explicit name for it, matching
+// getPromoteFunBusiness()'s pattern, for the campaigns pages' business
+// switcher (see CAMPAIGN_BUSINESSES in app/campaigns/business.ts).
+export async function getNexaLabsBusiness() {
+  return getBusiness('nexa-labs')
+}

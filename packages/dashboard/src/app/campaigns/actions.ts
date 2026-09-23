@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { verifySession } from '@/lib/dal'
 import { getEngine } from '@/lib/engine'
-import { getPromoteFunBusiness } from '@/lib/business'
+import { getBusiness } from '@/lib/business'
 import { createAnthropicClient, importCampaignOnce, generateConceptsOnce } from '@nexa-ai/permission-engine'
+import { resolveCampaignBusinessSlug } from './business'
 
 const CREATIVE_AGENT_KEY = 'creative-agent'
 
@@ -18,6 +19,7 @@ export async function createCampaign(
   await verifySession()
   const rawInput = formData.get('rawInput')
   const externalId = formData.get('externalId')
+  const businessSlug = resolveCampaignBusinessSlug(formData.get('business')?.toString())
 
   if (typeof rawInput !== 'string' || !rawInput.trim()) {
     return { error: 'Paste the campaign brief text.' }
@@ -25,7 +27,7 @@ export async function createCampaign(
 
   let campaignId: string
   try {
-    const business = await getPromoteFunBusiness()
+    const business = await getBusiness(businessSlug)
     const llmClient = createAnthropicClient()
     const result = await importCampaignOnce(
       getEngine(),
@@ -45,10 +47,18 @@ export async function createCampaign(
 
 export async function generateConcepts(campaignId: string): Promise<void> {
   await verifySession()
-  const business = await getPromoteFunBusiness()
+  const engine = getEngine()
+  // The campaign's own business, not a hardcoded one — this used to
+  // always resolve Promote.fun regardless of which business the campaign
+  // actually belonged to, harmless only because every campaign was
+  // Promote.fun's until Nexa Labs' own campaigns existed too.
+  const campaign = await engine.campaignStore.get(campaignId)
+  if (!campaign) {
+    throw new Error(`no campaign with id ${campaignId}`)
+  }
   const llmClient = createAnthropicClient()
-  const agent = await getEngine().agentStore.getByKey(business.id, CREATIVE_AGENT_KEY)
-  await generateConceptsOnce(getEngine(), llmClient, business.id, campaignId, agent?.id)
+  const agent = await engine.agentStore.getByKey(campaign.businessId, CREATIVE_AGENT_KEY)
+  await generateConceptsOnce(engine, llmClient, campaign.businessId, campaignId, agent?.id)
   revalidatePath(`/campaigns/${campaignId}`)
 }
 

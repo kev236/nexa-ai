@@ -1037,6 +1037,65 @@ about code *outside* this package, not within it.
   mechanism for an API endpoint, not the "page a random person can
   browse to" the owner's instruction was about.
 
+- Step 33 — the Clip Scoring API's public marketing/lead-capture surface
+  moved to nexalabs.tech itself (a separate Nexa Labs repo — its own
+  `/products/clip-scoring-api` page, request-access form, and Sanity
+  content), since step 32 closed off any public page on this app. This
+  step is the "automate the marketing" half: the Campaigns feature
+  (step 16) was built against a single hardcoded business
+  (`getPromoteFunBusiness()`), so Nexa Labs' own marketing had nowhere
+  to plug into the existing Campaign Agent / Creative Agent pipeline
+  without either a second bespoke system or generalizing this one.
+  Generalized it instead.
+
+  `lib/business.ts` gets `getNexaLabsBusiness()`, mirroring the other
+  named business getters — resolving the dashboard's own default
+  business (`nexa-labs`, already used by `runWaitlistTriage.mjs`/
+  `backfillNexaLabs.mjs`), not a new registration. New
+  `app/campaigns/business.ts` holds `CAMPAIGN_BUSINESSES` (currently
+  just `promote-fun` and `nexa-labs` — the two that actually run
+  campaign-style marketing; Sproutlight/TrendRush/Dropshipping don't) and
+  `resolveCampaignBusinessSlug()`, which defaults to `promote-fun` for
+  anything unset/unrecognized so every existing `/campaigns` link and
+  bookmark keeps working exactly as before.
+
+  `/campaigns` now takes a `?business=` param and renders a small pill
+  switcher; `/campaigns/new` and `CampaignForm` carry the slug through
+  as a hidden field; `createCampaign` resolves the business generically
+  via `getBusiness(slug)` instead of the hardcoded Promote.fun getter.
+  Fixed a real latent bug found while doing this: `generateConcepts`
+  always resolved Promote.fun's business id regardless of which
+  business the campaign actually belonged to — harmless only because
+  every campaign was Promote.fun's until now. It resolves the campaign's
+  own `businessId` (already on `CampaignRecord`) instead, so a Nexa
+  Labs campaign's `content_concepts` rows get stamped with Nexa Labs'
+  own business id, not Promote.fun's.
+
+  What this doesn't do: no agent posts anything automatically. Content
+  concepts (hooks, scripts, captions, hashtags, scored) are generated
+  for review in the dashboard, same as every other campaign — actual
+  posting still goes through the existing per-platform adapters
+  (`youtubeUploadAdapter.ts` etc.), which still need real Nexa Labs
+  social accounts and OAuth credentials connected, neither of which
+  exist yet. "Fully automate" here means the drafting loop, not
+  unsupervised posting — this app still never auto-merges or auto-
+  deploys its own code, and it isn't going to auto-post to a brand's
+  social account without a human in the loop either.
+
+  Verified: lint, `tsc -b --noEmit`, the import-boundary check, and a
+  real `next build` all pass (`/campaigns`, `/campaigns/[id]`,
+  `/campaigns/new` all render `ƒ` dynamic, as expected for
+  session-gated pages). The full `vitest` suite was started but didn't
+  finish in this sandbox run (no output, no crash — just still running
+  well past every prior step's runtime here); re-run `npm test` to
+  confirm before relying on this beyond what the four checks above
+  already cover. Not run against the real database either way — this
+  sandbox's egress policy blocks the configured `DATABASE_URL` host,
+  same limitation noted on every earlier step — so the `nexa-labs`
+  business's actual campaign row and its first concept batch need
+  either a live `next dev`/deployed run, or the owner using
+  `/campaigns?business=nexa-labs` → New campaign directly.
+
   Verified: `tsc --noEmit`, lint, and a real `next build` all pass —
   confirming `/clip-api` now renders dynamically (`ƒ`), not statically
   (`○`) as it did under step 31, which is the concrete proof the gate
