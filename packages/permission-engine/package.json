@@ -1,0 +1,24 @@
+{
+  "name": "@nexa-ai/permission-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "pg": "^8.23.0",
+    "@sanity/client": "^8.6.1",
+    "@anthropic-ai/sdk": "^0.125.0",
+    "resend": "^6.28.0",
+    "stripe": "^22.6.2",
+    "@sanity/webhook": "^4.0.4"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.7.2"
+  }
+}
