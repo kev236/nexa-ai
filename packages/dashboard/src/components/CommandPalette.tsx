@@ -57,6 +57,16 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open])
 
+  // MobileNav has no keyboard to press Ctrl/Cmd+K with — its "Quick
+  // jump" buttons (top bar + sheet) open this the same overlay this way.
+  useEffect(() => {
+    function onOpenRequest() {
+      setOpen(true)
+    }
+    window.addEventListener('nexa:open-command-palette', onOpenRequest)
+    return () => window.removeEventListener('nexa:open-command-palette', onOpenRequest)
+  }, [])
+
   useEffect(() => {
     if (!open) return
     setQuery('')

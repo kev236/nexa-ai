@@ -3,6 +3,8 @@
   --sidebar-w: 232px;
   --panel-cut: 16px;
   --panel-cut-sm: 8px;
+  --mobile-topbar-h: 52px;
+  --mobile-tabbar-h: 64px;
 
   --bg: #070814;
   /* Glassmorphism surfaces: translucent, blurred (see the shared panel
@@ -1289,6 +1291,288 @@ form.login-form button:hover {
     max-width: 900px;
     padding: 1.75rem 1.25rem 3rem;
   }
+}
+
+/* ---------- Mobile-native nav (phones, <=760px) ----------
+   Below this width the sidebar isn't squeezed into a strip (that's the
+   900px tablet fallback above) — it's replaced outright by a fixed
+   bottom tab bar + a slide-up sheet for everything else, the pattern a
+   phone user already knows from every native app. Rendered by
+   MobileNav.tsx, mounted as a sibling of .nav in Nav.tsx. Classes are
+   defined unconditionally but stay display:none until the <=760px
+   query below turns them on (and turns .nav off) together. */
+
+.mobile-topbar,
+.mobile-tabbar {
+  display: none;
+}
+
+.mobile-topbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: var(--mobile-topbar-h);
+  padding: env(safe-area-inset-top, 0px) 1.1rem 0;
+  background: var(--bg-sidebar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.mobile-topbar-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--muted);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.mobile-topbar-search:hover,
+.mobile-topbar-search:focus-visible {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+.mobile-tabbar {
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 0.15rem;
+  min-height: var(--mobile-tabbar-h);
+  padding: 0.3rem 0.4rem calc(env(safe-area-inset-bottom, 0px) + 0.3rem);
+  background: var(--bg-sidebar);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 28px -18px var(--accent-glow);
+}
+
+.mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 48px;
+  padding: 0.3rem 0.2rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 10px;
+  transition: color 0.15s ease;
+}
+
+.mobile-tab--active {
+  color: var(--accent);
+}
+
+.mobile-tab--active svg {
+  filter: drop-shadow(0 0 5px var(--accent-glow));
+}
+
+/* Slide-up sheet — deliberately rounded, not clip-path-beveled like
+   every desktop panel: a full-width sheet is the one surface where the
+   sci-fi angular chrome would fight the platform's own bottom-sheet
+   convention instead of reading as this app's style. */
+
+.mobile-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  /* Above the Nexa widget FAB/panel (z-index 250) — open, the sheet
+     should fully cover it, not have the chat bubble float on top of
+     menu content and stay clickable through it. Still below the
+     command palette (300): Quick jump inside the sheet opens it. */
+  z-index: 255;
+  display: flex;
+  align-items: flex-end;
+  background: color-mix(in srgb, var(--bg) 65%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: command-palette-fade 0.15s ease both;
+}
+
+.mobile-sheet {
+  width: 100%;
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.65), 0 0 40px -10px var(--accent-glow);
+  padding: 0.6rem 1.1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  animation: mobile-sheet-in 0.2s ease both;
+}
+
+@keyframes mobile-sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet-overlay,
+  .mobile-sheet {
+    animation: none;
+  }
+}
+
+.mobile-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  margin: 0.4rem auto 0.75rem;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.mobile-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-inset);
+  color: var(--muted);
+}
+
+.mobile-sheet-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-search kbd {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+}
+
+.mobile-sheet-groups {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.mobile-sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mobile-sheet-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  padding: 0.3rem 0.3rem 0.2rem;
+}
+
+.mobile-sheet-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+  padding: 0.6rem;
+  border-radius: 12px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.mobile-sheet-link svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.mobile-sheet-link--active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.mobile-sheet-link--active svg {
+  color: var(--accent);
+}
+
+.mobile-sheet-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
 .opportunities-toolbar {
@@ -2628,13 +2912,13 @@ form.opportunity-form button:hover {
 @media (max-width: 480px) {
   .nexa-widget-fab {
     right: 1rem;
-    bottom: 1rem;
+    bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 0.85rem);
   }
 
   .nexa-widget-panel {
     right: 0.75rem;
     left: 0.75rem;
-    bottom: 4.75rem;
+    bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 4.75rem);
     width: auto;
   }
 }
@@ -2766,5 +3050,87 @@ form.opportunity-form button:hover {
   .clip-api-code-grid,
   .clip-api-steps {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Mobile-native nav: viewport-width overrides ----------
+   Deliberately last in the file — every selector below (.nav,
+   .kpi-row, .nexa-widget-fab, .command-btn, .actions button, …) has an
+   earlier unconditional or wider-breakpoint definition elsewhere in
+   this file; a @media wrapper doesn't add specificity, so this block
+   has to out-order them by position, not just out-match them by width,
+   to actually win the cascade at phone widths. */
+@media (max-width: 760px) {
+  .nav {
+    display: none;
+  }
+
+  .mobile-topbar,
+  .mobile-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 210;
+  }
+
+  .mobile-topbar {
+    top: 0;
+  }
+
+  .mobile-tabbar {
+    bottom: 0;
+    z-index: 220;
+  }
+
+  main:has(> .nav) {
+    margin-left: 0;
+    max-width: none;
+    padding: calc(var(--mobile-topbar-h) + env(safe-area-inset-top, 0px) + 1.5rem) 1.1rem
+      calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 2rem);
+  }
+
+  /* Primary actions get a real 44px+ touch target — the desktop sizes
+     above are mouse-precision sizes, not thumb-precision ones. Left
+     scoped to the buttons people actually tap to submit/approve/deny,
+     not the compact inline ones next to growth/clip-post text inputs. */
+  .approval-card .actions button,
+  .button-link,
+  form.login-form button,
+  form.opportunity-form button {
+    min-height: 44px;
+  }
+
+  .command-btn {
+    min-height: 64px;
+  }
+
+  /* Stat tiles become a swipeable, edge-to-edge scroller instead of a
+     cramped 2-column grid — a native mobile pattern (App Store-style
+     cards) rather than a shrunk desktop grid. */
+  .kpi-row {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 0.6rem;
+    margin-left: -1.1rem;
+    margin-right: -1.1rem;
+    padding: 0 1.1rem 0.35rem;
+  }
+
+  .kpi-tile {
+    scroll-snap-align: start;
+    flex: 0 0 68%;
+  }
+
+  /* The Nexa widget FAB/panel float above the new bottom tab bar
+     instead of behind it. */
+  .nexa-widget-fab {
+    bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 0.85rem);
+  }
+
+  .nexa-widget-panel {
+    bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px) + 4.75rem);
   }
 }
