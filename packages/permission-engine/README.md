@@ -982,3 +982,36 @@ about code *outside* this package, not within it.
   route and `/api-keys` page both compile and appear in the route
   list) all pass. Not exercised against a live request or a real
   database — same sandbox limitation as every other step this session.
+
+- Step 31 — the Clip Scoring API had no way for a stranger to find or
+  understand it: only `/api-keys`, behind a dashboard login, existed.
+  The owner asked for the fastest realistic path to an actual paying
+  customer, given real constraints — no live payment processing (not
+  KvK-registered), no audience-building shortcut for the other
+  businesses' ad-revenue paths. This doesn't guarantee a sale; it
+  removes the concrete blocker that made one impossible (nobody outside
+  this dashboard could learn the product existed).
+
+  New: migration `0025` adds `api_key_requests` (email, use_case,
+  created_at, fulfilled_at) — a request-access inbox, deliberately
+  separate from `api_keys` itself, since most requests never become a
+  real key (spam, tire-kickers, a use case the owner declines) and
+  carry fields a key has no reason to keep once issued.
+  `/clip-api` is a genuinely public page (the one page in this app that
+  doesn't call `verifySession()` — confirmed by `next build` rendering
+  it `○` static, meaning Next.js itself detected no session dependency)
+  with real product copy, a real request/response example matching
+  `api/v1/score-clip`'s actual contract, and a request form
+  (`requestApiKeyAccessAction`, also `verifySession()`-free, with a
+  honeypot field against basic bot spam). `/api-keys` now shows pending
+  requests above the key list — the thing its owner most needs to
+  notice first — each with a one-click "generate key & mark fulfilled"
+  action (`fulfillApiKeyRequestAction`) that does both in the same
+  request instead of two separate manual steps.
+
+  Verified: new `apiKeyRequests.test.ts`, full suite, lint,
+  `tsc --noEmit`, the import-boundary check, and a real `next build`
+  (confirming `/clip-api` renders static, and the new action/route
+  surface compiles) all pass. Not exercised against a live request or
+  a real database — same sandbox limitation as every other step this
+  session.

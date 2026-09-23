@@ -1,25 +1,30 @@
 import { KeyRound } from 'lucide-react'
 import { verifySession } from '@/lib/dal'
-import { getApiKeyStore } from '@/lib/engine'
+import { getApiKeyStore, getApiKeyRequestStore } from '@/lib/engine'
 import { relativeTime } from '@/lib/format'
 import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
 import { CreateApiKeyForm } from '@/components/CreateApiKeyForm'
+import { FulfillApiKeyRequestForm } from '@/components/FulfillApiKeyRequestForm'
 import { revokeApiKeyAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Step 30: manage keys for the clip-scoring API product
+ * Step 30/31: manage keys for the clip-scoring API product
  * (api/v1/score-clip/route.ts) — not tied to any business, this is its
  * own small product. Billing is manual: generate a key after getting
  * paid outside this system, send it to the customer, revoke it if they
  * stop paying. No Stripe wiring here yet, deliberately — see this
  * route's own comment.
+ *
+ * Step 31 added the public /clip-api landing page's request-access
+ * inbox — shown here, above the key list, since a new lead is the
+ * thing this page's owner most needs to notice first.
  */
 export default async function ApiKeysPage() {
   await verifySession()
-  const keys = await getApiKeyStore().listAll()
+  const [keys, pendingRequests] = await Promise.all([getApiKeyStore().listAll(), getApiKeyRequestStore().listPending()])
 
   return (
     <>
@@ -29,9 +34,31 @@ export default async function ApiKeysPage() {
         <p className="subtitle">
           Access to the clip-scoring API (<code className="mono">POST /api/v1/score-clip</code>) — the same
           evaluation TrendRush&apos;s own Clip Discovery Agent runs, exposed for anyone paying for it. Billing is
-          manual for now: generate a key once someone&apos;s paid, revoke it when they stop.
+          manual for now: generate a key once someone&apos;s paid, revoke it when they stop. Public page:{' '}
+          <code className="mono">/clip-api</code>.
         </p>
       </div>
+
+      {pendingRequests.length > 0 && (
+        <section style={{ marginBottom: '2rem' }}>
+          <h2 className="section-title">Pending requests ({pendingRequests.length})</h2>
+          <div className="deck-enter">
+            {pendingRequests.map((req) => (
+              <div className="card" key={req.id}>
+                <div className="card-header">
+                  <span className="action-type-row">
+                    <span className="concept-title">{req.email}</span>
+                    <span className="status-badge status-requested">new</span>
+                  </span>
+                  <span className="meta">{relativeTime(req.createdAt)}</span>
+                </div>
+                <p className="reasoning">{req.useCase}</p>
+                <FulfillApiKeyRequestForm requestId={req.id} email={req.email} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="deck-enter">
         <CreateApiKeyForm />

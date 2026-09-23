@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { verifySession } from '@/lib/dal'
-import { getApiKeyStore } from '@/lib/engine'
+import { getApiKeyStore, getApiKeyRequestStore } from '@/lib/engine'
 
 export type CreateKeyState = { error?: string; plaintextKey?: string } | undefined
 
@@ -23,4 +23,20 @@ export async function revokeApiKeyAction(id: string): Promise<void> {
   await verifySession()
   await getApiKeyStore().revoke(id)
   revalidatePath('/api-keys')
+}
+
+export type FulfillRequestState = { error?: string; plaintextKey?: string } | undefined
+
+/** Generates a key named after the requester's email and marks their /clip-api request fulfilled — one click instead of two separate steps. */
+export async function fulfillApiKeyRequestAction(
+  requestId: string,
+  email: string,
+  _prevState: FulfillRequestState,
+  _formData: FormData
+): Promise<FulfillRequestState> {
+  await verifySession()
+  const { plaintextKey } = await getApiKeyStore().create(email)
+  await getApiKeyRequestStore().markFulfilled(requestId)
+  revalidatePath('/api-keys')
+  return { plaintextKey }
 }

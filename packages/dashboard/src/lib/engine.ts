@@ -25,6 +25,8 @@ import {
   registerPostClipTiktokExecutor,
   createPostgresApiKeyStore,
   type ApiKeyStore,
+  createPostgresApiKeyRequestStore,
+  type ApiKeyRequestStore,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -133,6 +135,16 @@ export function getApiKeyStore(): ApiKeyStore {
     apiKeyStore = createPostgresApiKeyStore()
   }
   return apiKeyStore
+}
+
+let apiKeyRequestStore: ApiKeyRequestStore | undefined
+
+/** Step 31: the public /clip-api landing page's request-access inbox — same standalone reasoning as getApiKeyStore() above. */
+export function getApiKeyRequestStore(): ApiKeyRequestStore {
+  if (!apiKeyRequestStore) {
+    apiKeyRequestStore = createPostgresApiKeyRequestStore()
+  }
+  return apiKeyRequestStore
 }
 
 function tryCreateNotifier(
