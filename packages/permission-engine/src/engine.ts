@@ -108,6 +108,8 @@ export type PermissionEngine = {
   socialAccountStore: SocialAccountStore
   clipStore: ClipStore
   oauthCredentialStore: OAuthCredentialStore
+  /** Optional — exposed so callers outside requestAction() (e.g. the cron route) can send a one-off notification too. */
+  notifier?: Notifier
 }
 
 /**
@@ -394,6 +396,7 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
     socialAccountStore,
     clipStore,
     oauthCredentialStore,
+    notifier,
   }
 }
 

@@ -94,6 +94,21 @@ export async function GET(request: NextRequest) {
     try {
       const dropshippingBusiness = await getDropshippingBusiness()
       dropshippingTransactions = await engine.ingestTransactions(createShopifyAdapter(), dropshippingBusiness.id)
+      // The "Jarvis" nudge: a real order came in, so tell the owner
+      // instead of making them come check — best-effort, same as every
+      // other notifyPendingApproval() call, never fails the poll.
+      if (dropshippingTransactions.inserted > 0) {
+        const orderWord = dropshippingTransactions.inserted === 1 ? 'order' : 'orders'
+        try {
+          await engine.notifier?.notify?.(
+            dropshippingBusiness.id,
+            `Nexa AI: ${dropshippingTransactions.inserted} new dropshipping ${orderWord}`,
+            `${dropshippingTransactions.inserted} new ${orderWord} came in on the dropshipping store since the last check. See Money in the dashboard for details.`
+          )
+        } catch (err) {
+          console.error('failed to notify owner of new dropshipping orders:', err)
+        }
+      }
     } catch (err) {
       dropshippingTransactions = { skipped: err instanceof Error ? err.message : String(err) }
     }

@@ -24,23 +24,34 @@ import type { Notifier } from './notifier.js'
  * go look. Full detail is one dashboard visit away, which is already
  * access-controlled and audited.
  */
+async function resolveFromAddress(businessStore: BusinessStore, businessId: string): Promise<string | undefined> {
+  const config = await businessStore.getConfig(businessId)
+  return typeof config === 'object' && config !== null && !Array.isArray(config) && typeof config.emailFrom === 'string'
+    ? config.emailFrom
+    : undefined
+}
+
 export function createEmailNotifier(
   resend: ResendClient,
   ownerStore: OwnerStore,
   businessStore: BusinessStore
 ): Notifier {
+  async function sendToOwners(businessId: string, subject: string, text: string): Promise<void> {
+    const owners = await ownerStore.listAll()
+    if (owners.length === 0) return
+
+    const from = await resolveFromAddress(businessStore, businessId)
+    if (!from) return // no configured "from" address — nothing to send from, not an error
+
+    const results = await Promise.all(owners.map((owner) => resend.emails.send({ from, to: owner.email, subject, text })))
+    const failed = results.find((r) => r.error)
+    if (failed?.error) {
+      throw new Error(`Resend send failed: ${failed.error.message}`)
+    }
+  }
+
   return {
     async notifyPendingApproval(request: ActionRequest, approvalId: string): Promise<void> {
-      const owners = await ownerStore.listAll()
-      if (owners.length === 0) return
-
-      const config = await businessStore.getConfig(request.businessId)
-      const from =
-        typeof config === 'object' && config !== null && !Array.isArray(config) && typeof config.emailFrom === 'string'
-          ? config.emailFrom
-          : undefined
-      if (!from) return // no configured "from" address — nothing to send from, not an error
-
       const dashboardUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'the dashboard'
       const text =
         `Agent ${request.agentId} wants to run "${request.actionType}" and is waiting on your decision.\n\n` +
@@ -48,20 +59,11 @@ export function createEmailNotifier(
         `Review and approve or deny: ${dashboardUrl}\n\n` +
         `approval id: ${approvalId}`
 
-      const results = await Promise.all(
-        owners.map((owner) =>
-          resend.emails.send({
-            from,
-            to: owner.email,
-            subject: `Nexa AI: "${request.actionType}" needs your approval`,
-            text,
-          })
-        )
-      )
-      const failed = results.find((r) => r.error)
-      if (failed?.error) {
-        throw new Error(`Resend send failed: ${failed.error.message}`)
-      }
+      await sendToOwners(request.businessId, `Nexa AI: "${request.actionType}" needs your approval`, text)
+    },
+
+    async notify(businessId: string, subject: string, text: string): Promise<void> {
+      await sendToOwners(businessId, subject, text)
     },
   }
 }
