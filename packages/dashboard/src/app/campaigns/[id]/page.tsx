@@ -6,7 +6,10 @@ import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { ConfirmButton } from '@/components/ConfirmButton'
+import { LaunchTiktokAdForm } from '@/components/LaunchTiktokAdForm'
 import { generateConcepts, markConceptRunReviewed, setCampaignStatus } from '@/app/campaigns/actions'
+import { CAMPAIGN_BUSINESSES } from '@/app/campaigns/business'
+import { getBusiness } from '@/lib/business'
 import type { ContentConcept } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -45,6 +48,17 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   if (!campaign) notFound()
 
   const runs = await engine.contentConceptStore.listByCampaign(id)
+
+  // BusinessStore only resolves slug -> record, never the reverse — this
+  // finds which of the (small, fixed) CAMPAIGN_BUSINESSES slugs is this
+  // campaign's, purely so the "Connect TikTok Ads" link below can pass a
+  // human-legible ?business=<slug> the same way every other OAuth start
+  // route already does, instead of a raw id.
+  const businessSlug = (
+    await Promise.all(
+      CAMPAIGN_BUSINESSES.map(async (b) => ({ slug: b.slug, business: await getBusiness(b.slug).catch(() => undefined) }))
+    )
+  ).find((b) => b.business?.id === campaign.businessId)?.slug
 
   return (
     <>
@@ -165,6 +179,23 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             )
           })
         )}
+      </section>
+
+      <section className="deck-enter" style={{ animationDelay: '0.15s' }}>
+        <h2 className="section-title">Paid promotion</h2>
+        <p className="meta">
+          Boosts a video already posted on TikTok (Spark Ads). Needs a TikTok Ads account connected first —{' '}
+          {businessSlug ? (
+            <a href={`/api/oauth/tiktok-ads/start?business=${businessSlug}`}>connect TikTok Ads</a>
+          ) : (
+            'connect TikTok Ads from the API route directly (business slug not resolved)'
+          )}
+          . This form never spends anything on its own: it only sends a request to the approval queue, with the
+          real daily cost shown, for you to approve or deny.
+        </p>
+        <div className="card">
+          <LaunchTiktokAdForm campaignId={id} />
+        </div>
       </section>
     </>
   )

@@ -19,6 +19,7 @@ import {
   createResendEmailNotifier,
   registerSendEmailExecutor,
   registerBrowseWebExecutor,
+  registerLaunchTiktokAdExecutor,
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
   registerPostStoryConceptYoutubeExecutor,
@@ -94,6 +95,13 @@ export function getEngine() {
     // proposeOpportunity above: no external credentials, just the
     // global fetch(), so nothing here can be "unconfigured".
     registerBrowseWebExecutor()
+    // Dropshipping's TikTok Spark Ads launcher — same "never throws" shape:
+    // no env vars needed to register (the stored per-business credential,
+    // checked at request time, is what's actually required — see
+    // launchTiktokAd.ts). This is the first executor in the codebase that
+    // spends real money; it only ever runs after an owner approves the
+    // pending-approval request a dashboard action builds with expectedCost set.
+    registerLaunchTiktokAdExecutor()
     // Step 27: same "missing env vars is an expected state, not a crash"
     // shape as send_email above — a business without YouTube publish
     // credentials configured just leaves 'post_clip_youtube' unregistered.

@@ -7,6 +7,7 @@ import { getEngine } from '@/lib/engine'
 import { getBusiness } from '@/lib/business'
 import { createAnthropicClient, importCampaignOnce, generateConceptsOnce } from '@nexa-ai/permission-engine'
 import { resolveCampaignBusinessSlug } from './business'
+import { launchTiktokAd } from '@/lib/tiktokAdsLaunch'
 
 const CREATIVE_AGENT_KEY = 'creative-agent'
 
@@ -76,4 +77,46 @@ export async function setCampaignStatus(
   await getEngine().campaignStore.setStatus(id, status)
   revalidatePath('/campaigns')
   revalidatePath(`/campaigns/${id}`)
+}
+
+export type LaunchTiktokAdState = { error?: string; approvalId?: string } | undefined
+
+export async function launchTiktokAdAction(
+  campaignId: string,
+  _prevState: LaunchTiktokAdState,
+  formData: FormData
+): Promise<LaunchTiktokAdState> {
+  await verifySession()
+  const tiktokItemId = formData.get('tiktokItemId')
+  const dailyBudgetEuros = formData.get('dailyBudgetEuros')
+
+  if (typeof tiktokItemId !== 'string' || !tiktokItemId.trim()) {
+    return { error: 'Paste the TikTok video ID you want to boost.' }
+  }
+  const budget = typeof dailyBudgetEuros === 'string' ? Number(dailyBudgetEuros) : NaN
+  if (!Number.isFinite(budget) || budget <= 0) {
+    return { error: 'Daily budget must be a positive number.' }
+  }
+
+  const engine = getEngine()
+  const campaign = await engine.campaignStore.get(campaignId)
+  if (!campaign) {
+    return { error: `No campaign with id ${campaignId}.` }
+  }
+
+  try {
+    const outcome = await launchTiktokAd(engine, campaign.businessId, {
+      tiktokItemId: tiktokItemId.trim(),
+      campaignName: campaign.product,
+      dailyBudgetCents: Math.round(budget * 100),
+      currency: 'EUR',
+    })
+    if (outcome.status === 'denied') {
+      return { error: `Request was denied: ${outcome.reason}` }
+    }
+    revalidatePath('/')
+    return outcome.status === 'pending_approval' ? { approvalId: outcome.approvalId } : undefined
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to launch the TikTok ad.' }
+  }
 }

@@ -1,4 +1,4 @@
-export type OAuthPlatform = 'youtube' | 'instagram' | 'tiktok'
+export type OAuthPlatform = 'youtube' | 'instagram' | 'tiktok' | 'tiktok_ads'
 
 export type OAuthCredentialRecord = {
   id: string
@@ -14,7 +14,10 @@ export type OAuthCredentialRecord = {
    * Account id to build /{ig-user-id}/media, and TikTok's token
    * response carries an open_id worth keeping for the same reason.
    * YouTube needs neither (the access token alone identifies the
-   * channel), so this stays undefined there.
+   * channel), so this stays undefined there. TikTok Ads (platform
+   * 'tiktok_ads') reuses this same field for the connected advertiser_id
+   * — every Marketing API call needs it, same reasoning as Instagram's
+   * ig-user-id.
    */
   externalAccountId?: string
   createdAt: string
