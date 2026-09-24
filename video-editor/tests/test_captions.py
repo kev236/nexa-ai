@@ -43,6 +43,24 @@ def test_build_ass_uppercases_when_the_style_asks_for_it(tmp_path):
     assert "HELLO" in output_path.read_text()
 
 
+def test_build_ass_strips_literal_braces_from_word_text(tmp_path):
+    # ASS has no escape for a literal '{'/'}' in a Text field - any
+    # "{...}" is always parsed as an override block, the same mechanism
+    # the \c color-highlight override relies on. A transcribed word
+    # containing one (rare, but a real possible Whisper output) must not
+    # be allowed to corrupt that structure for the rest of the line.
+    words = [Word(text="{laughs}", start=0.0, end=0.5, probability=0.9)]
+    output_path = tmp_path / "captions.ass"
+
+    build_ass(words, STYLES["minimal"], 1080, 1920, output_path)
+
+    dialogue_line = next(line for line in output_path.read_text().splitlines() if line.startswith("Dialogue:"))
+    # Every '{' remaining on the line must belong to a real \c override
+    # tag this code itself emits, never to the word's own source text.
+    assert dialogue_line.count("{") == dialogue_line.count("{\\c")
+    assert "laughs" in dialogue_line
+
+
 def test_build_ass_respects_max_words_per_line(tmp_path):
     words = [Word(text=f"word{i}", start=i * 0.3, end=i * 0.3 + 0.25, probability=0.9) for i in range(7)]
     style = STYLES["minimal"]  # max_words_per_line = 5

@@ -91,6 +91,14 @@ def _line_text(line: list[Word], active_index: int, style: CaptionStyle) -> str:
     parts = []
     for i, w in enumerate(line):
         text = w.text.upper() if style.uppercase else w.text
+        # ASS has no way to escape a literal '{' or '}' inside a Text
+        # field — any '{...}' is always parsed as an override block, the
+        # same mechanism the \c color highlight below relies on. A
+        # transcribed word that happened to contain either character
+        # (rare, but not impossible from Whisper's output) would corrupt
+        # that structure for the rest of the line. Stripped rather than
+        # escaped, since this format genuinely has no escape for them.
+        text = text.replace("{", "").replace("}", "")
         if i == active_index:
             parts.append(f"{{\\c{style.highlight_color}}}{text}{{\\c{style.primary_color}}}")
         else:
