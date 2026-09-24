@@ -71,9 +71,27 @@ function resolveInRepo(rawPath) {
   return resolved
 }
 
+// "Never pushes to main" is otherwise a prompt instruction only — the
+// bash tool itself is deliberately unsandboxed (see the comment block
+// above), so nothing before this stopped a `git push` issued mid-loop
+// from reaching the real remote with whatever push-capable credential
+// this process's environment already has configured. The one push this
+// tool is allowed to make happens after the loop ends, from this
+// script's own hardcoded execFileSync call on a fresh
+// propose-improvement/<slug> branch — never through runBash. Blocking
+// `git push` here is what actually makes that guarantee hold at a
+// technical level instead of just a system-prompt one; it isn't a full
+// sandbox (a sufficiently obfuscated command could still slip past a
+// keyword match), but it closes the direct, obvious route, which is
+// what a prompt-injected or mistaken agent would actually try.
+const BLOCKED_BASH_PATTERN = /\bgit\s+push\b/i
+
 function runBash(input) {
   if (input.restart) {
     return 'Bash session reset (each command in this tool already runs independently, so there is no persistent state to lose).'
+  }
+  if (BLOCKED_BASH_PATTERN.test(input.command)) {
+    return 'Refused: this tool never pushes during its own loop — the only push happens automatically after you finish, on a fresh review branch. Just finish your summary; pushing and opening the PR is handled for you.'
   }
   try {
     const output = execSync(input.command, {
