@@ -21,6 +21,7 @@ import {
   registerBrowseWebExecutor,
   registerLaunchTiktokAdExecutor,
   registerBrowserActionExecutor,
+  registerProposeCodeChangeExecutor,
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
   registerPostStoryConceptYoutubeExecutor,
@@ -148,6 +149,16 @@ export function getEngine() {
       registerCreateBlogPostDraftExecutor()
     } catch (err) {
       console.error('create_blog_post_draft executor not registered:', err instanceof Error ? err.message : err)
+    }
+    // Nexa AI proposing a fix to its own source — same "missing env vars
+    // is expected, not a crash" shape as every executor above. Reuses
+    // tools/propose-improvement's own GITHUB_TOKEN/GITHUB_REPOSITORY
+    // rather than a second credential; without them set,
+    // 'propose_code_change' just stays unregistered.
+    try {
+      registerProposeCodeChangeExecutor()
+    } catch (err) {
+      console.error('propose_code_change executor not registered:', err instanceof Error ? err.message : err)
     }
   }
   return engine

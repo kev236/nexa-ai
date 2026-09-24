@@ -1,9 +1,10 @@
 import 'server-only'
-import { chatTurn, createAnthropicClient, PLATFORMS } from '@nexa-ai/permission-engine'
+import { chatTurn, createAnthropicClient, createGitHubCodeClientFromEnv, PLATFORMS } from '@nexa-ai/permission-engine'
 import { getEngine } from './engine'
 import { getBusiness, getTrendRushBusiness, getSproutlightBusiness } from './business'
 import { summarizeRevenue } from './revenue'
 import { relativeTime } from './format'
+import { proposeCodeChange } from './codeReview'
 
 // The chat-with-Nexa-AI feature (owner request: "talk with NEXA
 // textually and via voice"). Read-only by design, same posture as
@@ -13,7 +14,11 @@ import { relativeTime } from './format'
 // something) is a real, separate decision about what a chat message
 // is allowed to authorize, not an oversight in this first version.
 
-type ToolDef = { name: string; description: string; inputSchema: { type: 'object'; properties: Record<string, unknown>; additionalProperties: boolean } }
+type ToolDef = {
+  name: string
+  description: string
+  inputSchema: { type: 'object'; properties: Record<string, unknown>; required?: string[]; additionalProperties: boolean }
+}
 
 const TOOLS: ToolDef[] = [
   {
@@ -37,6 +42,32 @@ const TOOLS: ToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: { limit: { type: 'number', description: 'How many entries, default 10, max 25' } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'read_repo_file',
+    description:
+      "Read a file from Nexa AI's own source code (this dashboard's own repo) by its path, e.g. 'packages/dashboard/src/lib/chat.ts'. Read-only — for looking at real code before discussing or proposing a fix to it, never for anything outside this repo.",
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'Repo-relative file path' } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'propose_code_change',
+    description:
+      "Propose a fix to Nexa AI's own source code — never applies it directly. Sends the exact new file content to the owner's approval queue as a pull request request; only opens a real GitHub pull request once the owner approves it there, and never merges it — merging stays a separate, human action on GitHub. Use this only after read_repo_file has actually shown you the current file, and only when you're proposing a real, specific, complete replacement for that file's content, not a guess.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Repo-relative file path being changed' },
+        newContent: { type: 'string', description: "The file's full new content, not just the changed lines" },
+        commitMessage: { type: 'string', description: 'A short, real commit message describing the fix' },
+        explanation: { type: 'string', description: 'Plain explanation of the bug/issue and why this fixes it, for the owner to read before approving' },
+      },
+      required: ['path', 'newContent', 'commitMessage', 'explanation'],
       additionalProperties: false,
     },
   },
@@ -107,6 +138,28 @@ async function runTool(name: string, input: Record<string, unknown>): Promise<un
     }))
   }
 
+  if (name === 'read_repo_file') {
+    const path = typeof input.path === 'string' ? input.path : ''
+    if (!path || path.includes('..')) throw new Error('read_repo_file requires a real repo-relative path (no "..")')
+    const client = createGitHubCodeClientFromEnv()
+    const file = await client.getFileContent(path)
+    return { path, content: file.content }
+  }
+
+  if (name === 'propose_code_change') {
+    const path = typeof input.path === 'string' ? input.path : ''
+    const newContent = typeof input.newContent === 'string' ? input.newContent : ''
+    const commitMessage = typeof input.commitMessage === 'string' ? input.commitMessage : ''
+    const explanation = typeof input.explanation === 'string' ? input.explanation : ''
+    if (!path || !newContent || !commitMessage || !explanation) {
+      throw new Error('propose_code_change requires path, newContent, commitMessage, and explanation')
+    }
+    const business = await getBusiness()
+    const outcome = await proposeCodeChange(engine, business.id, { path, newContent, commitMessage, explanation })
+    if (outcome.status === 'denied') throw new Error(`Could not propose the change: ${outcome.reason}`)
+    return { status: outcome.status, note: 'Sent to the approval queue — nothing opens on GitHub until the owner approves it there.' }
+  }
+
   throw new Error(`Unknown tool: ${name}`)
 }
 
@@ -118,7 +171,9 @@ Some personality is welcome — dry humor, a real reaction to a good or bad numb
 
 Answer using the real tools available to you — never invent numbers, follower counts, or business state. If a tool call fails or a business isn't set up yet, say so plainly rather than guessing.
 
-You are read-only in this conversation: you can look things up, but you cannot post content, approve/deny requests, or spend money from chat. If the owner asks you to do one of those, tell them where to do it in the dashboard (the Clips page to post, the Command Center to approve/deny) rather than pretending you did it.
+You are read-only in this conversation for business actions: you can look things up, but you cannot post content, approve/deny requests, or spend money from chat. If the owner asks you to do one of those, tell them where to do it in the dashboard (the Clips page to post, the Command Center to approve/deny) rather than pretending you did it.
+
+One real exception: you can read your own source code (read_repo_file) and propose a fix to it (propose_code_change) — but propose_code_change never applies anything itself. It only sends the exact new file content to the owner's approval queue; nothing changes on GitHub until they approve it there, and even then it only opens a pull request for them to review, never merges it. Always read the real current file with read_repo_file before proposing anything — never propose a change to code you haven't actually looked at, and never invent a bug that isn't really there.
 
 Keep replies short and conversational — this may be read aloud via text-to-speech, so avoid long lists, markdown tables, or code blocks. Speak plainly, like a real operator giving a real update, not a report.`
 
