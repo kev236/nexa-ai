@@ -51,6 +51,12 @@ describe('ActionRequest.confidence validation', () => {
     await expect(engine.requestAction(baseRequest({ confidence: 0.5 }))).resolves.toBeDefined()
     await expect(engine.requestAction(baseRequest())).resolves.toBeDefined()
   })
+
+  it('rejects a non-boolean requiresReview', async () => {
+    const engine = createPermissionEngine()
+    // @ts-expect-error — intentionally wrong type, exercising the runtime guard
+    await expect(engine.requestAction(baseRequest({ requiresReview: 'yes' }))).rejects.toThrow(/requiresReview/)
+  })
 })
 
 /**
@@ -93,6 +99,12 @@ describe('auto-approve everything except money (step 18)', () => {
     const outcome = await engine.requestAction(
       baseRequest({ expectedCost: { amountCents: 1, currency: 'USD' } })
     )
+    expect(outcome.status).toBe('pending_approval')
+  })
+
+  it('stays pending_approval for a requiresReview action, even with no expectedCost and an active agent', async () => {
+    const engine = engineWithAgent(baseAgent())
+    const outcome = await engine.requestAction(baseRequest({ requiresReview: true }))
     expect(outcome.status).toBe('pending_approval')
   })
 

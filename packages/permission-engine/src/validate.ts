@@ -44,4 +44,8 @@ export function assertActionRequest(request: unknown): asserts request is Action
       throw new TypeError('ActionRequest.confidence must be a finite number between 0 and 1 when present')
     }
   }
+
+  if (r.requiresReview !== undefined && typeof r.requiresReview !== 'boolean') {
+    throw new TypeError('ActionRequest.requiresReview must be a boolean when present')
+  }
 }

@@ -204,25 +204,32 @@ export function createPermissionEngine(deps: PermissionEngineDeps = {}): Permiss
   }
 
   /**
-   * Step 18: auto-approve everything except money. An agent must still
-   * exist and be active — a deleted or disabled agent gets no auto-
-   * approval, same as before — but there's no more per-agent opt-in
-   * (autonomyLevel/autoApproveMinConfidence, step 11) and no more
-   * spending-cap-gated auto-approval (step 13): `expectedCost` being
-   * present is now itself the sole reason to stop and wait, full stop,
+   * Step 18: auto-approve everything except money — later widened to
+   * "everything except money or a marked-consequential action"
+   * (requiresReview). An agent must still exist and be active — a
+   * deleted or disabled agent gets no auto-approval, same as before —
+   * but there's no more per-agent opt-in (autonomyLevel/
+   * autoApproveMinConfidence, step 11) and no more spending-cap-gated
+   * auto-approval (step 13): `expectedCost` or `requiresReview` being
+   * present is itself the sole reason to stop and wait, full stop,
    * regardless of amount, confidence, or agent config. A cap that only
    * ever gated auto-approval has nothing left to gate once money never
    * auto-approves — see money/ in this package's git history for the
    * removed spendingLimit module, and the step 18 README section for
    * why it wasn't reworked to also gate owner approval: the owner
-   * clicking Approve on a costed request *is* the safety control now,
-   * the same way it already is for every other costed decision they've
-   * ever made through this dashboard.
+   * clicking Approve on a costed (or otherwise flagged) request *is*
+   * the safety control now, the same way it already is for every other
+   * costed decision they've ever made through this dashboard.
    */
   async function shouldAutoApprove(request: ActionRequest): Promise<boolean> {
     const agent = await agentStore.getById(request.agentId)
     if (!agent || !agent.active) return false
-    return !request.expectedCost
+    // Money was the first consequential thing that stayed pending by
+    // default (step 18); requiresReview is the second — an action taken
+    // on the owner's behalf that isn't priced in dollars but still isn't
+    // reversible (browserAction.ts). Neither auto-approves regardless of
+    // the other.
+    return !request.expectedCost && !request.requiresReview
   }
 
   async function resolveApproval(

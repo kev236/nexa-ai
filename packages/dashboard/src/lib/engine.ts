@@ -20,6 +20,7 @@ import {
   registerSendEmailExecutor,
   registerBrowseWebExecutor,
   registerLaunchTiktokAdExecutor,
+  registerBrowserActionExecutor,
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
   registerPostStoryConceptYoutubeExecutor,
@@ -102,6 +103,11 @@ export function getEngine() {
     // spends real money; it only ever runs after an owner approves the
     // pending-approval request a dashboard action builds with expectedCost set.
     registerLaunchTiktokAdExecutor()
+    // The plan-then-approve-then-execute browser action executor — same
+    // "never throws" shape, no env vars needed (nothing to configure;
+    // requiresReview is what routes every request through the approval
+    // queue, checked per-request in engine.ts, not at registration time).
+    registerBrowserActionExecutor()
     // Step 27: same "missing env vars is an expected state, not a crash"
     // shape as send_email above — a business without YouTube publish
     // credentials configured just leaves 'post_clip_youtube' unregistered.

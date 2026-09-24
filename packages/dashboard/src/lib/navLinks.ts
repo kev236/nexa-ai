@@ -12,6 +12,7 @@ import {
   MessageCircle,
   KeyRound,
   UserCheck,
+  Globe,
 } from 'lucide-react'
 
 // Shared between Nav.tsx (a server component) and CommandPalette.tsx (a
@@ -31,6 +32,7 @@ export type NavKey =
   | 'clips'
   | 'api-keys'
   | 'trusted-people'
+  | 'browser-actions'
 
 type NavLink = { key: NavKey; href: string; label: string; icon: LucideIcon }
 
@@ -63,6 +65,7 @@ export const NAV_GROUPS: { label: string; links: NavLink[] }[] = [
       { key: 'clips', href: '/clips', label: 'Clips', icon: Film },
       { key: 'api-keys', href: '/api-keys', label: 'API Keys', icon: KeyRound },
       { key: 'trusted-people', href: '/trusted-people', label: 'Trusted People', icon: UserCheck },
+      { key: 'browser-actions', href: '/browser-actions', label: 'Browser Actions', icon: Globe },
     ],
   },
 ]
