@@ -5,6 +5,7 @@ import { getEngine } from '@/lib/engine'
 import { setOpportunityStatus } from '@/app/actions'
 import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
+import { ConfirmButton } from '@/components/ConfirmButton'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { DiscoverOpportunitiesButton } from '@/components/DiscoverOpportunitiesButton'
 
@@ -59,11 +60,12 @@ export default async function OpportunitiesPage() {
                 <Link href={`/opportunities/${o.id}/edit`} className="button-link">
                   Edit
                 </Link>
-                <form action={setOpportunityStatus.bind(null, o.id, 'archived')}>
-                  <button type="submit" className="deny">
-                    Archive
-                  </button>
-                </form>
+                <ConfirmButton
+                  action={setOpportunityStatus.bind(null, o.id, 'archived')}
+                  confirmMessage={`Archive "${o.name}"? You can reopen it from the Archived list anytime.`}
+                  label="Archive"
+                  pendingLabel="Archiving…"
+                />
               </div>
             </div>
           ))

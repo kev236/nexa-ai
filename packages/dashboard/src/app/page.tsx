@@ -39,6 +39,7 @@ import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { LiveClock } from '@/components/LiveClock'
 import { HoloGlobeLazy as HoloGlobe } from '@/components/HoloGlobeLazy'
 import { EmptyState } from '@/components/EmptyState'
+import { ConfirmButton } from '@/components/ConfirmButton'
 import { PLATFORMS, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
@@ -653,11 +654,12 @@ export default async function ApprovalsPage() {
                     Approve
                   </button>
                 </form>
-                <form action={deny}>
-                  <button type="submit" className="deny">
-                    Deny
-                  </button>
-                </form>
+                <ConfirmButton
+                  action={deny}
+                  confirmMessage={`Deny this ${humanizeActionType(approval.request.actionType)} request? The agent won't get another chance to run it.`}
+                  label="Deny"
+                  pendingLabel="Denying…"
+                />
               </div>
             </div>
           )

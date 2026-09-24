@@ -5,6 +5,7 @@ import { getEngine } from '@/lib/engine'
 import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
+import { ConfirmButton } from '@/components/ConfirmButton'
 import { generateConcepts, markConceptRunReviewed, setCampaignStatus } from '@/app/campaigns/actions'
 import type { ContentConcept } from '@nexa-ai/permission-engine'
 
@@ -102,18 +103,27 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             </p>
           )}
           <div className="actions">
-            {campaign.status !== 'archived' && (
-              <form action={setCampaignStatus.bind(null, id, campaign.status === 'active' ? 'paused' : 'active')}>
-                <button type="submit" className={campaign.status === 'active' ? 'deny' : 'approve'}>
-                  {campaign.status === 'active' ? 'Pause' : 'Reactivate'}
-                </button>
-              </form>
-            )}
-            <form action={setCampaignStatus.bind(null, id, 'archived')}>
-              <button type="submit" className="deny">
-                Archive
-              </button>
-            </form>
+            {campaign.status !== 'archived' &&
+              (campaign.status === 'active' ? (
+                <ConfirmButton
+                  action={setCampaignStatus.bind(null, id, 'paused')}
+                  confirmMessage={`Pause "${campaign.product}"? Content generation and posting will stop until you reactivate it.`}
+                  label="Pause"
+                  pendingLabel="Pausing…"
+                />
+              ) : (
+                <form action={setCampaignStatus.bind(null, id, 'active')}>
+                  <button type="submit" className="approve">
+                    Reactivate
+                  </button>
+                </form>
+              ))}
+            <ConfirmButton
+              action={setCampaignStatus.bind(null, id, 'archived')}
+              confirmMessage={`Archive "${campaign.product}"? There's no way to reactivate it from here afterward.`}
+              label="Archive"
+              pendingLabel="Archiving…"
+            />
           </div>
         </div>
       </section>

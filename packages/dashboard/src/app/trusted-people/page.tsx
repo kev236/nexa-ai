@@ -5,7 +5,7 @@ import { relativeTime } from '@/lib/format'
 import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
 import { AddTrustedPersonForm } from '@/components/AddTrustedPersonForm'
-import { RevokeButton } from '@/components/RevokeButton'
+import { ConfirmButton } from '@/components/ConfirmButton'
 import { revokeTrustedPersonAction } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -60,9 +60,11 @@ export default async function TrustedPeoplePage() {
                 added {relativeTime(person.createdAt)}
               </p>
               {!person.revokedAt && (
-                <RevokeButton
+                <ConfirmButton
                   action={revokeTrustedPersonAction.bind(null, person.id)}
                   confirmMessage={`Revoke ${person.name}'s access? They won't be able to talk to Nexa until you add them again.`}
+                  label="Revoke"
+                  pendingLabel="Revoking…"
                 />
               )}
             </div>
