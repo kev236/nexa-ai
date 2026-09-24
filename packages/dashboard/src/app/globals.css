@@ -163,6 +163,16 @@ main:has(> .nav) {
   padding: 2.5rem 3rem 4rem;
 }
 
+/* /clip-api is a full-bleed marketing page, not a boxed dashboard page —
+   without this, the default `main` rule above stacks its own
+   max-width/padding on top of .clip-api-hero's, boxing in a page whose
+   own CSS (.clip-api-page, .clip-api-hero) was written for full width. */
+main:has(> .clip-api-page) {
+  margin: 0;
+  max-width: none;
+  padding: 0;
+}
+
 h1 {
   font-family: var(--font-display);
   font-weight: 700;

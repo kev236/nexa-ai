@@ -6,6 +6,7 @@ import { Nav } from '@/components/Nav'
 import { EmptyState } from '@/components/EmptyState'
 import { CreateApiKeyForm } from '@/components/CreateApiKeyForm'
 import { FulfillApiKeyRequestForm } from '@/components/FulfillApiKeyRequestForm'
+import { RevokeButton } from '@/components/RevokeButton'
 import { revokeApiKeyAction } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -90,11 +91,10 @@ export default async function ApiKeysPage() {
                 {relativeTime(key.createdAt)}
               </p>
               {!key.revokedAt && (
-                <form action={revokeApiKeyAction.bind(null, key.id)}>
-                  <button type="submit" className="deny">
-                    Revoke
-                  </button>
-                </form>
+                <RevokeButton
+                  action={revokeApiKeyAction.bind(null, key.id)}
+                  confirmMessage={`Revoke the "${key.name}" key? Any requests using it will start failing immediately.`}
+                />
               )}
             </div>
           ))}

@@ -28,6 +28,7 @@ export function TalkGate() {
         type="password"
         inputMode="numeric"
         placeholder="PIN"
+        minLength={4}
         required
         autoComplete="off"
       />

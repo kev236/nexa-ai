@@ -60,7 +60,7 @@ export default async function ClipApiLandingPage() {
         </div>
       </header>
 
-      <main className="clip-api-body">
+      <div className="clip-api-body">
         <section className="clip-api-section">
           <h2>What you get back</h2>
           <p className="clip-api-section-lede">
@@ -103,7 +103,7 @@ export default async function ClipApiLandingPage() {
           <p className="clip-api-section-lede">Pricing is worked out directly over email based on your volume — tell us what you need.</p>
           <RequestApiAccessForm />
         </section>
-      </main>
+      </div>
 
       <footer className="clip-api-footer">
         <p className="meta">Built and run by Nexa Labs.</p>

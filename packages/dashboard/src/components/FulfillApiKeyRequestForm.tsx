@@ -28,7 +28,7 @@ export function FulfillApiKeyRequestForm({ requestId, email }: { requestId: stri
   }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="opportunity-form">
       {state?.error && <p className="error">{state.error}</p>}
       <button type="submit" disabled={pending}>
         {pending ? 'Generating…' : 'Generate key & mark fulfilled'}
