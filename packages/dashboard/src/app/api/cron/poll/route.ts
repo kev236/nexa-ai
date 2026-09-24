@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createNexaLabsAdapter, createShopifyAdapter } from '@nexa-ai/permission-engine'
@@ -6,6 +7,20 @@ import { getBusiness, getDropshippingBusiness } from '@/lib/business'
 import { triggerWaitlistTriage } from '@/lib/triage'
 import { triggerTransactionReview } from '@/lib/transactionReview'
 import { triggerBlogGeneration } from '@/lib/blogGeneration'
+
+/**
+ * Unlike the OAuth flows' one-time, 10-minute state tokens, CRON_SECRET
+ * is a long-lived static secret guarding a route that can trigger real
+ * agent runs repeatedly over the life of the deployment — worth the
+ * same timing-safe comparison password.ts already uses for password
+ * hashes, rather than a plain !== that bails on the first mismatched
+ * byte.
+ */
+function isAuthorizedCronRequest(authHeader: string | null, cronSecret: string): boolean {
+  const expected = Buffer.from(`Bearer ${cronSecret}`)
+  const provided = Buffer.from(authHeader ?? '')
+  return expected.length === provided.length && timingSafeEqual(expected, provided)
+}
 
 /**
  * Step 8: closes the loop that steps 4-6 left manual — polls nexalabs
@@ -52,7 +67,7 @@ import { triggerBlogGeneration } from '@/lib/blogGeneration'
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !isAuthorizedCronRequest(authHeader, cronSecret)) {
     return new Response('Unauthorized', { status: 401 })
   }
 
