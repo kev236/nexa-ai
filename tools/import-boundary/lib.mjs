@@ -2,13 +2,22 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const IMPORT_RE = /(?:import|export)\s+(?:[^'";]*?\bfrom\s+)?['"]([^'"]+)['"]/g
+// The static-syntax regex above requires "import"/"export" followed by
+// whitespace, so it never matches import(...) — a function call, not a
+// declaration — which silently evaded the whole boundary check: a
+// restricted module dynamically imported from outside allowedPaths
+// passed clean. require(...) added for the same reason, even though
+// this is an ESM codebase where it's less likely to appear.
+const DYNAMIC_IMPORT_RE = /\b(?:import|require)\s*\(\s*['"]([^'"]+)['"]/g
 
 export function findImportSpecifiers(source) {
   const specifiers = []
-  let match
-  IMPORT_RE.lastIndex = 0
-  while ((match = IMPORT_RE.exec(source))) {
-    specifiers.push(match[1])
+  for (const re of [IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+    re.lastIndex = 0
+    let match
+    while ((match = re.exec(source))) {
+      specifiers.push(match[1])
+    }
   }
   return specifiers
 }
