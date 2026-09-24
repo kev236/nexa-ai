@@ -3175,4 +3175,15 @@ form.opportunity-form button:hover {
     align-items: flex-start;
     gap: 0.3rem;
   }
+
+  /* Clips' per-platform pills are real controls (postable = a button,
+     connect = a link) at ~22px tall on desktop — fine for a mouse,
+     under half the 44px thumb target on a phone. Status-only pills
+     (.clip-platform-pill--posted, not clickable) get the same bump for
+     visual consistency across the row, not because they need a target. */
+  .clip-platform-pill {
+    min-height: 40px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.72rem;
+  }
 }
