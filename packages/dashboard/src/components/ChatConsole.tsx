@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, MicOff, Send, Volume2, VolumeX } from 'lucide-react'
 import { useNexaChat } from '@/components/useNexaChat'
+import { sendChatMessageAction } from '@/app/chat/actions'
 
 export function ChatConsole() {
   const {
@@ -16,7 +17,10 @@ export function ChatConsole() {
     ttsSupported,
     send,
     toggleListening,
-  } = useNexaChat("I'm Nexa AI. Ask me about revenue, pending approvals, growth, or recent activity.")
+  } = useNexaChat(
+    "I'm Nexa AI. Ask me about revenue, pending approvals, growth, or recent activity.",
+    sendChatMessageAction
+  )
   const [input, setInput] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
 

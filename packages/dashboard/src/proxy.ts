@@ -18,8 +18,13 @@ import { readSession, signSessionToken, sessionCookieOptions, SESSION_COOKIE_NAM
 export async function proxy(request: NextRequest) {
   const session = await readSession()
   const isLoginPage = request.nextUrl.pathname === '/login'
+  // /talk is the trusted-person entry point (Q2) — it has its own,
+  // separate PIN-based auth (see trustedPersonSession.ts) and is never
+  // gated by the owner's session, or a trusted friend/family member would
+  // get bounced to the owner's /login before even reaching the PIN form.
+  const isTalkRoute = request.nextUrl.pathname === '/talk' || request.nextUrl.pathname.startsWith('/talk/')
 
-  if (!session && !isLoginPage) {
+  if (!session && !isLoginPage && !isTalkRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   if (session && isLoginPage) {

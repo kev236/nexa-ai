@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrainCircuit, Mic, MicOff, Send, Volume2, VolumeX, X } from 'lucide-react'
 import { getSpeechRecognition, useNexaChat, type SpeechRecognitionLike } from '@/components/useNexaChat'
+import { sendChatMessageAction } from '@/app/chat/actions'
 
 // Floating quick-access console — mounted once in Nav so it's on every
 // page, not just /chat. Two ways in: click the button, or (once voice
@@ -26,7 +27,7 @@ function containsWakePhrase(transcript: string): boolean {
 
 export function NexaWidget() {
   const { messages, pending, error, voiceOn, setVoiceOn, listening, speechSupported, ttsSupported, send, speak, listenOnce, toggleListening } =
-    useNexaChat('Hey, I\'m Nexa AI. Say "hello Nexa" or tap the mic anytime.')
+    useNexaChat('Hey, I\'m Nexa AI. Say "hello Nexa" or tap the mic anytime.', sendChatMessageAction)
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [wakeArmed, setWakeArmed] = useState(false)

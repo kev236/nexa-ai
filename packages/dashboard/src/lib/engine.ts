@@ -29,6 +29,8 @@ import {
   type ApiKeyStore,
   createPostgresApiKeyRequestStore,
   type ApiKeyRequestStore,
+  createPostgresTrustedPeopleStore,
+  type TrustedPeopleStore,
 } from '@nexa-ai/permission-engine'
 
 /**
@@ -160,6 +162,16 @@ export function getApiKeyRequestStore(): ApiKeyRequestStore {
     apiKeyRequestStore = createPostgresApiKeyRequestStore()
   }
   return apiKeyRequestStore
+}
+
+let trustedPeopleStore: TrustedPeopleStore | undefined
+
+/** Owner-managed "recognize known people, reject strangers" list (migration 0026) — not business-scoped, same standalone reasoning as getApiKeyStore() above. */
+export function getTrustedPeopleStore(): TrustedPeopleStore {
+  if (!trustedPeopleStore) {
+    trustedPeopleStore = createPostgresTrustedPeopleStore()
+  }
+  return trustedPeopleStore
 }
 
 function tryCreateNotifier(

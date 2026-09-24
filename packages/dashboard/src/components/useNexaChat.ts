@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import { sendChatMessageAction } from '@/app/chat/actions'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '@/lib/chat'
+
+export type SendMessage = (history: ChatMessage[]) => Promise<{ reply: string } | { error: string }>
 
 // Voice via the browser's built-in Web Speech API — no new API key, no
 // new vendor. Shared by the full /chat page and the floating quick-access
@@ -28,7 +29,7 @@ export function getSpeechRecognition(): (new () => SpeechRecognitionLike) | unde
   return w.SpeechRecognition ?? w.webkitSpeechRecognition
 }
 
-export function useNexaChat(greeting: string) {
+export function useNexaChat(greeting: string, sendMessage: SendMessage) {
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', text: greeting }])
   const [pending, setPending] = useState(false)
   const [listening, setListening] = useState(false)
@@ -37,8 +38,17 @@ export function useNexaChat(greeting: string) {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const speechSupported = typeof window !== 'undefined' && getSpeechRecognition() !== undefined
-  const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
+  // Starts false on both server and client's first render — matching
+  // markup avoids a hydration mismatch — then flips true after mount if
+  // the browser actually supports it. Real support never changes within
+  // a session, so one check on mount is enough.
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [ttsSupported, setTtsSupported] = useState(false)
+
+  useEffect(() => {
+    setSpeechSupported(getSpeechRecognition() !== undefined)
+    setTtsSupported('speechSynthesis' in window)
+  }, [])
 
   // Always resolves — callers that don't care how the utterance ends
   // (the normal "reply arrived, say it" path) just don't await it.
@@ -64,7 +74,7 @@ export function useNexaChat(greeting: string) {
       const nextHistory: ChatMessage[] = [...messagesRef.current, { role: 'user', text: trimmed }]
       setMessages(nextHistory)
       setPending(true)
-      const result = await sendChatMessageAction(nextHistory)
+      const result = await sendMessage(nextHistory)
       setPending(false)
       if ('error' in result) {
         setError(result.error)
@@ -74,7 +84,7 @@ export function useNexaChat(greeting: string) {
       speak(result.reply)
       return result.reply
     },
-    [pending, speak]
+    [pending, speak, sendMessage]
   )
 
   // One-shot capture resolved as a promise, so a caller (the wake-word

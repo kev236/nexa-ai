@@ -122,6 +122,20 @@ You are read-only in this conversation: you can look things up, but you cannot p
 
 Keep replies short and conversational — this may be read aloud via text-to-speech, so avoid long lists, markdown tables, or code blocks. Speak plainly, like a real operator giving a real update, not a report.`
 
+// The /talk entry point (owner request Q2: recognize trusted people by a
+// PIN they hold, not the owner). Deliberately a separate, tool-free system
+// prompt rather than a flag threaded through the owner's runChatTurn above:
+// a trusted contact is not the business owner, and the business's revenue,
+// approvals, and activity data has no reason to be reachable from a chat
+// gated by a 4-digit PIN. Same voice, no business tools.
+function talkSystemPrompt(name: string): string {
+  return `You are Nexa AI, talking with ${name} — someone the account owner has personally added as a trusted contact, not the owner. You're being talked to directly, by text or voice-transcribed-to-text.
+
+Keep the same personality you always have: a real point of view, some dry humor where it actually fits, no yes-man routine. But you have no access to the owner's business data in this conversation — no revenue, approvals, growth numbers, or activity feed. That's a separate, owner-only tool. If ${name} asks about any of that, say plainly you can't share business details here and that it's between them and the owner directly.
+
+Keep replies short and conversational — this may be read aloud via text-to-speech, so avoid long lists, markdown tables, or code blocks.`
+}
+
 export type ChatRole = 'user' | 'assistant'
 export type ChatMessage = { role: ChatRole; text: string }
 
@@ -171,4 +185,23 @@ export async function runChatTurn(history: ChatMessage[]): Promise<string> {
   }
 
   return "That's taking more digging than I've got room for right now — try asking something narrower."
+}
+
+/** The /talk equivalent of runChatTurn — no tool loop, since there are no tools to offer. */
+export async function runTalkChatTurn(history: ChatMessage[], name: string): Promise<string> {
+  const client = createAnthropicClient()
+  const messages: Parameters<typeof chatTurn>[2] = history.map((m) => ({ role: m.role, content: m.text }))
+  const response = await chatTurn(client, talkSystemPrompt(name), messages)
+
+  if (response.stop_reason === 'refusal') {
+    return "I can't answer that one."
+  }
+
+  return (
+    response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
+      .trim() || "I don't have anything to add."
+  )
 }
