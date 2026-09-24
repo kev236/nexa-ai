@@ -766,6 +766,12 @@ section {
 
 .mono {
   font-family: var(--font-mono);
+  /* Clips' source-url link, hashtag lists, and anywhere else this
+     wraps a real unbroken string — a long URL/hash with no natural
+     break point doesn't wrap at all without this, so it just pushes
+     the page wider instead of wrapping, only ever visible as
+     horizontal scroll on a narrow phone. */
+  overflow-wrap: anywhere;
 }
 
 /* Off-screen, not display:none — a real visitor's screen reader still
