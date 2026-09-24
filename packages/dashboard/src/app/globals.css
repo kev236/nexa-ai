@@ -3176,6 +3176,14 @@ form.opportunity-form button:hover {
     gap: 0.3rem;
   }
 
+  /* Transactions' chart card title row — same space-between squeeze as
+     .card-header, same fix. */
+  .chart-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
   /* Clips' per-platform pills are real controls (postable = a button,
      connect = a link) at ~22px tall on desktop — fine for a mouse,
      under half the 44px thumb target on a phone. Status-only pills
