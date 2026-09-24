@@ -68,6 +68,10 @@ export default async function ActivityPage() {
   ])
   const recentEvents = [...events].reverse()
   const approvalsByAuditId = new Map(approvals.map((a) => [a.auditId, a]))
+  // Same map the home page's Command Center already builds — the audit
+  // log below was showing record.agentId's raw uuid instead, the only
+  // place in the app still doing that.
+  const agentRoleById = new Map(agents.map((a) => [a.id, a.role]))
   const weekCounts = last7DayCounts(feed)
   const weekMax = Math.max(1, ...weekCounts.map((d) => d.count))
 
@@ -167,7 +171,7 @@ export default async function ActivityPage() {
                   <div className="card-header">
                     <span className="action-type">{record.actionType}</span>
                     <span className="meta">
-                      agent {record.agentId} · {relativeTime(record.requestedAt)}
+                      {agentRoleById.get(record.agentId) ?? 'an agent'} · {relativeTime(record.requestedAt)}
                     </span>
                   </div>
                   <p className="reasoning">{record.reasoning}</p>

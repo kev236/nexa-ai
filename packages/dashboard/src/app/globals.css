@@ -3144,4 +3144,29 @@ form.opportunity-form button:hover {
     height: clamp(320px, calc(100dvh - var(--mobile-topbar-h) - var(--mobile-tabbar-h) - 12rem), 560px);
     min-height: 0;
   }
+
+  /* .card-header is the one row shape almost every content page reuses
+     (Activity, API Keys, Campaigns, Clips, Growth, Opportunities,
+     Story Concepts, Transactions, plus the home page's approval cards)
+     — a title/name on one side, a badge or meta string space-between'd
+     to the other. That works at desktop widths; on a ~330px content
+     column it either crushes both sides together or wraps mid-phrase.
+     Stacked instead: title line, then the badge/meta as its own line
+     below — the title/subtitle pattern every native list row uses. */
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Same reasoning, for the flatter event-list rows (Activity's
+     "Recently observed", Transactions' recent list) — was a flex-wrap
+     row of 2-5 same-weight fragments that wrapped unpredictably;
+     stacked, each fragment is its own scannable line instead of
+     wrapped badge soup. */
+  .event-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
 }
