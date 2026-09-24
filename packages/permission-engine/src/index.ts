@@ -81,6 +81,7 @@ export type { RunTransactionReviewOptions, RunTransactionReviewSummary } from '.
 export { createAnthropicClient, chatTurn } from './llm/client.js'
 export type { MessagesClient } from './llm/client.js'
 export { registerSendEmailExecutor } from './executors/sendEmail.js'
+export { registerBrowseWebExecutor } from './executors/browseWeb.js'
 export { registerProposeOpportunityExecutor } from './executors/proposeOpportunity.js'
 export { registerPostClipYoutubeExecutor } from './executors/postClipYoutube.js'
 export { registerPostStoryConceptYoutubeExecutor } from './executors/postStoryConceptYoutube.js'

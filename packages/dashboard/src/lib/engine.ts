@@ -18,6 +18,7 @@ import {
   createPostgresTransactionStore,
   createResendEmailNotifier,
   registerSendEmailExecutor,
+  registerBrowseWebExecutor,
   registerProposeOpportunityExecutor,
   registerPostClipYoutubeExecutor,
   registerPostStoryConceptYoutubeExecutor,
@@ -87,6 +88,10 @@ export function getEngine() {
     // Step 17: never throws (no external credentials needed), so no
     // try/catch — unlike send_email, there's no "unconfigured" state.
     registerProposeOpportunityExecutor(opportunityStore)
+    // Read-only web fetch — same "never throws" shape as
+    // proposeOpportunity above: no external credentials, just the
+    // global fetch(), so nothing here can be "unconfigured".
+    registerBrowseWebExecutor()
     // Step 27: same "missing env vars is an expected state, not a crash"
     // shape as send_email above — a business without YouTube publish
     // credentials configured just leaves 'post_clip_youtube' unregistered.
