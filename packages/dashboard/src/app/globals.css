@@ -3186,4 +3186,23 @@ form.opportunity-form button:hover {
     padding: 0.5rem 0.9rem;
     font-size: 0.72rem;
   }
+
+  /* Growth's update form (follower count + handle + submit, one row)
+     had no wrap — the handle input shrank to showing a handful of
+     characters at phone widths (confirmed: "@somechannelname" cut down
+     to "@someo" at 320px), not just tight but actually unreadable.
+     Every control gets its own full-width row instead. */
+  .growth-form {
+    flex-wrap: wrap;
+  }
+
+  .growth-form input[type='number'],
+  .growth-form input[type='text'] {
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  .growth-form button {
+    width: 100%;
+  }
 }
