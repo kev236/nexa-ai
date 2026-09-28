@@ -49,7 +49,7 @@ const EXPECTED = [
   },
   {
     slug: 'dropshipping',
-    name: 'Dropshipping',
+    name: 'Nexa Athletics',
     agents: [],
   },
 ]

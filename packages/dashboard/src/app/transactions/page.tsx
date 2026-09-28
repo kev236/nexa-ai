@@ -39,7 +39,7 @@ export default async function TransactionsPage() {
         <h1>Money</h1>
         <p className="subtitle">
           Observability only — nothing here creates a charge, refund, or payout. nexa-labs: Stripe
-          charges/refunds/payouts and incoming/outgoing USDC transfers from a watched wallet. Dropshipping:
+          charges/refunds/payouts and incoming/outgoing USDC transfers from a watched wallet. Nexa Athletics:
           Shopify orders.
         </p>
       </div>
@@ -67,7 +67,7 @@ export default async function TransactionsPage() {
           )}
           {dropshipping && (
             <TransactionsSection
-              title="Dropshipping"
+              title="Nexa Athletics"
               business={dropshipping.business}
               recent={dropshipping.recent}
               delay={0.15}
