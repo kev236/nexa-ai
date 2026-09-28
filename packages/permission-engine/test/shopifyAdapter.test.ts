@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { ShopifyAdapter, type ShopifyOrderNode, type ShopifyReadClient } from '../src/adapters/shopifyAdapter.js'
 
-function fakeClient(orders: ShopifyOrderNode[], shopName = 'My Store'): ShopifyReadClient {
+function fakeClient(orders: ShopifyOrderNode[], shopName = 'My Store', activeProducts = 0): ShopifyReadClient {
   return {
     async listOrders() {
       return orders
     },
     async shopName() {
       return shopName
+    },
+    async activeProductCount() {
+      return activeProducts
     },
   }
 }
@@ -44,6 +47,9 @@ describe('ShopifyAdapter', () => {
       },
       async shopName() {
         throw new Error('invalid access token')
+      },
+      async activeProductCount() {
+        return 0
       },
     })
     expect(await unhealthy.healthCheck()).toEqual({ ok: false, detail: 'invalid access token' })
@@ -87,8 +93,16 @@ describe('ShopifyAdapter', () => {
       async shopName() {
         return 'x'
       },
+      async activeProductCount() {
+        return 0
+      },
     })
     await adapter.listTransactions('2026-01-01T00:00:00Z')
     expect(captured).toBe('2026-01-01T00:00:00Z')
+  })
+
+  it('passes activeProductCount through to the client', async () => {
+    const adapter = new ShopifyAdapter(fakeClient([], 'My Store', 4))
+    expect(await adapter.activeProductCount()).toBe(4)
   })
 })

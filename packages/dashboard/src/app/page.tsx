@@ -40,7 +40,7 @@ import { LiveClock } from '@/components/LiveClock'
 import { HoloGlobeLazy as HoloGlobe } from '@/components/HoloGlobeLazy'
 import { EmptyState } from '@/components/EmptyState'
 import { ConfirmButton } from '@/components/ConfirmButton'
-import { PLATFORMS, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
+import { PLATFORMS, createShopifyHttpClient, type BusinessRecord, type AuditLogRecord } from '@nexa-ai/permission-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -250,6 +250,20 @@ export default async function ApprovalsPage() {
         const eurCents = orders
           .filter((t) => t.type === 'charge' && t.currency.toLowerCase() === 'eur')
           .reduce((sum, t) => sum + t.amountCents, 0)
+        // Before the first sale, "€0.00" reads as broken rather than as
+        // the expected pre-launch state — show how many products are
+        // actually live instead. Same best-effort shape as every other
+        // optional Shopify call here: SHOPIFY_* not configured, or the
+        // API being unreachable, falls back to the revenue view rather
+        // than failing the whole dashboard render.
+        if (orders.length === 0) {
+          try {
+            const activeProducts = await createShopifyHttpClient().activeProductCount()
+            return { label: 'Products live', value: `${activeProducts}` }
+          } catch {
+            // fall through to revenue view below
+          }
+        }
         return { label: 'Orders revenue', value: formatAmount(eurCents, 'eur') }
       }),
     ])

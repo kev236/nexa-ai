@@ -30,6 +30,7 @@ export type ShopifyOrderNode = {
 export type ShopifyReadClient = {
   listOrders(since?: string): Promise<ShopifyOrderNode[]>
   shopName(): Promise<string>
+  activeProductCount(): Promise<number>
 }
 
 /**
@@ -86,6 +87,17 @@ export class ShopifyAdapter implements BusinessAdapter {
       return { ok: false, detail: err instanceof Error ? err.message : String(err) }
     }
   }
+
+  /**
+   * Not part of BusinessAdapter (no other adapter has a product catalog
+   * to count) — a dashboard-only signal for a store that hasn't shipped
+   * its first sale yet, where "€0.00 revenue" reads as broken rather
+   * than as expected. Active means actually purchasable: live on the
+   * online store, not draft/archived (see ProductStatus).
+   */
+  async activeProductCount(): Promise<number> {
+    return this.client.activeProductCount()
+  }
 }
 
 /**
@@ -131,6 +143,21 @@ const SHOP_NAME_QUERY = `#graphql
   query ShopName {
     shop {
       name
+    }
+  }
+`
+
+/**
+ * `productsCount` (not paginating `products` ourselves) — a dedicated
+ * count query, verified live against this store's schema via the
+ * Shopify MCP connector's graphql_schema/graphql_query tools. `status`
+ * defaults to `active` when the query filter omits it, but spelled out
+ * here rather than relying on that default staying true.
+ */
+const ACTIVE_PRODUCT_COUNT_QUERY = `#graphql
+  query ActiveProductCount {
+    productsCount(query: "status:active") {
+      count
     }
   }
 `
@@ -231,6 +258,10 @@ export function createShopifyHttpClient(): ShopifyReadClient {
     async shopName() {
       const data = await graphql<{ shop: { name: string } }>(SHOP_NAME_QUERY)
       return data.shop.name
+    },
+    async activeProductCount() {
+      const data = await graphql<{ productsCount: { count: number } }>(ACTIVE_PRODUCT_COUNT_QUERY)
+      return data.productsCount.count
     },
   }
 }
